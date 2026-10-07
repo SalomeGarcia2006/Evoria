@@ -38,9 +38,7 @@ export default async function Home() {
         <span
           aria-hidden="true"
           className={`size-3 rounded-full ${
-            health
-              ? 'bg-teal shadow-[0_0_1rem_var(--color-teal)]'
-              : 'bg-navy'
+            health ? 'bg-teal shadow-[0_0_1rem_var(--color-teal)]' : 'bg-navy'
           }`}
         />
         <div>

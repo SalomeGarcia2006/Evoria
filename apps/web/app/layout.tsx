@@ -6,7 +6,9 @@ export const metadata: Metadata = {
   description: 'Monorepo Next.js + NestJS',
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default function RootLayout({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="es">
       <body>{children}</body>
