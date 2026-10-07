@@ -12,6 +12,7 @@
     "build": "turbo run build",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
+    "seed:roles": "npm run build --workspace=@evoria/api && npm run seed:roles --workspace=@evoria/api",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

@@ -6,6 +6,7 @@
     "dev": "nodemon --watch src --ext ts --exec \"npm run build && node dist/main.js\"",
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/main",
+    "seed:roles": "node dist/scripts/seed-roles.js",
     "lint": "eslint \"src/**/*.ts\"",
     "typecheck": "tsc --noEmit"
   },

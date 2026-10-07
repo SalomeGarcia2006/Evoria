@@ -37,6 +37,22 @@ Los datos se conservan en el volumen `mongo_data`. Para detener los servicios us
 
 > Las credenciales de MongoDB se crean únicamente al inicializar un volumen vacío. Si cambias `MONGO_ROOT_USERNAME` o `MONGO_ROOT_PASSWORD`, reinicializa el entorno con `docker compose down -v` antes de volver a ejecutar Compose. Esto elimina los datos locales de MongoDB.
 
+### Semilla de roles
+
+Con MongoDB disponible y las variables `MONGO_ROOT_*` configuradas, crea los
+roles iniciales sin duplicarlos:
+
+```bash
+npm run seed:roles
+```
+
+Si la aplicación está ejecutándose con Docker Compose, usa la versión compilada
+dentro del contenedor:
+
+```bash
+docker compose exec api npm run --workspace=@evoria/api seed:roles
+```
+
 ## Scripts
 
 ```bash
