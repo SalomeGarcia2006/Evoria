@@ -54,3 +54,7 @@ apps/web        # Frontend Next.js
 apps/api        # Backend NestJS
 packages/contracts # Tipos compartidos entre las aplicaciones
 ```
+
+## Documentación
+
+- [Arquitectura y modelo de datos](docs/arquitectura-y-modelo-datos.md)
