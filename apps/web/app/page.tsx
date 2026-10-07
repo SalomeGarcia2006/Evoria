@@ -17,17 +17,34 @@ export default async function Home() {
   const health = await getApiHealth();
 
   return (
-    <main>
-      <p className="eyebrow">NEXT.JS + NESTJS</p>
-      <h1>EVORIA está listo.</h1>
-      <p className="description">
+    <main className="mx-auto grid min-h-screen max-w-3xl content-center px-8 py-12">
+      <p className="text-xs font-bold tracking-[0.16em] text-teal">
+        NEXT.JS + NESTJS
+      </p>
+      <h1 className="my-2 text-5xl font-bold tracking-[-0.07em] sm:text-7xl">
+        EVORIA está listo.
+      </h1>
+      <p className="max-w-2xl text-lg leading-relaxed text-teal">
         Frontend y API conectados dentro de un monorepo con tipos compartidos.
       </p>
-      <section className={health ? 'status online' : 'status offline'}>
-        <span aria-hidden="true" />
+      <section
+        className={`mt-10 flex items-center gap-4 rounded-2xl border p-5 ${
+          health ? 'border-teal bg-white' : 'border-navy bg-sky-blue'
+        }`}
+      >
+        <span
+          aria-hidden="true"
+          className={`size-3 rounded-full ${
+            health
+              ? 'bg-teal shadow-[0_0_1rem_var(--color-teal)]'
+              : 'bg-navy'
+          }`}
+        />
         <div>
-          <strong>{health ? 'API conectada' : 'API no disponible'}</strong>
-          <p>
+          <strong className="block">
+            {health ? 'API conectada' : 'API no disponible'}
+          </strong>
+          <p className="mt-1 text-sm text-teal">
             {health
               ? `Estado: ${health.status} · ${new Date(health.timestamp).toLocaleString('es-CO')}`
               : 'Inicia el backend con npm run dev para completar la conexión.'}
