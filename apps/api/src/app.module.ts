@@ -3,6 +3,25 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { RolesModule } from './roles/roles.module';
+import { UsersModule } from './users/users.module';
+
+function getMongoUri(configService: ConfigService): string {
+  const configuredUri = configService.get<string>('MONGODB_URI');
+  if (configuredUri) return configuredUri;
+
+  const username = encodeURIComponent(
+    configService.get<string>('MONGO_ROOT_USERNAME', 'evoria'),
+  );
+  const password = encodeURIComponent(
+    configService.get<string>('MONGO_ROOT_PASSWORD', 'evoria_local_password'),
+  );
+  const database = encodeURIComponent(
+    configService.get<string>('MONGO_DATABASE', 'evoria'),
+  );
+
+  return `mongodb://${username}:${password}@localhost:27017/${database}?authSource=admin`;
+}
 
 @Module({
   imports: [
@@ -10,12 +29,11 @@ import { AppService } from './app.service';
     MongooseModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
-        uri: configService.get<string>(
-          'MONGODB_URI',
-          'mongodb://localhost:27017/evoria',
-        ),
+        uri: getMongoUri(configService),
       }),
     }),
+    RolesModule,
+    UsersModule,
   ],
   controllers: [AppController],
   providers: [AppService],
