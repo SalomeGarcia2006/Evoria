@@ -9,6 +9,22 @@ COPY packages/contracts/package.json packages/contracts/package.json
 
 RUN npm ci
 
+FROM dependencies AS development
+
+WORKDIR /app
+
+COPY . .
+
+WORKDIR /app/apps/web
+
+ENV NODE_ENV=development
+ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
+
+EXPOSE 3000
+
+CMD ["npm", "run", "dev"]
+
 FROM dependencies AS builder
 
 WORKDIR /app

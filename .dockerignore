@@ -5,6 +5,9 @@ node_modules
 dist
 **/dist
 .turbo
+**/.turbo
+*.tsbuildinfo
+**/*.tsbuildinfo
 .git
 .env
 .env.*
