@@ -9,6 +9,18 @@ COPY packages/contracts/package.json packages/contracts/package.json
 
 RUN npm ci
 
+FROM dependencies AS development
+
+COPY . .
+
+WORKDIR /app/apps/api
+
+ENV NODE_ENV=development
+
+EXPOSE 3001
+
+CMD ["npm", "run", "dev"]
+
 FROM dependencies AS builder
 
 COPY . .
