@@ -13,7 +13,7 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "seed": "npm run seed:admin",
-    "seed:roles": "npm run build --workspace=@evoria/api && npm run seed:roles --workspace=@evoria/api",
+    "seed:access-control": "npm run build --workspace=@evoria/api && npm run seed:access-control --workspace=@evoria/api",
     "seed:admin": "npm run build --workspace=@evoria/api && npm run seed:admin --workspace=@evoria/api",
     "docker:dev": "docker compose -f compose.yaml -f compose.dev.yaml watch",
     "format": "prettier --write .",

@@ -3,7 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { RolesModule } from './roles/roles.module';
+import { ProfilesModule } from './profiles/profiles.module';
 import { UsersModule } from './users/users.module';
 
 function getMongoUri(configService: ConfigService): string {
@@ -35,7 +35,7 @@ function getMongoUri(configService: ConfigService): string {
         uri: getMongoUri(configService),
       }),
     }),
-    RolesModule,
+    ProfilesModule,
     UsersModule,
   ],
   controllers: [AppController],
