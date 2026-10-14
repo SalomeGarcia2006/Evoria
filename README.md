@@ -133,6 +133,23 @@ variables no modifica sus credenciales; esto evita restablecimientos
 accidentales. La gestión de usuarios, perfiles y permisos permitirá hacerlo de
 forma segura más adelante.
 
+## Autenticación
+
+La API expone `POST /api/auth/login`. Recibe correo y contraseña, y al
+validarlos crea cookies `HttpOnly` para el token de acceso y el token de
+renovación. Los tokens no se devuelven en el cuerpo de la respuesta.
+
+```json
+{
+  "email": "admin@ejemplo.com",
+  "password": "una-contraseña-larga-y-unica"
+}
+```
+
+El inicio de sesión permite hasta cinco intentos fallidos antes de bloquear la
+cuenta durante quince minutos. La renovación y el cierre de sesión se
+incorporarán en los siguientes cambios de autenticación.
+
 ## Verificaciones de calidad
 
 Todavía no hay pruebas unitarias o de integración. Por ahora, estas
