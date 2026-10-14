@@ -1,0 +1,5 @@
+.evoria-page {
+  margin-inline: auto;
+  max-width: var(--evoria-content-width);
+  padding: var(--evoria-space);
+}
