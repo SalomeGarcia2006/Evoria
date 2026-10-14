@@ -64,7 +64,13 @@ export default function PerfilesPage() {
   function createProfile(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const name = newProfileName.trim();
-    if (!name || profiles.some((profile) => profile.name.toLowerCase() === name.toLowerCase())) return;
+    if (
+      !name ||
+      profiles.some(
+        (profile) => profile.name.toLowerCase() === name.toLowerCase(),
+      )
+    )
+      return;
 
     const profile: Profile = {
       id: `profile-${Date.now()}`,
@@ -169,7 +175,9 @@ export default function PerfilesPage() {
               {
                 key: 'name',
                 header: 'Perfil',
-                render: (profile) => <span className="font-semibold">{profile.name}</span>,
+                render: (profile) => (
+                  <span className="font-semibold">{profile.name}</span>
+                ),
               },
               {
                 key: 'permissions',
