@@ -27,8 +27,13 @@ services:
     restart: unless-stopped
     environment:
       PORT: '3001'
-      WEB_ORIGIN: http://localhost:3000
+      WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:3000}
       MONGODB_URI: mongodb://${MONGO_ROOT_USERNAME:-evoria}:${MONGO_ROOT_PASSWORD:-evoria_local_password}@mongo:27017/${MONGO_DATABASE:-evoria}?authSource=admin
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-}
+      JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN:-2h}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
     ports:
       - '3001:3001'
     depends_on:
