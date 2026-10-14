@@ -75,6 +75,9 @@ El archivo `.env.example` contiene las variables requeridas para MongoDB:
 MONGO_ROOT_USERNAME=
 MONGO_ROOT_PASSWORD=
 MONGO_DATABASE=
+SEED_ADMIN_NAME=
+SEED_ADMIN_EMAIL=
+SEED_ADMIN_PASSWORD=
 ```
 
 Nunca se debe subir el archivo `.env` con credenciales reales al repositorio.
@@ -92,14 +95,26 @@ se guardan en la base definida por `MONGO_DATABASE`.
 
 ### Datos iniciales
 
-Con MongoDB iniciado, crea los roles iniciales con:
+Antes de ejecutar el seed, define en tu archivo `.env` el nombre visible, correo
+de inicio de sesión y contraseña que tendrá el administrador inicial. No uses
+los valores de otra persona ni subas ese archivo al repositorio.
+
+```env
+SEED_ADMIN_NAME=Nombre del administrador
+SEED_ADMIN_EMAIL=admin@ejemplo.com
+SEED_ADMIN_PASSWORD=una-contraseña-larga-y-unica
+```
+
+Con MongoDB iniciado, crea los roles y el administrador inicial con:
 
 ```bash
 npm run seed
 ```
 
 El proceso es idempotente: se puede ejecutar varias veces sin duplicar los
-roles `Administrador`, `Coordinador`, `Empleado` y `Proveedor`.
+roles ni el administrador. Una vez creada la cuenta, cambiar estas variables no
+modifica sus credenciales; esto evita restablecimientos accidentales. La gestión
+de usuarios permitirá hacerlo de forma segura más adelante.
 
 ## Verificaciones de calidad
 
