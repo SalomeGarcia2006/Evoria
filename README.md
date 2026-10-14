@@ -69,18 +69,33 @@ npm run dev
 
 ### Variables de entorno
 
-El archivo `.env.example` contiene las variables requeridas para MongoDB:
+El archivo `.env.example` contiene las variables de MongoDB y autenticación:
 
 ```env
 MONGO_ROOT_USERNAME=
 MONGO_ROOT_PASSWORD=
 MONGO_DATABASE=
+JWT_ACCESS_SECRET=
+JWT_REFRESH_SECRET=
+JWT_ACCESS_EXPIRES_IN=2h
+JWT_REFRESH_EXPIRES_IN=7d
+COOKIE_SECURE=false
 SEED_ADMIN_NAME=
 SEED_ADMIN_EMAIL=
 SEED_ADMIN_PASSWORD=
 ```
 
 Nunca se debe subir el archivo `.env` con credenciales reales al repositorio.
+
+`JWT_ACCESS_SECRET` y `JWT_REFRESH_SECRET` deben ser valores largos, aleatorios
+y diferentes entre sí. Puedes generar cada uno localmente con:
+
+```bash
+openssl rand -base64 48
+```
+
+En desarrollo, `COOKIE_SECURE=false` permite usar HTTP en `localhost`. En
+producción debe ser `true` y la aplicación debe servirse mediante HTTPS.
 
 MongoDB crea el usuario administrador en la base interna `admin`. Por ello, una
 herramienta gráfica como MongoDB Compass debe conectarse con una URI de esta
