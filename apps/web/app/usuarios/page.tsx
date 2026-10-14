@@ -43,7 +43,11 @@ const initialUsers: User[] = [
 export default function UsuariosPage() {
   const [users, setUsers] = useState<User[]>(initialUsers);
   const [profiles] = useState(() => loadProfiles());
-  const [form, setForm] = useState({ name: '', email: '', profile: initialProfiles[0].name });
+  const [form, setForm] = useState({
+    name: '',
+    email: '',
+    profile: initialProfiles[0].name,
+  });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
 
@@ -73,7 +77,12 @@ export default function UsuariosPage() {
       setUsers((current) =>
         current.map((user) =>
           user.id === editingId
-            ? { ...user, ...form, name: form.name.trim(), email: form.email.trim() }
+            ? {
+                ...user,
+                ...form,
+                name: form.name.trim(),
+                email: form.email.trim(),
+              }
             : user,
         ),
       );
@@ -122,12 +131,17 @@ export default function UsuariosPage() {
             <h3 className="text-xl font-bold">
               {editingId ? 'Editar usuario' : 'Crear usuario'}
             </h3>
-            <form className="mt-5 grid gap-4 md:grid-cols-3" onSubmit={saveUser}>
+            <form
+              className="mt-5 grid gap-4 md:grid-cols-3"
+              onSubmit={saveUser}
+            >
               <label className="grid gap-2 text-sm font-semibold">
                 Nombre completo
                 <input
                   className="rounded-lg border border-sky-blue px-3 py-2 font-normal outline-none focus:border-teal focus:ring-2 focus:ring-sky-blue"
-                  onChange={(event) => setForm({ ...form, name: event.target.value })}
+                  onChange={(event) =>
+                    setForm({ ...form, name: event.target.value })
+                  }
                   required
                   value={form.name}
                 />
@@ -136,7 +150,9 @@ export default function UsuariosPage() {
                 Correo electrónico
                 <input
                   className="rounded-lg border border-sky-blue px-3 py-2 font-normal outline-none focus:border-teal focus:ring-2 focus:ring-sky-blue"
-                  onChange={(event) => setForm({ ...form, email: event.target.value })}
+                  onChange={(event) =>
+                    setForm({ ...form, email: event.target.value })
+                  }
                   required
                   type="email"
                   value={form.email}
@@ -146,7 +162,9 @@ export default function UsuariosPage() {
                 Perfil
                 <select
                   className="rounded-lg border border-sky-blue bg-white px-3 py-2 font-normal outline-none focus:border-teal focus:ring-2 focus:ring-sky-blue"
-                  onChange={(event) => setForm({ ...form, profile: event.target.value })}
+                  onChange={(event) =>
+                    setForm({ ...form, profile: event.target.value })
+                  }
                   value={form.profile}
                 >
                   {profiles.map((profile) => (
@@ -174,19 +192,41 @@ export default function UsuariosPage() {
           </div>
           <DataTable
             columns={[
-              { key: 'name', header: 'Usuario', render: (user) => <span className="font-semibold">{user.name}</span> },
+              {
+                key: 'name',
+                header: 'Usuario',
+                render: (user) => (
+                  <span className="font-semibold">{user.name}</span>
+                ),
+              },
               { key: 'email', header: 'Correo', render: (user) => user.email },
-              { key: 'profile', header: 'Perfil', render: (user) => user.profile },
-              { key: 'status', header: 'Estado', render: (user) => <StatusBadge status={user.status} /> },
+              {
+                key: 'profile',
+                header: 'Perfil',
+                render: (user) => user.profile,
+              },
+              {
+                key: 'status',
+                header: 'Estado',
+                render: (user) => <StatusBadge status={user.status} />,
+              },
               {
                 key: 'actions',
                 header: 'Acciones',
                 render: (user) => (
                   <div className="flex flex-wrap gap-2">
-                    <Button onClick={() => openEditForm(user)} type="button" variant="secondary">
+                    <Button
+                      onClick={() => openEditForm(user)}
+                      type="button"
+                      variant="secondary"
+                    >
                       Editar
                     </Button>
-                    <Button onClick={() => deleteUser(user)} type="button" variant="ghost">
+                    <Button
+                      onClick={() => deleteUser(user)}
+                      type="button"
+                      variant="ghost"
+                    >
                       Eliminar
                     </Button>
                   </div>
