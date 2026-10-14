@@ -1,20 +1,23 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../app.module';
-import { RolesSeedService } from '../roles/roles.seed.service';
+import { AccessControlSeedService } from '../profiles/access-control.seed.service';
 import { InitialAdminSeedService } from '../users/initial-admin.seed.service';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.createApplicationContext(AppModule);
 
   try {
-    const rolesResult = await app.get(RolesSeedService).seed();
+    const accessControlResult = await app.get(AccessControlSeedService).seed();
     const adminResult = await app.get(InitialAdminSeedService).seed();
 
     process.stdout.write(
-      `Roles creados: ${rolesResult.created}. Roles existentes: ${rolesResult.existing}.\n`,
+      `Permisos creados: ${accessControlResult.permissionsCreated}. Permisos existentes: ${accessControlResult.permissionsExisting}.\n`,
     );
     process.stdout.write(
-      `Administrador creado: ${adminResult.created}. Administrador existente: ${adminResult.existing}.\n`,
+      `Perfiles creados: ${accessControlResult.profilesCreated}. Perfiles existentes: ${accessControlResult.profilesExisting}.\n`,
+    );
+    process.stdout.write(
+      `Administrador creado: ${adminResult.created}. Administrador existente: ${adminResult.existing}. Administrador migrado: ${adminResult.migrated}.\n`,
     );
   } finally {
     await app.close();

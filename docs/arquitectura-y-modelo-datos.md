@@ -16,25 +16,22 @@ GitHub Actions       Validaciones de formato, calidad, compilación y Docker
 ```
 
 La web no decide la seguridad. Puede ocultar páginas y acciones que no
-correspondan al rol del usuario, pero la API debe validar el rol en cada
+correspondan a los permisos del usuario, pero la API debe validarlos en cada
 endpoint protegido.
 
-## Roles y acceso
+## Perfiles y permisos
 
-Los roles iniciales son fijos. Por ello, la colección `roles` solo identifica
-el rol; no almacena una lista de permisos configurable. NestJS asociará cada
-endpoint a los roles autorizados mediante guards.
+Los permisos representan acciones concretas, por ejemplo `usuarios.gestionar`
+o `eventos.crear`. Los administradores crean perfiles y asignan a cada uno los
+permisos que correspondan. Después, cada usuario recibe un perfil.
 
-| Rol           | Acceso previsto                                                                     |
-| ------------- | ----------------------------------------------------------------------------------- |
-| Administrador | Gestión completa de usuarios, eventos, recursos, presupuestos, alertas y auditoría. |
-| Coordinador   | Gestión de eventos, cronogramas, recursos asignados, presupuestos y alertas.        |
-| Empleado      | Consulta de eventos y recursos; actualización de actividades asignadas.             |
-| Proveedor     | Consulta limitada de los eventos o recursos en los que participa.                   |
+La API reconoce las claves de permisos que protege mediante guards. Un permiso
+creado por un administrador se podrá asignar a perfiles, pero solo tendrá efecto
+en una funcionalidad cuando dicha funcionalidad requiera su clave.
 
-La web usará este mismo criterio para mostrar las rutas disponibles. Por
-ejemplo, `auditoria` será exclusiva de Administración; `presupuestos` estará
-disponible para Administración y Coordinación.
+El seed crea los permisos mínimos de gestión, el perfil de sistema
+`Administrador` y el administrador inicial definido en `.env`. El perfil de
+sistema permite comenzar a administrar los demás perfiles y permisos.
 
 ## Modelo de datos
 
@@ -44,7 +41,8 @@ referencias entre documentos.
 
 ```mermaid
 erDiagram
-  ROLES ||--o{ USUARIOS : asigna
+  PERFILES ||--o{ USUARIOS : asigna
+  PERFILES }o--o{ PERMISOS : agrupa
   USUARIOS ||--o{ EVENTOS : gestiona
   USUARIOS ||--o{ CRONOGRAMAS : es_responsable
   USUARIOS ||--o{ AUDITORIAS : realiza
@@ -58,10 +56,21 @@ erDiagram
   EVENTOS o|--o{ MOVIMIENTOS_INVENTARIO : origina
   RECURSOS ||--o{ MOVIMIENTOS_INVENTARIO : tiene
 
-  ROLES {
+  PERMISOS {
+    ObjectId id PK
+    string clave UK
+    string nombre UK
+    string descripcion
+    string estado
+  }
+
+  PERFILES {
     ObjectId id PK
     string nombre UK
     string descripcion
+    ObjectId permisos FK
+    string estado
+    boolean es_sistema
   }
 
   USUARIOS {
@@ -69,7 +78,7 @@ erDiagram
     string nombre
     string correo UK
     string password_hash
-    ObjectId rol_id FK
+    ObjectId perfil_id FK
     string estado
     int intentos_login
     datetime creado_en
@@ -199,6 +208,11 @@ filtros y su archivo.
 ## Reglas de negocio esenciales
 
 - El correo de un usuario es único.
+- Un usuario tiene un perfil de acceso activo.
+- Un perfil puede contener varios permisos y un permiso puede pertenecer a
+  varios perfiles.
+- Los perfiles y permisos de sistema no se eliminan; se protegen para evitar
+  perder el acceso administrativo.
 - Un evento debe tener fecha de finalización igual o posterior a su fecha de
   inicio.
 - Una actividad del cronograma debe estar dentro del periodo de su evento.
@@ -234,40 +248,42 @@ Los errores usarán un código HTTP adecuado y una respuesta consistente:
 ## Endpoints previstos
 
 Los endpoints se implementarán por módulos. Todos, salvo inicio de sesión,
-deben requerir autenticación y validar los roles permitidos.
+deben requerir autenticación y validar el permiso requerido.
 
-| Módulo        | Método y ruta                                  | Roles                                   | Respuesta esperada                                    |
-| ------------- | ---------------------------------------------- | --------------------------------------- | ----------------------------------------------------- |
-| Autenticación | `POST /api/auth/login`                         | Público                                 | Usuario autenticado y token o cookie de sesión.       |
-| Autenticación | `GET /api/auth/me`                             | Todos                                   | Usuario actual y su rol.                              |
-| Usuarios      | `GET /api/users`                               | Administrador                           | Lista paginada de usuarios.                           |
-| Usuarios      | `POST /api/users`                              | Administrador                           | Usuario creado sin exponer `password_hash`.           |
-| Eventos       | `GET /api/events`                              | Todos según alcance                     | Lista filtrable y paginada de eventos permitidos.     |
-| Eventos       | `POST /api/events`                             | Administrador, Coordinador              | Evento creado.                                        |
-| Eventos       | `GET /api/events/:id`                          | Usuarios autorizados                    | Detalle del evento, presupuesto y recursos asignados. |
-| Eventos       | `PATCH /api/events/:id`                        | Administrador, Coordinador              | Evento actualizado.                                   |
-| Eventos       | `DELETE /api/events/:id`                       | Administrador, Coordinador              | Evento cancelado o archivado.                         |
-| Recursos      | `GET /api/resources`                           | Todos según alcance                     | Recursos y disponibilidad actual.                     |
-| Recursos      | `POST /api/resources`                          | Administrador, Coordinador              | Recurso creado.                                       |
-| Recursos      | `PATCH /api/resources/:id`                     | Administrador, Coordinador              | Recurso actualizado.                                  |
-| Recursos      | `DELETE /api/resources/:id`                    | Administrador                           | Recurso desactivado.                                  |
-| Asignaciones  | `POST /api/events/:id/resources`               | Administrador, Coordinador              | Recurso asignado y existencias actualizadas.          |
-| Asignaciones  | `DELETE /api/events/:id/resources/:resourceId` | Administrador, Coordinador              | Asignación liberada y existencias actualizadas.       |
-| Presupuesto   | `GET /api/events/:id/budget`                   | Administrador, Coordinador              | Presupuesto del evento.                               |
-| Presupuesto   | `PUT /api/events/:id/budget`                   | Administrador, Coordinador              | Presupuesto actualizado.                              |
-| Cronograma    | `GET /api/events/:id/schedules`                | Usuarios autorizados                    | Actividades del evento.                               |
-| Cronograma    | `POST /api/events/:id/schedules`               | Administrador, Coordinador              | Actividad creada.                                     |
-| Cronograma    | `PATCH /api/schedules/:id`                     | Administrador, Coordinador, responsable | Actividad actualizada.                                |
-| Alertas       | `GET /api/alerts`                              | Administrador, Coordinador              | Alertas filtrables por estado y severidad.            |
-| Alertas       | `PATCH /api/alerts/:id`                        | Administrador, Coordinador              | Alerta resuelta o actualizada.                        |
-| Auditoría     | `GET /api/audit-logs`                          | Administrador                           | Registro paginado de acciones.                        |
-| Dashboard     | `GET /api/dashboard/summary`                   | Todos según alcance                     | Métricas calculadas según el rol.                     |
+| Módulo        | Método y ruta                                  | Permiso requerido       | Respuesta esperada                                    |
+| ------------- | ---------------------------------------------- | ----------------------- | ----------------------------------------------------- |
+| Autenticación | `POST /api/auth/login`                         | Público                 | Usuario autenticado y token o cookie de sesión.       |
+| Autenticación | `GET /api/auth/me`                             | Autenticado             | Usuario, perfil y permisos actuales.                  |
+| Permisos      | `GET /api/permissions`                         | `permisos.gestionar`    | Lista de permisos configurables.                      |
+| Perfiles      | `POST /api/profiles`                           | `perfiles.gestionar`    | Perfil creado con permisos asignados.                 |
+| Usuarios      | `GET /api/users`                               | `usuarios.gestionar`    | Lista paginada de usuarios.                           |
+| Usuarios      | `POST /api/users`                              | `usuarios.gestionar`    | Usuario creado sin exponer `password_hash`.           |
+| Eventos       | `GET /api/events`                              | `eventos.ver`           | Lista filtrable y paginada de eventos permitidos.     |
+| Eventos       | `POST /api/events`                             | `eventos.crear`         | Evento creado.                                        |
+| Eventos       | `GET /api/events/:id`                          | `eventos.ver`           | Detalle del evento, presupuesto y recursos asignados. |
+| Eventos       | `PATCH /api/events/:id`                        | `eventos.editar`        | Evento actualizado.                                   |
+| Eventos       | `DELETE /api/events/:id`                       | `eventos.eliminar`      | Evento cancelado o archivado.                         |
+| Recursos      | `GET /api/resources`                           | `recursos.ver`          | Recursos y disponibilidad actual.                     |
+| Recursos      | `POST /api/resources`                          | `recursos.crear`        | Recurso creado.                                       |
+| Recursos      | `PATCH /api/resources/:id`                     | `recursos.editar`       | Recurso actualizado.                                  |
+| Recursos      | `DELETE /api/resources/:id`                    | `recursos.eliminar`     | Recurso desactivado.                                  |
+| Asignaciones  | `POST /api/events/:id/resources`               | `asignaciones.crear`    | Recurso asignado y existencias actualizadas.          |
+| Asignaciones  | `DELETE /api/events/:id/resources/:resourceId` | `asignaciones.eliminar` | Asignación liberada y existencias actualizadas.       |
+| Presupuesto   | `GET /api/events/:id/budget`                   | `presupuestos.ver`      | Presupuesto del evento.                               |
+| Presupuesto   | `PUT /api/events/:id/budget`                   | `presupuestos.editar`   | Presupuesto actualizado.                              |
+| Cronograma    | `GET /api/events/:id/schedules`                | `cronogramas.ver`       | Actividades del evento.                               |
+| Cronograma    | `POST /api/events/:id/schedules`               | `cronogramas.crear`     | Actividad creada.                                     |
+| Cronograma    | `PATCH /api/schedules/:id`                     | `cronogramas.editar`    | Actividad actualizada.                                |
+| Alertas       | `GET /api/alerts`                              | `alertas.ver`           | Alertas filtrables por estado y severidad.            |
+| Alertas       | `PATCH /api/alerts/:id`                        | `alertas.editar`        | Alerta resuelta o actualizada.                        |
+| Auditoría     | `GET /api/audit-logs`                          | `auditoria.ver`         | Registro paginado de acciones.                        |
+| Dashboard     | `GET /api/dashboard/summary`                   | `dashboard.ver`         | Métricas calculadas según los permisos.               |
 
 ## Orden de implementación
 
-1. Autenticación, usuarios, roles y guards de NestJS.
-2. Eventos y recursos, con DTOs, validaciones y autorización.
-3. Asignación de recursos y movimientos de inventario transaccionales.
-4. Presupuestos y dashboard.
-5. Cronogramas, alertas y auditoría.
+1. Perfiles, permisos, autenticación y guards de NestJS.
+2. Gestión protegida de usuarios, perfiles y permisos.
+3. Eventos y recursos, con DTOs, validaciones y autorización.
+4. Asignación de recursos y movimientos de inventario transaccionales.
+5. Presupuestos, dashboard, cronogramas, alertas y auditoría.
 6. Reportes, exportaciones y pruebas automatizadas de los flujos anteriores.
