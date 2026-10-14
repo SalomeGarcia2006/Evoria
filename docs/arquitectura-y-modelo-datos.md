@@ -72,7 +72,6 @@ erDiagram
     ObjectId rol_id FK
     string estado
     int intentos_login
-    datetime bloqueado_hasta
     datetime creado_en
     datetime actualizado_en
   }

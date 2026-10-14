@@ -7,6 +7,8 @@ export const ROLE_NAMES = [
 
 export type RoleName = (typeof ROLE_NAMES)[number];
 
+export const ADMINISTRATOR_ROLE_NAME: RoleName = 'Administrador';
+
 export const INITIAL_ROLES: ReadonlyArray<{
   name: RoleName;
   description: string;
