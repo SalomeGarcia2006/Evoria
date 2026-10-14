@@ -10,6 +10,8 @@ const navigation = [
   ['Alertas', '/alertas'],
   ['Reportes', '/reportes'],
   ['Auditoría', '/auditoria'],
+  ['Usuarios', '/usuarios'],
+  ['Perfiles', '/perfiles'],
 ] as const;
 
 export function Sidebar() {
