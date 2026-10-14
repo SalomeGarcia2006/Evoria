@@ -15,8 +15,8 @@ y pruebas.
 ### Requisitos
 
 - [Git](https://git-scm.com/)
-- [Docker Engine](https://docs.docker.com/engine/install/) con el complemento
-  Docker Compose
+- [Docker Engine](https://docs.docker.com/engine/install/) Versión recomendada Docker versión 29.9.0, con el complemento
+  Docker Compose version recomendada Docker Compose version v5.6.0
 - Node.js 22.18 o superior y npm 11, solo si se ejecutará la aplicación fuera
   de Docker
 
