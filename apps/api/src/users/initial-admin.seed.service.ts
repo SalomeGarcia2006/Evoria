@@ -3,14 +3,15 @@ import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { isEmail } from 'class-validator';
 import type { Model } from 'mongoose';
-import { ADMINISTRATOR_ROLE_NAME } from '../roles/roles.constants';
-import { Role } from '../roles/schemas/role.schema';
+import { ADMINISTRATOR_PROFILE_NAME } from '../profiles/profiles.constants';
+import { Profile } from '../profiles/schemas/profile.schema';
 import { PasswordService } from './password.service';
 import { User } from './schemas/user.schema';
 
 export interface InitialAdminSeedResult {
   created: number;
   existing: number;
+  migrated: number;
 }
 
 @Injectable()
@@ -18,7 +19,7 @@ export class InitialAdminSeedService {
   constructor(
     private readonly configService: ConfigService,
     private readonly passwordService: PasswordService,
-    @InjectModel(Role.name) private readonly roleModel: Model<Role>,
+    @InjectModel(Profile.name) private readonly profileModel: Model<Profile>,
     @InjectModel(User.name) private readonly userModel: Model<User>,
   ) {}
 
@@ -29,30 +30,46 @@ export class InitialAdminSeedService {
 
     this.validateInput(name, email, password);
 
-    const role = await this.roleModel
-      .findOne({ name: ADMINISTRATOR_ROLE_NAME })
+    const profile = await this.profileModel
+      .findOne({ name: ADMINISTRATOR_PROFILE_NAME })
       .select('_id')
       .lean();
 
-    if (!role) {
+    if (!profile) {
       throw new Error(
-        'El rol Administrador no existe. Ejecuta primero el seed de roles.',
+        'El perfil Administrador no existe. Ejecuta primero el seed de control de acceso.',
       );
     }
 
-    const existingUser = await this.userModel.exists({ email });
+    const existingUser = await this.userModel
+      .findOne({ email })
+      .select('_id profileId')
+      .lean();
+
     if (existingUser) {
-      return { created: 0, existing: 1 };
+      if (!existingUser.profileId) {
+        await this.userModel.updateOne(
+          { _id: existingUser._id },
+          {
+            $set: { profileId: profile._id },
+            $unset: { roleId: '' },
+          },
+        );
+
+        return { created: 0, existing: 0, migrated: 1 };
+      }
+
+      return { created: 0, existing: 1, migrated: 0 };
     }
 
     await this.userModel.create({
       name,
       email,
       passwordHash: await this.passwordService.hash(password),
-      roleId: role._id,
+      profileId: profile._id,
     });
 
-    return { created: 1, existing: 0 };
+    return { created: 1, existing: 0, migrated: 0 };
   }
 
   private getRequiredValue(variableName: string): string {
