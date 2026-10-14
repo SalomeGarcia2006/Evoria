@@ -5,7 +5,7 @@ repositorio reúne el frontend, la API y los contratos compartidos en un único
 monorepo.
 
 > Estado: en desarrollo. La base técnica, la conexión con MongoDB y el modelo
-> inicial de roles y usuarios ya están disponibles.
+> inicial de perfiles, permisos y usuarios ya están disponibles.
 
 ## Comenzando
 
@@ -105,16 +105,18 @@ SEED_ADMIN_EMAIL=admin@ejemplo.com
 SEED_ADMIN_PASSWORD=una-contraseña-larga-y-unica
 ```
 
-Con MongoDB iniciado, crea los roles y el administrador inicial con:
+Con MongoDB iniciado, crea los permisos base, el perfil Administrador y el
+administrador inicial con:
 
 ```bash
 npm run seed
 ```
 
 El proceso es idempotente: se puede ejecutar varias veces sin duplicar los
-roles ni el administrador. Una vez creada la cuenta, cambiar estas variables no
-modifica sus credenciales; esto evita restablecimientos accidentales. La gestión
-de usuarios permitirá hacerlo de forma segura más adelante.
+permisos, el perfil ni el administrador. Una vez creada la cuenta, cambiar estas
+variables no modifica sus credenciales; esto evita restablecimientos
+accidentales. La gestión de usuarios, perfiles y permisos permitirá hacerlo de
+forma segura más adelante.
 
 ## Verificaciones de calidad
 
