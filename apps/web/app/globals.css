@@ -1,4 +1,9 @@
 @import 'tailwindcss';
+@import '../styles/tokens.css';
+@import '../styles/layout.css';
+@import '../styles/forms.css';
+@import '../styles/tables.css';
+@import '../styles/responsive.css';
 
 @theme {
   --color-navy: #2f4156;
