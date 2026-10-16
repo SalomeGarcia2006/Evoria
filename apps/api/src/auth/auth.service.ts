@@ -1,6 +1,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectModel } from '@nestjs/mongoose';
+import { randomUUID } from 'node:crypto';
 import type { Model, Types } from 'mongoose';
 import { Permission } from '../permissions/schemas/permission.schema';
 import { Profile } from '../profiles/schemas/profile.schema';
@@ -184,14 +185,20 @@ export class AuthService {
     const configuration = this.authConfigService.configuration;
 
     const [accessToken, refreshToken] = await Promise.all([
-      this.jwtService.signAsync(payload, {
-        secret: configuration.accessTokenSecret,
-        expiresIn: configuration.accessTokenDuration.value,
-      }),
-      this.jwtService.signAsync(payload, {
-        secret: configuration.refreshTokenSecret,
-        expiresIn: configuration.refreshTokenDuration.value,
-      }),
+      this.jwtService.signAsync(
+        { ...payload, jti: randomUUID() },
+        {
+          secret: configuration.accessTokenSecret,
+          expiresIn: configuration.accessTokenDuration.value,
+        },
+      ),
+      this.jwtService.signAsync(
+        { ...payload, jti: randomUUID() },
+        {
+          secret: configuration.refreshTokenSecret,
+          expiresIn: configuration.refreshTokenDuration.value,
+        },
+      ),
     ]);
 
     return {
