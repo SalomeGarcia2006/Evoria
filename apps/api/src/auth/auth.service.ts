@@ -17,6 +17,10 @@ interface AuthTokenPayload {
   email: string;
 }
 
+type SessionUser = Pick<User, 'name' | 'email' | 'profileId' | 'status'> & {
+  _id: Types.ObjectId;
+};
+
 export interface AuthTokens {
   accessToken: string;
   refreshToken: string;
@@ -83,19 +87,7 @@ export class AuthService {
       throw new UnauthorizedException('Correo o contraseña inválidos.');
     }
 
-    const profile = await this.profileModel
-      .findOne({ _id: user.profileId, status: 'activo' })
-      .lean();
-
-    if (!profile) {
-      throw new UnauthorizedException('La cuenta no tiene un perfil activo.');
-    }
-
-    const permissions = await this.permissionModel
-      .find({ _id: { $in: profile.permissionIds }, status: 'activo' })
-      .select('key')
-      .lean();
-
+    const session = await this.createSession(user);
     const tokens = await this.createTokens({
       sub: user._id.toString(),
       email: user.email,
@@ -113,20 +105,78 @@ export class AuthService {
     );
 
     return {
-      session: {
-        user: {
-          id: user._id.toString(),
-          name: user.name,
-          email: user.email,
-          status: user.status,
-        },
-        profile: {
-          id: profile._id.toString(),
-          name: profile.name,
-        },
-        permissions: permissions.map((permission) => permission.key),
-      },
+      session,
       tokens,
+    };
+  }
+
+  async refresh(refreshToken?: string): Promise<LoginResult> {
+    if (!refreshToken) {
+      throw new UnauthorizedException('La sesión no es válida o expiró.');
+    }
+
+    const payload = await this.verifyRefreshToken(refreshToken);
+    const user = await this.userModel
+      .findById(payload.sub)
+      .select('+refreshTokenHash')
+      .lean();
+
+    if (
+      !user ||
+      user.status !== 'activo' ||
+      !user.refreshTokenHash ||
+      !this.passwordService.verify(refreshToken, user.refreshTokenHash)
+    ) {
+      throw new UnauthorizedException('La sesión no es válida o expiró.');
+    }
+
+    const session = await this.createSession(user);
+    const tokens = await this.createTokens({
+      sub: user._id.toString(),
+      email: user.email,
+    });
+
+    await this.userModel.updateOne(
+      { _id: user._id },
+      {
+        $set: {
+          refreshTokenHash: this.passwordService.hash(tokens.refreshToken),
+        },
+      },
+    );
+
+    return {
+      session,
+      tokens,
+    };
+  }
+
+  private async createSession(user: SessionUser): Promise<AuthSession> {
+    const profile = await this.profileModel
+      .findOne({ _id: user.profileId, status: 'activo' })
+      .lean();
+
+    if (!profile) {
+      throw new UnauthorizedException('La cuenta no tiene un perfil activo.');
+    }
+
+    const permissions = await this.permissionModel
+      .find({ _id: { $in: profile.permissionIds }, status: 'activo' })
+      .select('key')
+      .lean();
+
+    return {
+      user: {
+        id: user._id.toString(),
+        name: user.name,
+        email: user.email,
+        status: user.status,
+      },
+      profile: {
+        id: profile._id.toString(),
+        name: profile.name,
+      },
+      permissions: permissions.map((permission) => permission.key),
     };
   }
 
@@ -150,6 +200,18 @@ export class AuthService {
       accessTokenMaxAge: configuration.accessTokenDuration.milliseconds,
       refreshTokenMaxAge: configuration.refreshTokenDuration.milliseconds,
     };
+  }
+
+  private async verifyRefreshToken(
+    refreshToken: string,
+  ): Promise<AuthTokenPayload> {
+    try {
+      return await this.jwtService.verifyAsync<AuthTokenPayload>(refreshToken, {
+        secret: this.authConfigService.configuration.refreshTokenSecret,
+      });
+    } catch {
+      throw new UnauthorizedException('La sesión no es válida o expiró.');
+    }
   }
 
   private async registerFailedAttempt(
