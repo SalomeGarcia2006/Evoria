@@ -1,4 +1,10 @@
+'use client';
+
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { useAuth } from '../../hooks/useAuth';
+import { logout } from '../../services/auth.service';
 
 const navigation = [
   ['Dashboard', '/dashboard'],
@@ -15,12 +21,29 @@ const navigation = [
 ] as const;
 
 export function Sidebar() {
+  const router = useRouter();
+  const { user } = useAuth();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  async function handleLogout() {
+    setIsLoggingOut(true);
+
+    try {
+      await logout();
+    } finally {
+      router.replace('/login');
+    }
+  }
+
   return (
-    <aside className="border-b border-sky-blue bg-white p-4 lg:min-h-screen lg:w-64 lg:border-b-0 lg:border-r">
+    <aside className="flex flex-col border-b border-sky-blue bg-white p-4 lg:fixed lg:inset-y-0 lg:left-0 lg:z-20 lg:h-screen lg:w-64 lg:border-b-0 lg:border-r">
       <Link className="mb-6 block text-2xl font-bold tracking-tight" href="/">
         EVORIA
       </Link>
-      <nav aria-label="Navegación principal">
+      <nav
+        aria-label="Navegación principal"
+        className="min-h-0 flex-1 overflow-y-auto"
+      >
         <ul className="grid gap-1 sm:grid-cols-3 lg:grid-cols-1">
           {navigation.map(([label, href]) => (
             <li key={href}>
@@ -34,6 +57,19 @@ export function Sidebar() {
           ))}
         </ul>
       </nav>
+      <div className="mt-auto border-t border-sky-blue pt-4">
+        <p className="mb-3 px-3 text-sm font-semibold">
+          {user?.name ?? 'Usuario'}
+        </p>
+        <button
+          className="w-full rounded-lg px-3 py-2 text-left text-sm font-semibold text-teal transition hover:bg-sky-blue hover:text-navy disabled:opacity-50"
+          disabled={isLoggingOut}
+          onClick={handleLogout}
+          type="button"
+        >
+          {isLoggingOut ? 'Cerrando sesión…' : 'Salir'}
+        </button>
+      </div>
     </aside>
   );
 }
