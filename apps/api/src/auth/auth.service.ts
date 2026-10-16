@@ -8,15 +8,11 @@ import { Profile } from '../profiles/schemas/profile.schema';
 import { PasswordService } from '../users/password.service';
 import { User } from '../users/schemas/user.schema';
 import { AuthConfigService } from './auth.config';
+import type { JwtTokenPayload } from './auth.types';
 import { LoginDto } from './dto/login.dto';
 
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCK_DURATION_IN_MILLISECONDS = 15 * 60 * 1_000;
-
-interface AuthTokenPayload {
-  sub: string;
-  email: string;
-}
 
 type SessionUser = Pick<User, 'name' | 'email' | 'profileId' | 'status'> & {
   _id: Types.ObjectId;
@@ -157,7 +153,7 @@ export class AuthService {
       return;
     }
 
-    let payload: AuthTokenPayload;
+    let payload: JwtTokenPayload;
 
     try {
       payload = await this.verifyRefreshToken(refreshToken);
@@ -181,6 +177,18 @@ export class AuthService {
       { _id: user._id, refreshTokenHash: user.refreshTokenHash },
       { $set: { refreshTokenHash: null } },
     );
+  }
+
+  async getSession(userId: string): Promise<AuthSession> {
+    const user = await this.userModel
+      .findOne({ _id: userId, status: 'activo' })
+      .lean();
+
+    if (!user) {
+      throw new UnauthorizedException('La sesión no es válida o expiró.');
+    }
+
+    return this.createSession(user);
   }
 
   private async createSession(user: SessionUser): Promise<AuthSession> {
@@ -212,7 +220,7 @@ export class AuthService {
     };
   }
 
-  private async createTokens(payload: AuthTokenPayload): Promise<AuthTokens> {
+  private async createTokens(payload: JwtTokenPayload): Promise<AuthTokens> {
     const configuration = this.authConfigService.configuration;
 
     const [accessToken, refreshToken] = await Promise.all([
@@ -242,9 +250,9 @@ export class AuthService {
 
   private async verifyRefreshToken(
     refreshToken: string,
-  ): Promise<AuthTokenPayload> {
+  ): Promise<JwtTokenPayload> {
     try {
-      return await this.jwtService.verifyAsync<AuthTokenPayload>(refreshToken, {
+      return await this.jwtService.verifyAsync<JwtTokenPayload>(refreshToken, {
         secret: this.authConfigService.configuration.refreshTokenSecret,
       });
     } catch {
