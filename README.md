@@ -156,6 +156,21 @@ Las rutas de la API requieren una cookie de acceso válida por defecto. Las
 rutas públicas se declaran explícitamente con `@Public()`. `GET /api/auth/me`
 es una ruta protegida que devuelve el usuario, su perfil y sus permisos actuales.
 
+Los módulos pueden restringir una ruta a permisos concretos con
+`@RequirePermissions(...)`. El guard consulta los permisos activos del perfil
+en cada petición, por lo que un cambio de perfil se aplica sin que el usuario
+vuelva a iniciar sesión.
+
+```ts
+@RequirePermissions('usuarios.ver')
+@Get()
+findAll() {}
+```
+
+Cuando una ruta declara más de un permiso, el perfil debe tenerlos todos. El
+guard responde con `403 Forbidden` si la sesión es válida pero no cuenta con el
+permiso necesario.
+
 ## Verificaciones de calidad
 
 Todavía no hay pruebas unitarias o de integración. Por ahora, estas
