@@ -10,7 +10,14 @@ export async function apiRequest<T>(
   const response = await fetch(`${apiUrl}${path}`, options);
 
   if (!response.ok) {
-    throw new Error(`La API respondió con ${response.status}`);
+    const body = (await response.json().catch(() => null)) as {
+      message?: string | string[];
+    } | null;
+    const message = Array.isArray(body?.message)
+      ? body.message.join(', ')
+      : body?.message;
+
+    throw new Error(message ?? `La API respondió con ${response.status}`);
   }
 
   return (await response.json()) as T;
