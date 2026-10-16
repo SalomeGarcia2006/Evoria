@@ -229,3 +229,108 @@ request hacia `main`.
 ## Licencia
 
 La licencia del proyecto está por definir.
+
+## Guía rápida para probar el login
+
+Para que el inicio de sesión funcione en un entorno local, cada integrante debe
+instalar primero las dependencias del monorepo:
+
+```bash
+npm install
+```
+
+Después, debe verificar que el archivo `.env` de la raíz contenga las variables
+de MongoDB, autenticación y del administrador inicial. Si el archivo no existe,
+puede crearse a partir de `.env.example`:
+
+```bash
+cp .env.example .env
+```
+
+La configuración mínima para desarrollo local es:
+
+```env
+MONGO_ROOT_USERNAME=evoria
+MONGO_ROOT_PASSWORD=evoria_local_password
+MONGO_DATABASE=evoria
+
+JWT_ACCESS_SECRET=evoria_access_secret_local_change_me
+JWT_REFRESH_SECRET=evoria_refresh_secret_local_change_me
+JWT_ACCESS_EXPIRES_IN=2h
+JWT_REFRESH_EXPIRES_IN=7d
+COOKIE_SECURE=false
+
+SEED_ADMIN_NAME=Administrador Evoria
+SEED_ADMIN_EMAIL=admin@evoria.com
+SEED_ADMIN_PASSWORD=Evoria123*
+```
+
+Los secretos y la contraseña son únicamente valores de desarrollo. Cada
+integrante puede reemplazarlos por valores propios, pero las variables
+`SEED_ADMIN_NAME`, `SEED_ADMIN_EMAIL` y `SEED_ADMIN_PASSWORD` son necesarias
+para crear el usuario inicial. La contraseña debe tener al menos ocho
+caracteres.
+
+### Levantar la base de datos y crear el usuario
+
+Con Docker instalado, inicia MongoDB:
+
+```bash
+docker compose up mongo --detach
+```
+
+Luego ejecuta el seed desde la raíz del repositorio:
+
+```bash
+npm run seed
+```
+
+Este comando compila la API, crea los permisos y el perfil Administrador si no
+existen, y crea el usuario inicial con los datos de `SEED_ADMIN_*`. Es
+idempotente, por lo que se puede ejecutar nuevamente sin duplicar registros.
+Modificar las variables `SEED_ADMIN_*` después de crear el usuario no cambia sus
+credenciales existentes.
+
+Finalmente, inicia la aplicación:
+
+```bash
+npm run dev
+```
+
+El formulario de login está disponible en
+<http://localhost:3000/login>. Con la configuración anterior, los datos de
+prueba son:
+
+```text
+Correo: admin@evoria.com
+Contraseña: Evoria123*
+```
+
+El frontend envía las credenciales a `POST /api/auth/login`. La API guarda el
+access token y el refresh token en cookies `HttpOnly`; por eso no se debe
+guardar ningún token manualmente en `localStorage`. Las pantallas privadas
+consultan `GET /api/auth/me`, renuevan la sesión con `/api/auth/refresh` cuando
+es necesario y redirigen a `/login` si no existe una sesión válida.
+
+### Problemas frecuentes al ejecutar el seed
+
+Si aparecen errores como `Cannot find module '@nestjs/jwt'`,
+`Cannot find module '@nestjs/throttler'` o `Cannot find module 'cookie-parser'`,
+las dependencias aún no están instaladas. Ejecuta:
+
+```bash
+npm install
+npm run seed
+```
+
+Si aparece el mensaje `SEED_ADMIN_NAME es obligatoria` o equivalente, faltan
+las variables `SEED_ADMIN_NAME`, `SEED_ADMIN_EMAIL` o
+`SEED_ADMIN_PASSWORD` en el archivo `.env` de la raíz. Si el seed no puede
+conectarse a MongoDB, comprueba el estado del contenedor:
+
+```bash
+docker compose ps
+```
+
+MongoDB debe aparecer como activo y saludable antes de volver a ejecutar
+`npm run seed`.
