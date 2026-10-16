@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Get,
   HttpCode,
   HttpStatus,
   Post,
@@ -11,6 +12,9 @@ import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { AuthConfigService } from './auth.config';
 import { AuthService, type AuthTokens } from './auth.service';
+import type { AuthenticatedUser } from './auth.types';
+import { CurrentUser } from './decorators/current-user.decorator';
+import { Public } from './decorators/public.decorator';
 import { LoginDto } from './dto/login.dto';
 
 @Controller('auth')
@@ -21,6 +25,7 @@ export class AuthController {
   ) {}
 
   @Post('login')
+  @Public()
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   async login(
@@ -38,6 +43,7 @@ export class AuthController {
   }
 
   @Post('refresh')
+  @Public()
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   async refresh(
@@ -57,6 +63,7 @@ export class AuthController {
   }
 
   @Post('logout')
+  @Public()
   @HttpCode(HttpStatus.OK)
   async logout(
     @Req() request: Request,
@@ -71,6 +78,14 @@ export class AuthController {
     return {
       data: null,
       message: 'Sesión cerrada correctamente.',
+    };
+  }
+
+  @Get('me')
+  async currentSession(@CurrentUser() user: AuthenticatedUser) {
+    return {
+      data: await this.authService.getSession(user.id),
+      message: 'Sesión obtenida correctamente.',
     };
   }
 

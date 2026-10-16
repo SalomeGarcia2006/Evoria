@@ -152,6 +152,10 @@ cuenta durante quince minutos. Cuando vence el token de acceso, `POST
 sin solicitar nuevamente las credenciales. `POST /api/auth/logout` invalida el
 token de renovación almacenado y elimina ambas cookies.
 
+Las rutas de la API requieren una cookie de acceso válida por defecto. Las
+rutas públicas se declaran explícitamente con `@Public()`. `GET /api/auth/me`
+es una ruta protegida que devuelve el usuario, su perfil y sus permisos actuales.
+
 ## Verificaciones de calidad
 
 Todavía no hay pruebas unitarias o de integración. Por ahora, estas
