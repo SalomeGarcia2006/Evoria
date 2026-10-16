@@ -4,12 +4,13 @@ import {
   HttpCode,
   HttpStatus,
   Post,
+  Req,
   Res,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 import { AuthConfigService } from './auth.config';
-import { AuthService } from './auth.service';
+import { AuthService, type AuthTokens } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 
 @Controller('auth')
@@ -28,24 +29,46 @@ export class AuthController {
   ) {
     const result = await this.authService.login(loginDto);
 
-    response.cookie(
-      this.authConfigService.accessTokenCookieName,
-      result.tokens.accessToken,
-      this.authConfigService.createCookieOptions(
-        result.tokens.accessTokenMaxAge,
-      ),
-    );
-    response.cookie(
-      this.authConfigService.refreshTokenCookieName,
-      result.tokens.refreshToken,
-      this.authConfigService.createCookieOptions(
-        result.tokens.refreshTokenMaxAge,
-      ),
-    );
+    this.setAuthenticationCookies(response, result.tokens);
 
     return {
       data: result.session,
       message: 'Inicio de sesión realizado correctamente.',
     };
+  }
+
+  @Post('refresh')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  async refresh(
+    @Req() request: Request,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const result = await this.authService.refresh(
+      request.cookies?.[this.authConfigService.refreshTokenCookieName],
+    );
+
+    this.setAuthenticationCookies(response, result.tokens);
+
+    return {
+      data: result.session,
+      message: 'Sesión renovada correctamente.',
+    };
+  }
+
+  private setAuthenticationCookies(
+    response: Response,
+    tokens: AuthTokens,
+  ): void {
+    response.cookie(
+      this.authConfigService.accessTokenCookieName,
+      tokens.accessToken,
+      this.authConfigService.createCookieOptions(tokens.accessTokenMaxAge),
+    );
+    response.cookie(
+      this.authConfigService.refreshTokenCookieName,
+      tokens.refreshToken,
+      this.authConfigService.createCookieOptions(tokens.refreshTokenMaxAge),
+    );
   }
 }
