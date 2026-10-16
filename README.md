@@ -69,18 +69,33 @@ npm run dev
 
 ### Variables de entorno
 
-El archivo `.env.example` contiene las variables requeridas para MongoDB:
+El archivo `.env.example` contiene las variables de MongoDB y autenticación:
 
 ```env
 MONGO_ROOT_USERNAME=
 MONGO_ROOT_PASSWORD=
 MONGO_DATABASE=
+JWT_ACCESS_SECRET=
+JWT_REFRESH_SECRET=
+JWT_ACCESS_EXPIRES_IN=2h
+JWT_REFRESH_EXPIRES_IN=7d
+COOKIE_SECURE=false
 SEED_ADMIN_NAME=
 SEED_ADMIN_EMAIL=
 SEED_ADMIN_PASSWORD=
 ```
 
 Nunca se debe subir el archivo `.env` con credenciales reales al repositorio.
+
+`JWT_ACCESS_SECRET` y `JWT_REFRESH_SECRET` deben ser valores largos, aleatorios
+y diferentes entre sí. Puedes generar cada uno localmente con:
+
+```bash
+openssl rand -base64 48
+```
+
+En desarrollo, `COOKIE_SECURE=false` permite usar HTTP en `localhost`. En
+producción debe ser `true` y la aplicación debe servirse mediante HTTPS.
 
 MongoDB crea el usuario administrador en la base interna `admin`. Por ello, una
 herramienta gráfica como MongoDB Compass debe conectarse con una URI de esta
@@ -117,6 +132,44 @@ permisos, el perfil ni el administrador. Una vez creada la cuenta, cambiar estas
 variables no modifica sus credenciales; esto evita restablecimientos
 accidentales. La gestión de usuarios, perfiles y permisos permitirá hacerlo de
 forma segura más adelante.
+
+## Autenticación
+
+La API expone `POST /api/auth/login`. Recibe correo y contraseña, y al
+validarlos crea cookies `HttpOnly` para el token de acceso y el token de
+renovación. Los tokens no se devuelven en el cuerpo de la respuesta.
+
+```json
+{
+  "email": "admin@ejemplo.com",
+  "password": "una-contraseña-larga-y-unica"
+}
+```
+
+El inicio de sesión permite hasta cinco intentos fallidos antes de bloquear la
+cuenta durante quince minutos. Cuando vence el token de acceso, `POST
+/api/auth/refresh` usa la cookie de renovación para reemplazar ambas cookies
+sin solicitar nuevamente las credenciales. `POST /api/auth/logout` invalida el
+token de renovación almacenado y elimina ambas cookies.
+
+Las rutas de la API requieren una cookie de acceso válida por defecto. Las
+rutas públicas se declaran explícitamente con `@Public()`. `GET /api/auth/me`
+es una ruta protegida que devuelve el usuario, su perfil y sus permisos actuales.
+
+Los módulos pueden restringir una ruta a permisos concretos con
+`@RequirePermissions(...)`. El guard consulta los permisos activos del perfil
+en cada petición, por lo que un cambio de perfil se aplica sin que el usuario
+vuelva a iniciar sesión.
+
+```ts
+@RequirePermissions('usuarios.ver')
+@Get()
+findAll() {}
+```
+
+Cuando una ruta declara más de un permiso, el perfil debe tenerlos todos. El
+guard responde con `403 Forbidden` si la sesión es válida pero no cuenta con el
+permiso necesario.
 
 ## Verificaciones de calidad
 

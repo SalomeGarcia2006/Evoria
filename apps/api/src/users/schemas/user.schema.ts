@@ -25,6 +25,9 @@ export class User {
   @Prop({ required: true, select: false })
   passwordHash!: string;
 
+  @Prop({ type: String, select: false, default: null })
+  refreshTokenHash!: string | null;
+
   @Prop({ type: 'ObjectId', ref: Profile.name, required: true, index: true })
   profileId!: Types.ObjectId;
 
