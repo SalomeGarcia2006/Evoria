@@ -56,6 +56,24 @@ export class AuthController {
     };
   }
 
+  @Post('logout')
+  @HttpCode(HttpStatus.OK)
+  async logout(
+    @Req() request: Request,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    await this.authService.logout(
+      request.cookies?.[this.authConfigService.refreshTokenCookieName],
+    );
+
+    this.clearAuthenticationCookies(response);
+
+    return {
+      data: null,
+      message: 'Sesión cerrada correctamente.',
+    };
+  }
+
   private setAuthenticationCookies(
     response: Response,
     tokens: AuthTokens,
@@ -69,6 +87,19 @@ export class AuthController {
       this.authConfigService.refreshTokenCookieName,
       tokens.refreshToken,
       this.authConfigService.createCookieOptions(tokens.refreshTokenMaxAge),
+    );
+  }
+
+  private clearAuthenticationCookies(response: Response): void {
+    const cookieOptions = this.authConfigService.createClearCookieOptions();
+
+    response.clearCookie(
+      this.authConfigService.accessTokenCookieName,
+      cookieOptions,
+    );
+    response.clearCookie(
+      this.authConfigService.refreshTokenCookieName,
+      cookieOptions,
     );
   }
 }

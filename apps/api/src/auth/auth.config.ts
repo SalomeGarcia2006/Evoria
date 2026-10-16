@@ -46,11 +46,21 @@ export class AuthConfigService {
 
   createCookieOptions(maxAge: number): CookieOptions {
     return {
+      ...this.createBaseCookieOptions(),
+      maxAge,
+    };
+  }
+
+  createClearCookieOptions(): CookieOptions {
+    return this.createBaseCookieOptions();
+  }
+
+  private createBaseCookieOptions(): CookieOptions {
+    return {
       httpOnly: true,
       secure: this.configuration.cookieSecure,
       sameSite: 'lax',
       path: '/api',
-      maxAge,
     };
   }
 
