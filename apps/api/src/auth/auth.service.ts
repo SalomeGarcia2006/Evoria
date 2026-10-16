@@ -152,6 +152,37 @@ export class AuthService {
     };
   }
 
+  async logout(refreshToken?: string): Promise<void> {
+    if (!refreshToken) {
+      return;
+    }
+
+    let payload: AuthTokenPayload;
+
+    try {
+      payload = await this.verifyRefreshToken(refreshToken);
+    } catch {
+      return;
+    }
+
+    const user = await this.userModel
+      .findById(payload.sub)
+      .select('+refreshTokenHash')
+      .lean();
+
+    if (
+      !user?.refreshTokenHash ||
+      !this.passwordService.verify(refreshToken, user.refreshTokenHash)
+    ) {
+      return;
+    }
+
+    await this.userModel.updateOne(
+      { _id: user._id, refreshTokenHash: user.refreshTokenHash },
+      { $set: { refreshTokenHash: null } },
+    );
+  }
+
   private async createSession(user: SessionUser): Promise<AuthSession> {
     const profile = await this.profileModel
       .findOne({ _id: user.profileId, status: 'activo' })

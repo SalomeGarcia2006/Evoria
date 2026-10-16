@@ -149,8 +149,8 @@ renovación. Los tokens no se devuelven en el cuerpo de la respuesta.
 El inicio de sesión permite hasta cinco intentos fallidos antes de bloquear la
 cuenta durante quince minutos. Cuando vence el token de acceso, `POST
 /api/auth/refresh` usa la cookie de renovación para reemplazar ambas cookies
-sin solicitar nuevamente las credenciales. El cierre de sesión se incorporará
-en el siguiente cambio de autenticación.
+sin solicitar nuevamente las credenciales. `POST /api/auth/logout` invalida el
+token de renovación almacenado y elimina ambas cookies.
 
 ## Verificaciones de calidad
 
