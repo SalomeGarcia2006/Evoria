@@ -163,7 +163,9 @@ body {
   padding: 0 0.8125rem;
   border: 1px solid var(--color-sky-blue);
   border-radius: 0.5rem;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
 }
 
 .login-input-container:focus-within {
