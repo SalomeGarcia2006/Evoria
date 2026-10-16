@@ -1,0 +1,85 @@
+import {
+  type CanActivate,
+  type ExecutionContext,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import { InjectModel } from '@nestjs/mongoose';
+import { Reflector } from '@nestjs/core';
+import type { Model } from 'mongoose';
+import { Profile } from '../../profiles/schemas/profile.schema';
+import { User } from '../../users/schemas/user.schema';
+import { AuthConfigService } from '../auth.config';
+import type { AuthenticatedRequest, JwtTokenPayload } from '../auth.types';
+import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
+
+@Injectable()
+export class JwtAuthGuard implements CanActivate {
+  constructor(
+    private readonly reflector: Reflector,
+    private readonly jwtService: JwtService,
+    private readonly authConfigService: AuthConfigService,
+    @InjectModel(User.name) private readonly userModel: Model<User>,
+    @InjectModel(Profile.name) private readonly profileModel: Model<Profile>,
+  ) {}
+
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+
+    if (isPublic) {
+      return true;
+    }
+
+    const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
+    const accessToken =
+      request.cookies?.[this.authConfigService.accessTokenCookieName];
+
+    if (!accessToken) {
+      throw new UnauthorizedException('Debes iniciar sesión para continuar.');
+    }
+
+    const payload = await this.verifyAccessToken(accessToken);
+    const user = await this.userModel
+      .findOne({ _id: payload.sub, status: 'activo' })
+      .select('_id name email profileId')
+      .lean();
+
+    if (!user) {
+      throw new UnauthorizedException('La sesión no es válida o expiró.');
+    }
+
+    const profile = await this.profileModel.exists({
+      _id: user.profileId,
+      status: 'activo',
+    });
+
+    if (!profile) {
+      throw new UnauthorizedException('La cuenta no tiene un perfil activo.');
+    }
+
+    request.user = {
+      id: user._id.toString(),
+      name: user.name,
+      email: user.email,
+      profileId: user.profileId.toString(),
+    };
+
+    return true;
+  }
+
+  private async verifyAccessToken(
+    accessToken: string,
+  ): Promise<JwtTokenPayload> {
+    try {
+      return await this.jwtService.verifyAsync<JwtTokenPayload>(accessToken, {
+        secret: this.authConfigService.configuration.accessTokenSecret,
+      });
+    } catch {
+      throw new UnauthorizedException('La sesión no es válida o expiró.');
+    }
+  }
+}
