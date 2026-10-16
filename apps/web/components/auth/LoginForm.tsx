@@ -1,14 +1,34 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { login } from '../../services/auth.service';
 
 export function LoginForm() {
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setError(null);
+    setIsSubmitting(true);
+
+    try {
+      await login({ email, password });
+      router.push('/dashboard');
+    } catch (submitError) {
+      setError(
+        submitError instanceof Error
+          ? submitError.message
+          : 'No fue posible iniciar sesión.',
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -101,8 +121,18 @@ export function LoginForm() {
           </div>
         </div>
 
-        <button className="login-button" type="submit">
-          Iniciar sesión
+        {error ? (
+          <p
+            aria-live="polite"
+            className="mb-4 text-sm text-red-700"
+            role="alert"
+          >
+            {error}
+          </p>
+        ) : null}
+
+        <button className="login-button" disabled={isSubmitting} type="submit">
+          {isSubmitting ? 'Iniciando sesión…' : 'Iniciar sesión'}
         </button>
       </form>
     </>
