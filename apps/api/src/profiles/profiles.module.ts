@@ -1,15 +1,20 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { MembershipsModule } from '../memberships/memberships.module';
 import { PermissionsModule } from '../permissions/permissions.module';
 import { AccessControlSeedService } from './access-control.seed.service';
+import { ProfilesController } from './profiles.controller';
+import { ProfilesService } from './profiles.service';
 import { Profile, ProfileSchema } from './schemas/profile.schema';
 
 @Module({
   imports: [
     PermissionsModule,
+    MembershipsModule,
     MongooseModule.forFeature([{ name: Profile.name, schema: ProfileSchema }]),
   ],
-  providers: [AccessControlSeedService],
+  controllers: [ProfilesController],
+  providers: [AccessControlSeedService, ProfilesService],
   exports: [AccessControlSeedService, MongooseModule],
 })
 export class ProfilesModule {}

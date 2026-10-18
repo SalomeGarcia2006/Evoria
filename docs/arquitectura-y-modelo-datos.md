@@ -298,7 +298,11 @@ deben requerir autenticación y validar el permiso requerido.
 | Autenticación | `POST /api/auth/login`                         | Público                 | Usuario autenticado y token o cookie de sesión.       |
 | Autenticación | `GET /api/auth/me`                             | Autenticado             | Usuario, perfil y permisos actuales.                  |
 | Permisos      | `GET /api/permissions`                         | `perfiles.ver`          | Catálogo fijo agrupado por módulo.                    |
+| Perfiles      | `GET /api/profiles`                            | `perfiles.ver`          | Perfiles y permisos de la empresa activa.             |
+| Perfiles      | `GET /api/profiles/:id`                        | `perfiles.ver`          | Detalle de un perfil y sus permisos.                  |
 | Perfiles      | `POST /api/profiles`                           | `perfiles.crear`        | Perfil creado con permisos del catálogo.              |
+| Perfiles      | `PATCH /api/profiles/:id`                      | `perfiles.editar`       | Perfil y permisos actualizados.                       |
+| Perfiles      | `DELETE /api/profiles/:id`                     | `perfiles.desactivar`   | Perfil personalizado desactivado.                     |
 | Usuarios      | `GET /api/users`                               | `usuarios.ver`          | Lista paginada de usuarios.                           |
 | Usuarios      | `POST /api/users`                              | `usuarios.crear`        | Usuario creado sin exponer `password_hash`.           |
 | Usuarios      | `GET /api/users/profiles`                      | `usuarios.crear`        | Perfiles activos disponibles para asignar.            |
