@@ -11,6 +11,7 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { PermissionsGuard } from './guards/permissions.guard';
+import { PlatformGuard } from './guards/platform.guard';
 
 @Module({
   imports: [
@@ -32,6 +33,10 @@ import { PermissionsGuard } from './guards/permissions.guard';
     {
       provide: APP_GUARD,
       useClass: PermissionsGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: PlatformGuard,
     },
   ],
 })

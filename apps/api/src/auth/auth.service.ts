@@ -16,7 +16,10 @@ import { LoginDto } from './dto/login.dto';
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCK_DURATION_IN_MILLISECONDS = 15 * 60 * 1_000;
 
-type SessionUser = Pick<User, 'name' | 'email' | 'status'> & {
+type SessionUser = Pick<
+  User,
+  'name' | 'email' | 'status' | 'platformProfileId'
+> & {
   _id: Types.ObjectId;
 };
 
@@ -28,6 +31,7 @@ export interface AuthTokens {
 }
 
 export interface AuthSession {
+  scope: 'platform' | 'tenant';
   user: {
     id: string;
     name: string;
@@ -38,12 +42,12 @@ export interface AuthSession {
     id: string;
     name: string;
   };
-  tenant: {
+  tenant?: {
     id: string;
     name: string;
     slug: string;
   };
-  membership: {
+  membership?: {
     id: string;
   };
   permissions: string[];
@@ -101,8 +105,10 @@ export class AuthService {
     const tokens = await this.createTokens({
       sub: user._id.toString(),
       email: user.email,
-      tenantId: session.tenant.id,
-      membershipId: session.membership.id,
+      scope: session.scope,
+      profileId: session.profile.id,
+      ...(session.tenant ? { tenantId: session.tenant.id } : {}),
+      ...(session.membership ? { membershipId: session.membership.id } : {}),
     });
 
     await this.userModel.updateOne(
@@ -142,12 +148,18 @@ export class AuthService {
       throw new UnauthorizedException('La sesión no es válida o expiró.');
     }
 
-    const session = await this.createSession(user, payload.membershipId);
+    const session = await this.createSession(
+      user,
+      payload.scope,
+      payload.membershipId,
+    );
     const tokens = await this.createTokens({
       sub: user._id.toString(),
       email: user.email,
-      tenantId: session.tenant.id,
-      membershipId: session.membership.id,
+      scope: session.scope,
+      profileId: session.profile.id,
+      ...(session.tenant ? { tenantId: session.tenant.id } : {}),
+      ...(session.membership ? { membershipId: session.membership.id } : {}),
     });
 
     await this.userModel.updateOne(
@@ -196,7 +208,11 @@ export class AuthService {
     );
   }
 
-  async getSession(userId: string, membershipId: string): Promise<AuthSession> {
+  async getSession(
+    userId: string,
+    scope: JwtTokenPayload['scope'],
+    membershipId?: string,
+  ): Promise<AuthSession> {
     const user = await this.userModel
       .findOne({ _id: userId, status: 'activo' })
       .lean();
@@ -205,13 +221,51 @@ export class AuthService {
       throw new UnauthorizedException('La sesión no es válida o expiró.');
     }
 
-    return this.createSession(user, membershipId);
+    return this.createSession(user, scope, membershipId);
   }
 
   private async createSession(
     user: SessionUser,
+    scope?: JwtTokenPayload['scope'],
     membershipId?: string,
   ): Promise<AuthSession> {
+    const sessionScope =
+      scope ?? (user.platformProfileId ? 'platform' : 'tenant');
+
+    if (sessionScope === 'platform') {
+      const profile = await this.profileModel
+        .findOne({
+          _id: user.platformProfileId,
+          scope: 'platform',
+          tenantId: null,
+          status: 'activo',
+        })
+        .lean();
+
+      if (!profile) {
+        throw new UnauthorizedException(
+          'La cuenta no tiene un perfil global activo.',
+        );
+      }
+
+      const permissions = await this.permissionModel
+        .find({ _id: { $in: profile.permissionIds }, status: 'activo' })
+        .select('key')
+        .lean();
+
+      return {
+        scope: 'platform',
+        user: {
+          id: user._id.toString(),
+          name: user.name,
+          email: user.email,
+          status: user.status,
+        },
+        profile: { id: profile._id.toString(), name: profile.name },
+        permissions: permissions.map((permission) => permission.key),
+      };
+    }
+
     const membership = await this.membershipModel
       .findOne({
         userId: user._id,
@@ -234,6 +288,7 @@ export class AuthService {
       this.profileModel
         .findOne({
           _id: membership.profileId,
+          scope: 'tenant',
           tenantId: membership.tenantId,
           status: 'activo',
         })
@@ -250,6 +305,7 @@ export class AuthService {
       .lean();
 
     return {
+      scope: 'tenant',
       user: {
         id: user._id.toString(),
         name: user.name,

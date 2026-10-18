@@ -80,7 +80,6 @@ JWT_REFRESH_SECRET=
 JWT_ACCESS_EXPIRES_IN=2h
 JWT_REFRESH_EXPIRES_IN=7d
 COOKIE_SECURE=false
-SEED_TENANT_NAME=
 SEED_ADMIN_NAME=
 SEED_ADMIN_EMAIL=
 SEED_ADMIN_PASSWORD=
@@ -111,26 +110,25 @@ se guardan en la base definida por `MONGO_DATABASE`.
 
 ### Datos iniciales
 
-Antes de ejecutar el seed, define en tu archivo `.env` la empresa inicial y las
-credenciales del administrador. No uses los valores de otra persona ni subas
-ese archivo al repositorio.
+Antes de ejecutar el seed, define en tu archivo `.env` las credenciales del
+desarrollador inicial. No uses los valores de otra persona ni subas ese archivo
+al repositorio.
 
 ```env
-SEED_TENANT_NAME=Empresa de ejemplo
-SEED_ADMIN_NAME=Nombre del administrador
-SEED_ADMIN_EMAIL=admin@ejemplo.com
+SEED_ADMIN_NAME=Nombre del desarrollador
+SEED_ADMIN_EMAIL=desarrollador@ejemplo.com
 SEED_ADMIN_PASSWORD=una-contraseña-larga-y-unica
 ```
 
-Con MongoDB iniciado, crea la empresa inicial, el perfil Administrador y el
-administrador inicial con:
+Con MongoDB iniciado, crea los permisos iniciales, el perfil global
+`Desarrollador` y el usuario inicial con:
 
 ```bash
 npm run seed
 ```
 
-El proceso es idempotente: se puede ejecutar varias veces sin duplicar la
-empresa, los permisos, el perfil ni el administrador. Una vez creada la cuenta,
+El proceso es idempotente: se puede ejecutar varias veces sin duplicar los
+permisos, el perfil ni el desarrollador. Una vez creada la cuenta,
 cambiar estas variables no modifica sus credenciales; esto evita
 restablecimientos accidentales.
 
@@ -142,7 +140,7 @@ renovación. Los tokens no se devuelven en el cuerpo de la respuesta.
 
 ```json
 {
-  "email": "admin@ejemplo.com",
+  "email": "desarrollador@ejemplo.com",
   "password": "una-contraseña-larga-y-unica"
 }
 ```
@@ -171,6 +169,22 @@ findAll() {}
 Cuando una ruta declara más de un permiso, el perfil debe tenerlos todos. El
 guard responde con `403 Forbidden` si la sesión es válida pero no cuenta con el
 permiso necesario.
+
+### Creación de empresas
+
+El usuario con perfil global `Desarrollador` puede crear una empresa mediante
+`POST /api/tenants`. La operación crea también el perfil `Administrador` de esa
+empresa, su propietario y la membresía que los vincula. No existe una empresa
+interna ficticia de Evoria.
+
+```json
+{
+  "name": "Eventos Ejemplo",
+  "ownerName": "Nombre del propietario",
+  "ownerEmail": "propietario@ejemplo.com",
+  "ownerPassword": "una-contraseña-larga-y-unica"
+}
+```
 
 ## Verificaciones de calidad
 
@@ -241,7 +255,7 @@ npm install
 ```
 
 Después, debe verificar que el archivo `.env` de la raíz contenga las variables
-de MongoDB, autenticación y del administrador inicial. Si el archivo no existe,
+de MongoDB, autenticación y del desarrollador inicial. Si el archivo no existe,
 puede crearse a partir de `.env.example`:
 
 ```bash
@@ -261,17 +275,16 @@ JWT_ACCESS_EXPIRES_IN=2h
 JWT_REFRESH_EXPIRES_IN=7d
 COOKIE_SECURE=false
 
-SEED_TENANT_NAME=Evoria Local
-SEED_ADMIN_NAME=Administrador Evoria
-SEED_ADMIN_EMAIL=admin@evoria.com
+SEED_ADMIN_NAME=Desarrollador Evoria
+SEED_ADMIN_EMAIL=desarrollador@evoria.com
 SEED_ADMIN_PASSWORD=Evoria123*
 ```
 
 Los secretos y la contraseña son únicamente valores de desarrollo. Cada
 integrante puede reemplazarlos por valores propios, pero las variables
-`SEED_TENANT_NAME`, `SEED_ADMIN_NAME`, `SEED_ADMIN_EMAIL` y
-`SEED_ADMIN_PASSWORD` son necesarias para crear la empresa y el usuario
-iniciales. La contraseña debe tener al menos ocho caracteres.
+`SEED_ADMIN_NAME`, `SEED_ADMIN_EMAIL` y `SEED_ADMIN_PASSWORD` son necesarias
+para crear el usuario global inicial. La contraseña debe tener al menos ocho
+caracteres.
 
 ### Levantar la base de datos y crear el usuario
 
@@ -287,11 +300,10 @@ Luego ejecuta el seed desde la raíz del repositorio:
 npm run seed
 ```
 
-Este comando compila la API, crea la empresa inicial, los permisos y el perfil
-Administrador si no existen, y crea una membresía para el usuario inicial. Es
-idempotente, por lo que se puede ejecutar nuevamente sin duplicar registros.
-Modificar las variables `SEED_*` después de crear los registros no cambia sus
-datos existentes.
+Este comando compila la API y crea los permisos, el perfil global
+`Desarrollador` y el usuario inicial si no existen. Es idempotente, por lo que
+se puede ejecutar nuevamente sin duplicar registros. Modificar las variables
+`SEED_*` después de crear los registros no cambia sus datos existentes.
 
 Finalmente, inicia la aplicación:
 
@@ -304,7 +316,7 @@ El formulario de login está disponible en
 prueba son:
 
 ```text
-Correo: admin@evoria.com
+Correo: desarrollador@evoria.com
 Contraseña: Evoria123*
 ```
 
@@ -326,9 +338,9 @@ npm run seed
 ```
 
 Si aparece un mensaje indicando que una variable `SEED_*` es obligatoria,
-comprueba `SEED_TENANT_NAME`, `SEED_ADMIN_NAME`, `SEED_ADMIN_EMAIL` y
-`SEED_ADMIN_PASSWORD` en el archivo `.env` de la raíz. Si el seed no puede
-conectarse a MongoDB, comprueba el estado del contenedor:
+comprueba `SEED_ADMIN_NAME`, `SEED_ADMIN_EMAIL` y `SEED_ADMIN_PASSWORD` en el
+archivo `.env` de la raíz. Si el seed no puede conectarse a MongoDB, comprueba
+el estado del contenedor:
 
 ```bash
 docker compose ps

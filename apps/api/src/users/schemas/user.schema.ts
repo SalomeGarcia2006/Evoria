@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import type { HydratedDocument } from 'mongoose';
+import type { HydratedDocument, Types } from 'mongoose';
 
 export const USER_STATUSES = ['activo', 'inactivo', 'bloqueado'] as const;
 export type UserStatus = (typeof USER_STATUSES)[number];
@@ -35,6 +35,9 @@ export class User {
 
   @Prop({ type: Date, default: null })
   lockedUntil!: Date | null;
+
+  @Prop({ type: 'ObjectId', ref: 'Profile', default: null, index: true })
+  platformProfileId!: Types.ObjectId | null;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
