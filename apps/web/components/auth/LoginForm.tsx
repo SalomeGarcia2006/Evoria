@@ -1,11 +1,13 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
-import { login } from '../../services/auth.service';
+import { useEffect, useState } from 'react';
+import { defaultRouteFor } from '../../lib/access-control';
+import { useAuth } from '../../hooks/useAuth';
 
 export function LoginForm() {
   const router = useRouter();
+  const { isLoading, signIn, user } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -14,17 +16,23 @@ export function LoginForm() {
   const [failedAttempts, setFailedAttempts] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  useEffect(() => {
+    if (!isLoading && user) {
+      router.replace(defaultRouteFor(user.permissions));
+    }
+  }, [isLoading, router, user]);
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
     setIsSubmitting(true);
 
     try {
-      await login({ email, password });
+      const user = await signIn({ email, password });
       setError(null);
       setIsAlertVisible(false);
       setFailedAttempts(0);
-      router.push('/dashboard');
+      router.replace(defaultRouteFor(user.permissions));
     } catch (submitError) {
       const nextAttempt = Math.min(failedAttempts + 1, 5);
       const backendMessage =

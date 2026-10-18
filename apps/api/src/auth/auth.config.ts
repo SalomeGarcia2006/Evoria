@@ -60,7 +60,7 @@ export class AuthConfigService {
       httpOnly: true,
       secure: this.configuration.cookieSecure,
       sameSite: 'lax',
-      path: '/api',
+      path: '/',
     };
   }
 

@@ -3,4 +3,6 @@ export interface AuthUser {
   name: string;
   email: string;
   role: string;
+  scope: 'platform' | 'tenant';
+  permissions: string[];
 }

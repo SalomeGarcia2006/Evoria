@@ -6,6 +6,7 @@ import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { DataTable } from '../../components/ui/DataTable';
 import { StatusBadge } from '../../components/ui/StatusBadge';
+import { PermissionGate } from '../../components/auth/PermissionGate';
 import {
   ACTIONS,
   createPermissions,
@@ -98,72 +99,76 @@ export default function PerfilesPage() {
                 Crea perfiles y asigna permisos para cada módulo.
               </p>
             </div>
-            <Button onClick={openCreateForm} type="button">
-              Crear perfil
-            </Button>
+            <PermissionGate permission="perfiles.crear">
+              <Button onClick={openCreateForm} type="button">
+                Crear perfil
+              </Button>
+            </PermissionGate>
           </div>
         </Card>
 
         {isCreating ? (
-          <Card>
-            <div className="flex flex-col gap-1 border-b border-sky-blue pb-5 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm text-teal">Nuevo perfil</p>
-                <h3 className="text-xl font-bold">Configura sus permisos</h3>
+          <PermissionGate permission="perfiles.crear">
+            <Card>
+              <div className="flex flex-col gap-1 border-b border-sky-blue pb-5 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm text-teal">Nuevo perfil</p>
+                  <h3 className="text-xl font-bold">Configura sus permisos</h3>
+                </div>
+                <Button
+                  onClick={() => setIsCreating(false)}
+                  type="button"
+                  variant="secondary"
+                >
+                  Cancelar
+                </Button>
               </div>
-              <Button
-                onClick={() => setIsCreating(false)}
-                type="button"
-                variant="secondary"
-              >
-                Cancelar
-              </Button>
-            </div>
-            <form className="mt-5" onSubmit={createProfile}>
-              <label className="grid max-w-md gap-2 text-sm font-semibold">
-                Nombre del perfil
-                <input
-                  aria-label="Nombre del nuevo perfil"
-                  className="rounded-lg border border-sky-blue px-3 py-2 font-normal outline-none focus:border-teal focus:ring-2 focus:ring-sky-blue"
-                  onChange={(event) => setNewProfileName(event.target.value)}
-                  placeholder="Ej. Gestor de eventos"
-                  required
-                  value={newProfileName}
-                />
-              </label>
-              <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                {MODULES.map((moduleName) => (
-                  <section
-                    className="rounded-xl border border-sky-blue bg-beige/50 p-4"
-                    key={moduleName}
-                  >
-                    <h4 className="mb-3 font-bold">{moduleName}</h4>
-                    <div className="grid gap-2">
-                      {ACTIONS.map((action) => (
-                        <PermissionSwitch
-                          checked={newProfilePermissions[moduleName][action]}
-                          key={`${moduleName}-${action}`}
-                          label={action}
-                          onChange={() =>
-                            setNewProfilePermissions((current) => ({
-                              ...current,
-                              [moduleName]: {
-                                ...current[moduleName],
-                                [action]: !current[moduleName][action],
-                              },
-                            }))
-                          }
-                        />
-                      ))}
-                    </div>
-                  </section>
-                ))}
-              </div>
-              <div className="mt-5">
-                <Button type="submit">Guardar perfil</Button>
-              </div>
-            </form>
-          </Card>
+              <form className="mt-5" onSubmit={createProfile}>
+                <label className="grid max-w-md gap-2 text-sm font-semibold">
+                  Nombre del perfil
+                  <input
+                    aria-label="Nombre del nuevo perfil"
+                    className="rounded-lg border border-sky-blue px-3 py-2 font-normal outline-none focus:border-teal focus:ring-2 focus:ring-sky-blue"
+                    onChange={(event) => setNewProfileName(event.target.value)}
+                    placeholder="Ej. Gestor de eventos"
+                    required
+                    value={newProfileName}
+                  />
+                </label>
+                <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  {MODULES.map((moduleName) => (
+                    <section
+                      className="rounded-xl border border-sky-blue bg-beige/50 p-4"
+                      key={moduleName}
+                    >
+                      <h4 className="mb-3 font-bold">{moduleName}</h4>
+                      <div className="grid gap-2">
+                        {ACTIONS.map((action) => (
+                          <PermissionSwitch
+                            checked={newProfilePermissions[moduleName][action]}
+                            key={`${moduleName}-${action}`}
+                            label={action}
+                            onChange={() =>
+                              setNewProfilePermissions((current) => ({
+                                ...current,
+                                [moduleName]: {
+                                  ...current[moduleName],
+                                  [action]: !current[moduleName][action],
+                                },
+                              }))
+                            }
+                          />
+                        ))}
+                      </div>
+                    </section>
+                  ))}
+                </div>
+                <div className="mt-5">
+                  <Button type="submit">Guardar perfil</Button>
+                </div>
+              </form>
+            </Card>
+          </PermissionGate>
         ) : null}
 
         <Card className="p-0">

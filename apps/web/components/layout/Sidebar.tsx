@@ -3,33 +3,19 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { navigationItems } from '../../lib/access-control';
 import { useAuth } from '../../hooks/useAuth';
-import { logout } from '../../services/auth.service';
-
-const navigation = [
-  ['Dashboard', '/dashboard'],
-  ['Eventos', '/eventos'],
-  ['Recursos', '/recursos'],
-  ['Inventario', '/inventario'],
-  ['Presupuestos', '/presupuestos'],
-  ['Cronograma', '/cronograma'],
-  ['Alertas', '/alertas'],
-  ['Reportes', '/reportes'],
-  ['Auditoría', '/auditoria'],
-  ['Usuarios', '/usuarios'],
-  ['Perfiles', '/perfiles'],
-] as const;
 
 export function Sidebar() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { can, signOut, user } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   async function handleLogout() {
     setIsLoggingOut(true);
 
     try {
-      await logout();
+      await signOut();
     } finally {
       router.replace('/login');
     }
@@ -45,16 +31,18 @@ export function Sidebar() {
         className="min-h-0 flex-1 overflow-y-auto"
       >
         <ul className="grid gap-1 sm:grid-cols-3 lg:grid-cols-1">
-          {navigation.map(([label, href]) => (
-            <li key={href}>
-              <Link
-                className="block rounded-lg px-3 py-2 text-sm text-teal transition hover:bg-sky-blue hover:text-navy"
-                href={href}
-              >
-                {label}
-              </Link>
-            </li>
-          ))}
+          {navigationItems
+            .filter(({ permission }) => can(permission))
+            .map(({ label, href }) => (
+              <li key={href}>
+                <Link
+                  className="block rounded-lg px-3 py-2 text-sm text-teal transition hover:bg-sky-blue hover:text-navy"
+                  href={href}
+                >
+                  {label}
+                </Link>
+              </li>
+            ))}
         </ul>
       </nav>
       <div className="mt-auto border-t border-sky-blue pt-4">

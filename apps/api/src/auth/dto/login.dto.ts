@@ -5,8 +5,9 @@ import {
   MaxLength,
   MinLength,
 } from 'class-validator';
+import type { LoginRequest } from '@evoria/contracts';
 
-export class LoginDto {
+export class LoginDto implements LoginRequest {
   @IsEmail()
   @MaxLength(150)
   email!: string;
