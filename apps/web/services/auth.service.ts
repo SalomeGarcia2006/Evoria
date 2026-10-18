@@ -16,6 +16,7 @@ interface ApiResponse<T> {
 }
 
 interface ApiSession {
+  scope: 'platform' | 'tenant';
   user: {
     id: string;
     name: string;
@@ -34,7 +35,7 @@ function toAuthUser(session: ApiSession): AuthUser {
     id: session.user.id,
     name: session.user.name,
     email: session.user.email,
-    role: session.profile.name as AuthUser['role'],
+    role: session.profile.name,
   };
 }
 
