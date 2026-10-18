@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { MembershipsModule } from '../memberships/memberships.module';
 import { PermissionsModule } from '../permissions/permissions.module';
 import { AccessControlSeedService } from './access-control.seed.service';
 import { ProfilesController } from './profiles.controller';
@@ -9,6 +10,7 @@ import { Profile, ProfileSchema } from './schemas/profile.schema';
 @Module({
   imports: [
     PermissionsModule,
+    MembershipsModule,
     MongooseModule.forFeature([{ name: Profile.name, schema: ProfileSchema }]),
   ],
   controllers: [ProfilesController],
