@@ -1,6 +1,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectModel } from '@nestjs/mongoose';
+import type { AuthSession } from '@evoria/contracts';
 import { randomUUID } from 'node:crypto';
 import type { Model, Types } from 'mongoose';
 import { Membership } from '../memberships/schemas/membership.schema';
@@ -28,29 +29,6 @@ export interface AuthTokens {
   refreshToken: string;
   accessTokenMaxAge: number;
   refreshTokenMaxAge: number;
-}
-
-export interface AuthSession {
-  scope: 'platform' | 'tenant';
-  user: {
-    id: string;
-    name: string;
-    email: string;
-    status: string;
-  };
-  profile: {
-    id: string;
-    name: string;
-  };
-  tenant?: {
-    id: string;
-    name: string;
-    slug: string;
-  };
-  membership?: {
-    id: string;
-  };
-  permissions: string[];
 }
 
 export interface LoginResult {
