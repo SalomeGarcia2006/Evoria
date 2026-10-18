@@ -50,7 +50,14 @@ export class PermissionsGuard implements CanActivate {
     }
 
     const profile = await this.profileModel
-      .findOne({ _id: request.user.profileId, status: 'activo' })
+      .findOne({
+        _id: request.user.profileId,
+        scope: request.user.scope,
+        ...(request.user.scope === 'tenant'
+          ? { tenantId: request.user.tenantId }
+          : { tenantId: null }),
+        status: 'activo',
+      })
       .select('permissionIds')
       .lean();
 

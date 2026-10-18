@@ -6,7 +6,9 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
+import { MembershipsModule } from './memberships/memberships.module';
 import { ProfilesModule } from './profiles/profiles.module';
+import { TenantsModule } from './tenants/tenants.module';
 import { UsersModule } from './users/users.module';
 
 function getMongoUri(configService: ConfigService): string {
@@ -48,7 +50,9 @@ function getMongoUri(configService: ConfigService): string {
       ],
     }),
     AuthModule,
+    MembershipsModule,
     ProfilesModule,
+    TenantsModule,
     UsersModule,
   ],
   controllers: [AppController],

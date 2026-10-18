@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { isEmail } from 'class-validator';
 import type { Model } from 'mongoose';
-import { ADMINISTRATOR_PROFILE_NAME } from '../profiles/profiles.constants';
+import { DEVELOPER_PROFILE_NAME } from '../profiles/profiles.constants';
 import { Profile } from '../profiles/schemas/profile.schema';
 import { PasswordService } from './password.service';
 import { User } from './schemas/user.schema';
@@ -31,42 +31,49 @@ export class InitialAdminSeedService {
     this.validateInput(name, email, password);
 
     const profile = await this.profileModel
-      .findOne({ name: ADMINISTRATOR_PROFILE_NAME })
+      .findOne({
+        name: DEVELOPER_PROFILE_NAME,
+        scope: 'platform',
+        tenantId: null,
+      })
       .select('_id')
       .lean();
 
     if (!profile) {
       throw new Error(
-        'El perfil Administrador no existe. Ejecuta primero el seed de control de acceso.',
+        'El perfil Desarrollador no existe. Ejecuta primero el seed de control de acceso.',
       );
     }
 
     const existingUser = await this.userModel
       .findOne({ email })
-      .select('_id profileId')
+      .select('_id platformProfileId')
       .lean();
 
     if (existingUser) {
-      if (!existingUser.profileId) {
-        await this.userModel.updateOne(
-          { _id: existingUser._id },
-          {
-            $set: { profileId: profile._id },
-            $unset: { roleId: '' },
-          },
-        );
-
-        return { created: 0, existing: 0, migrated: 1 };
+      if (
+        existingUser.platformProfileId?.toString() === profile._id.toString()
+      ) {
+        return { created: 0, existing: 1, migrated: 0 };
       }
 
-      return { created: 0, existing: 1, migrated: 0 };
+      const result = await this.userModel.updateOne(
+        { _id: existingUser._id },
+        { $set: { platformProfileId: profile._id } },
+      );
+
+      return {
+        created: 0,
+        existing: result.modifiedCount ? 0 : 1,
+        migrated: result.modifiedCount ? 1 : 0,
+      };
     }
 
     await this.userModel.create({
       name,
       email,
       passwordHash: await this.passwordService.hash(password),
-      profileId: profile._id,
+      platformProfileId: profile._id,
     });
 
     return { created: 1, existing: 0, migrated: 0 };
@@ -77,7 +84,7 @@ export class InitialAdminSeedService {
 
     if (!value) {
       throw new Error(
-        `La variable ${variableName} es obligatoria para crear el administrador inicial.`,
+        `La variable ${variableName} es obligatoria para crear el desarrollador inicial.`,
       );
     }
 
