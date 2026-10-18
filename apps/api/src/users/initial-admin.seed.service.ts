@@ -2,9 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { isEmail } from 'class-validator';
-import type { Model, Types } from 'mongoose';
-import { Membership } from '../memberships/schemas/membership.schema';
-import { ADMINISTRATOR_PROFILE_NAME } from '../profiles/profiles.constants';
+import type { Model } from 'mongoose';
+import { DEVELOPER_PROFILE_NAME } from '../profiles/profiles.constants';
 import { Profile } from '../profiles/schemas/profile.schema';
 import { PasswordService } from './password.service';
 import { User } from './schemas/user.schema';
@@ -21,12 +20,10 @@ export class InitialAdminSeedService {
     private readonly configService: ConfigService,
     private readonly passwordService: PasswordService,
     @InjectModel(Profile.name) private readonly profileModel: Model<Profile>,
-    @InjectModel(Membership.name)
-    private readonly membershipModel: Model<Membership>,
     @InjectModel(User.name) private readonly userModel: Model<User>,
   ) {}
 
-  async seed(tenantId: Types.ObjectId): Promise<InitialAdminSeedResult> {
+  async seed(): Promise<InitialAdminSeedResult> {
     const name = this.getRequiredValue('SEED_ADMIN_NAME');
     const email = this.getRequiredValue('SEED_ADMIN_EMAIL').toLowerCase();
     const password = this.getRequiredValue('SEED_ADMIN_PASSWORD');
@@ -34,50 +31,49 @@ export class InitialAdminSeedService {
     this.validateInput(name, email, password);
 
     const profile = await this.profileModel
-      .findOne({ name: ADMINISTRATOR_PROFILE_NAME, tenantId })
+      .findOne({
+        name: DEVELOPER_PROFILE_NAME,
+        scope: 'platform',
+        tenantId: null,
+      })
       .select('_id')
       .lean();
 
     if (!profile) {
       throw new Error(
-        'El perfil Administrador no existe. Ejecuta primero el seed de control de acceso.',
+        'El perfil Desarrollador no existe. Ejecuta primero el seed de control de acceso.',
       );
     }
 
     const existingUser = await this.userModel
       .findOne({ email })
-      .select('_id')
+      .select('_id platformProfileId')
       .lean();
 
     if (existingUser) {
-      const membershipResult = await this.membershipModel.updateOne(
-        { userId: existingUser._id, tenantId },
-        {
-          $setOnInsert: {
-            userId: existingUser._id,
-            tenantId,
-            profileId: profile._id,
-          },
-        },
-        { upsert: true },
+      if (
+        existingUser.platformProfileId?.toString() === profile._id.toString()
+      ) {
+        return { created: 0, existing: 1, migrated: 0 };
+      }
+
+      const result = await this.userModel.updateOne(
+        { _id: existingUser._id },
+        { $set: { platformProfileId: profile._id } },
       );
 
       return {
         created: 0,
-        existing: membershipResult.upsertedCount ? 0 : 1,
-        migrated: membershipResult.upsertedCount ? 1 : 0,
+        existing: result.modifiedCount ? 0 : 1,
+        migrated: result.modifiedCount ? 1 : 0,
       };
     }
 
-    const user = await this.userModel.create({
+    await this.userModel.create({
       name,
       email,
       passwordHash: await this.passwordService.hash(password),
-    });
-    await this.membershipModel.create({
-      userId: user._id,
-      tenantId,
-      profileId: profile._id,
+      platformProfileId: profile._id,
     });
 
     return { created: 1, existing: 0, migrated: 0 };
@@ -88,7 +84,7 @@ export class InitialAdminSeedService {
 
     if (!value) {
       throw new Error(
-        `La variable ${variableName} es obligatoria para crear el administrador inicial.`,
+        `La variable ${variableName} es obligatoria para crear el desarrollador inicial.`,
       );
     }
 

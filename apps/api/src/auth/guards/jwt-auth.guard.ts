@@ -50,10 +50,42 @@ export class JwtAuthGuard implements CanActivate {
     const payload = await this.verifyAccessToken(accessToken);
     const user = await this.userModel
       .findOne({ _id: payload.sub, status: 'activo' })
-      .select('_id name email')
+      .select('_id name email platformProfileId')
       .lean();
 
     if (!user) {
+      throw new UnauthorizedException('La sesión no es válida o expiró.');
+    }
+
+    if (payload.scope === 'platform') {
+      const profile = await this.profileModel.exists({
+        _id: user.platformProfileId,
+        scope: 'platform',
+        tenantId: null,
+        status: 'activo',
+      });
+
+      if (
+        !profile ||
+        user.platformProfileId?.toString() !== payload.profileId
+      ) {
+        throw new UnauthorizedException(
+          'La cuenta no tiene un perfil global activo.',
+        );
+      }
+
+      request.user = {
+        id: user._id.toString(),
+        name: user.name,
+        email: user.email,
+        scope: 'platform',
+        profileId: payload.profileId,
+      };
+
+      return true;
+    }
+
+    if (!payload.tenantId || !payload.membershipId) {
       throw new UnauthorizedException('La sesión no es válida o expiró.');
     }
 
@@ -75,6 +107,7 @@ export class JwtAuthGuard implements CanActivate {
       this.tenantModel.exists({ _id: payload.tenantId, status: 'activo' }),
       this.profileModel.exists({
         _id: membership.profileId,
+        scope: 'tenant',
         tenantId: payload.tenantId,
         status: 'activo',
       }),
@@ -88,6 +121,7 @@ export class JwtAuthGuard implements CanActivate {
       id: user._id.toString(),
       name: user.name,
       email: user.email,
+      scope: 'tenant',
       tenantId: payload.tenantId,
       membershipId: membership._id.toString(),
       profileId: membership.profileId.toString(),

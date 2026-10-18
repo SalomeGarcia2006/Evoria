@@ -29,10 +29,13 @@ empresas.
 
 Los permisos representan acciones concretas y se asignan a perfiles. La API
 valida la membresía activa, la empresa activa y los permisos antes de atender
-cualquier endpoint protegido.
+cualquier endpoint protegido. El desarrollador usa un perfil global; los demás
+usuarios ingresan con el perfil de su membresía empresarial.
 
-El seed crea la empresa inicial definida por `SEED_TENANT_NAME`, su perfil
-`Administrador` y una membresía para el administrador inicial.
+El seed crea el perfil global `Desarrollador` y vincula a él el usuario definido
+por las variables `SEED_ADMIN_*`. Ese desarrollador no pertenece a ninguna
+empresa y es quien puede crear empresas. Al crear una empresa, la API genera su
+perfil `Administrador`, el usuario propietario y su membresía.
 
 ## Modelo de datos
 
@@ -45,6 +48,7 @@ erDiagram
   TENANTS ||--o{ MEMBERSHIPS : incluye
   USUARIOS ||--o{ MEMBERSHIPS : pertenece
   TENANTS ||--o{ PERFILES : contiene
+  PERFILES ||--o{ USUARIOS : perfil_global
   PERFILES ||--o{ MEMBERSHIPS : asigna
   PERFILES }o--o{ PERMISOS : agrupa
   TENANTS ||--o{ EVENTOS : posee
@@ -73,6 +77,7 @@ erDiagram
 
   PERFILES {
     ObjectId id PK
+    string alcance
     ObjectId tenant_id FK
     string nombre
     string descripcion
@@ -86,6 +91,7 @@ erDiagram
     string nombre
     string correo UK
     string password_hash
+    ObjectId perfil_plataforma_id FK
     string estado
     int intentos_login
     datetime creado_en
@@ -224,8 +230,12 @@ filtros y su archivo.
 
 - El correo de un usuario es único.
 - Un usuario tiene una membresía activa por cada empresa a la que pertenece.
-- Un perfil pertenece a una empresa y solo puede asignarse mediante una
-  membresía de esa misma empresa.
+- Un perfil de empresa pertenece a una empresa y solo puede asignarse mediante
+  una membresía de esa misma empresa. El perfil global `Desarrollador` no tiene
+  empresa.
+- Solo un usuario con perfil global `Desarrollador` puede crear empresas. Al
+  hacerlo se crea un perfil `Administrador` de sistema para esa empresa y se
+  asigna al propietario indicado.
 - Toda consulta de negocio debe filtrarse por el `tenantId` de la sesión activa.
 - Un perfil puede contener varios permisos y un permiso puede pertenecer a
   varios perfiles.

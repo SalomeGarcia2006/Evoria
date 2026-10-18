@@ -1,6 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import type { HydratedDocument, Types } from 'mongoose';
-import { User } from '../../users/schemas/user.schema';
 import { TENANT_STATUSES, type TenantStatus } from '../tenants.constants';
 
 export type TenantDocument = HydratedDocument<Tenant>;
@@ -20,7 +19,7 @@ export class Tenant {
   })
   slug!: string;
 
-  @Prop({ type: 'ObjectId', ref: User.name, default: null })
+  @Prop({ type: 'ObjectId', ref: 'User', default: null })
   createdBy!: Types.ObjectId | null;
 
   @Prop({
