@@ -6,6 +6,8 @@ import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { DataTable } from '../../components/ui/DataTable';
 import { StatusBadge } from '../../components/ui/StatusBadge';
+import { PermissionGate } from '../../components/auth/PermissionGate';
+import { useAuth } from '../../hooks/useAuth';
 import { initialProfiles, loadProfiles } from '../../services/profile.service';
 
 type User = {
@@ -41,6 +43,7 @@ const initialUsers: User[] = [
 ];
 
 export default function UsuariosPage() {
+  const { can } = useAuth();
   const [users, setUsers] = useState<User[]>(initialUsers);
   const [profiles] = useState(() => loadProfiles());
   const [form, setForm] = useState({
@@ -122,7 +125,9 @@ export default function UsuariosPage() {
                 permisos de acceso.
               </p>
             </div>
-            <Button onClick={openCreateForm}>Nuevo usuario</Button>
+            <PermissionGate permission="usuarios.crear">
+              <Button onClick={openCreateForm}>Nuevo usuario</Button>
+            </PermissionGate>
           </div>
         </Card>
 
@@ -175,9 +180,13 @@ export default function UsuariosPage() {
                 </select>
               </label>
               <div className="flex gap-3 md:col-span-3">
-                <Button type="submit">
-                  {editingId ? 'Guardar cambios' : 'Crear usuario'}
-                </Button>
+                <PermissionGate
+                  permission={editingId ? 'usuarios.editar' : 'usuarios.crear'}
+                >
+                  <Button type="submit">
+                    {editingId ? 'Guardar cambios' : 'Crear usuario'}
+                  </Button>
+                </PermissionGate>
                 <Button onClick={closeForm} type="button" variant="secondary">
                   Cancelar
                 </Button>
@@ -215,20 +224,24 @@ export default function UsuariosPage() {
                 header: 'Acciones',
                 render: (user) => (
                   <div className="flex flex-wrap gap-2">
-                    <Button
-                      onClick={() => openEditForm(user)}
-                      type="button"
-                      variant="secondary"
-                    >
-                      Editar
-                    </Button>
-                    <Button
-                      onClick={() => deleteUser(user)}
-                      type="button"
-                      variant="ghost"
-                    >
-                      Eliminar
-                    </Button>
+                    {can('usuarios.editar') ? (
+                      <Button
+                        onClick={() => openEditForm(user)}
+                        type="button"
+                        variant="secondary"
+                      >
+                        Editar
+                      </Button>
+                    ) : null}
+                    {can('usuarios.desactivar') ? (
+                      <Button
+                        onClick={() => deleteUser(user)}
+                        type="button"
+                        variant="ghost"
+                      >
+                        Eliminar
+                      </Button>
+                    ) : null}
                   </div>
                 ),
               },
