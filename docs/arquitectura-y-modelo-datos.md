@@ -255,6 +255,9 @@ filtros y su archivo.
   perder el acceso administrativo.
 - Un evento debe tener fecha de finalización igual o posterior a su fecha de
   inicio.
+- Un evento cancelado se conserva como historial y no puede editarse.
+- El responsable de un evento, si existe, debe tener una membresía activa en la
+  misma empresa.
 - Una actividad del cronograma debe estar dentro del periodo de su evento.
 - Las cantidades de un recurso nunca pueden ser negativas.
 - No se puede asignar a un evento una cantidad mayor a la disponible.
