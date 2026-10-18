@@ -4,7 +4,6 @@ import type { ClientSession, Model, Types } from 'mongoose';
 import {
   INITIAL_PERMISSIONS,
   LEGACY_PERMISSION_KEYS,
-  PLATFORM_PERMISSION_KEYS,
   TENANT_PERMISSION_KEYS,
 } from '../permissions/permissions.constants';
 import { Permission } from '../permissions/schemas/permission.schema';
@@ -51,8 +50,10 @@ export class AccessControlSeedService {
       { $set: { status: 'inactivo' } },
     );
 
-    const [platformPermissionIds, tenantPermissionIds] = await Promise.all([
-      this.findPermissionIds(PLATFORM_PERMISSION_KEYS),
+    const [developerPermissionIds, tenantPermissionIds] = await Promise.all([
+      this.findPermissionIds(
+        INITIAL_PERMISSIONS.map((permission) => permission.key),
+      ),
       this.findPermissionIds(TENANT_PERMISSION_KEYS),
     ]);
 
@@ -73,7 +74,7 @@ export class AccessControlSeedService {
           scope: 'platform',
           tenantId: null,
           description: 'Perfil global para administrar la plataforma.',
-          permissionIds: platformPermissionIds,
+          permissionIds: developerPermissionIds,
           isSystem: true,
         },
       },
