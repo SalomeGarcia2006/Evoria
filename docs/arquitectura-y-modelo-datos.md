@@ -32,6 +32,11 @@ valida la membresía activa, la empresa activa y los permisos antes de atender
 cualquier endpoint protegido. El desarrollador usa un perfil global; los demás
 usuarios ingresan con el perfil de su membresía empresarial.
 
+El catálogo de permisos se define en código y solo se consulta por la API: no
+hay CRUD de permisos. Cada permiso tiene la clave `<módulo>.<acción>` y conserva
+el identificador, nombre y descripción de su módulo. Así, los perfiles creados
+por cada empresa solo eligen acciones existentes del catálogo.
+
 El seed crea el perfil global `Desarrollador` y vincula a él el usuario definido
 por las variables `SEED_ADMIN_*`. Ese desarrollador no pertenece a ninguna
 empresa y es quien puede crear empresas. Al crear una empresa, la API genera su
@@ -70,8 +75,12 @@ erDiagram
   PERMISOS {
     ObjectId id PK
     string clave UK
-    string nombre UK
-    string descripcion
+    string modulo_clave
+    string modulo_nombre
+    string modulo_descripcion
+    string alcance
+    string accion
+    string nombre
     string estado
   }
 
@@ -236,6 +245,9 @@ filtros y su archivo.
 - Solo un usuario con perfil global `Desarrollador` puede crear empresas. Al
   hacerlo se crea un perfil `Administrador` de sistema para esa empresa y se
   asigna al propietario indicado.
+- Los permisos son un catálogo controlado por código. El perfil global recibe
+  los permisos de plataforma y el perfil `Administrador` de cada empresa recibe
+  todos los permisos de empresa.
 - Toda consulta de negocio debe filtrarse por el `tenantId` de la sesión activa.
 - Un perfil puede contener varios permisos y un permiso puede pertenecer a
   varios perfiles.
@@ -282,10 +294,10 @@ deben requerir autenticación y validar el permiso requerido.
 | ------------- | ---------------------------------------------- | ----------------------- | ----------------------------------------------------- |
 | Autenticación | `POST /api/auth/login`                         | Público                 | Usuario autenticado y token o cookie de sesión.       |
 | Autenticación | `GET /api/auth/me`                             | Autenticado             | Usuario, perfil y permisos actuales.                  |
-| Permisos      | `GET /api/permissions`                         | `permisos.gestionar`    | Lista de permisos configurables.                      |
-| Perfiles      | `POST /api/profiles`                           | `perfiles.gestionar`    | Perfil creado con permisos asignados.                 |
-| Usuarios      | `GET /api/users`                               | `usuarios.gestionar`    | Lista paginada de usuarios.                           |
-| Usuarios      | `POST /api/users`                              | `usuarios.gestionar`    | Usuario creado sin exponer `password_hash`.           |
+| Permisos      | `GET /api/permissions`                         | `perfiles.ver`          | Catálogo fijo agrupado por módulo.                    |
+| Perfiles      | `POST /api/profiles`                           | `perfiles.crear`        | Perfil creado con permisos del catálogo.              |
+| Usuarios      | `GET /api/users`                               | `usuarios.ver`          | Lista paginada de usuarios.                           |
+| Usuarios      | `POST /api/users`                              | `usuarios.crear`        | Usuario creado sin exponer `password_hash`.           |
 | Eventos       | `GET /api/events`                              | `eventos.ver`           | Lista filtrable y paginada de eventos permitidos.     |
 | Eventos       | `POST /api/events`                             | `eventos.crear`         | Evento creado.                                        |
 | Eventos       | `GET /api/events/:id`                          | `eventos.ver`           | Detalle del evento, presupuesto y recursos asignados. |
