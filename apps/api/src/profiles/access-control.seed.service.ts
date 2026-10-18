@@ -1,7 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import type { ClientSession, Model, Types } from 'mongoose';
-import { INITIAL_PERMISSIONS } from '../permissions/permissions.constants';
+import {
+  INITIAL_PERMISSIONS,
+  LEGACY_PERMISSION_KEYS,
+  PLATFORM_PERMISSION_KEYS,
+  TENANT_PERMISSION_KEYS,
+} from '../permissions/permissions.constants';
 import { Permission } from '../permissions/schemas/permission.schema';
 import {
   ADMINISTRATOR_PROFILE_NAME,
@@ -35,16 +40,30 @@ export class AccessControlSeedService {
       INITIAL_PERMISSIONS.map((permission) => ({
         updateOne: {
           filter: { key: permission.key },
-          update: { $setOnInsert: permission },
+          update: { $set: { ...permission, status: 'activo' } },
           upsert: true,
         },
       })),
     );
 
-    const permissions = await this.permissionModel
-      .find({ key: { $in: INITIAL_PERMISSIONS.map(({ key }) => key) } })
-      .select('_id')
-      .lean();
+    await this.permissionModel.updateMany(
+      { key: { $in: LEGACY_PERMISSION_KEYS } },
+      { $set: { status: 'inactivo' } },
+    );
+
+    const [platformPermissionIds, tenantPermissionIds] = await Promise.all([
+      this.findPermissionIds(PLATFORM_PERMISSION_KEYS),
+      this.findPermissionIds(TENANT_PERMISSION_KEYS),
+    ]);
+
+    await this.profileModel.updateMany(
+      {
+        name: ADMINISTRATOR_PROFILE_NAME,
+        scope: 'tenant',
+        isSystem: true,
+      },
+      { $set: { permissionIds: tenantPermissionIds } },
+    );
 
     const profileResult = await this.profileModel.updateOne(
       { name: DEVELOPER_PROFILE_NAME, scope: 'platform', tenantId: null },
@@ -54,7 +73,7 @@ export class AccessControlSeedService {
           scope: 'platform',
           tenantId: null,
           description: 'Perfil global para administrar la plataforma.',
-          permissionIds: permissions.map((permission) => permission._id),
+          permissionIds: platformPermissionIds,
           isSystem: true,
         },
       },
@@ -74,17 +93,10 @@ export class AccessControlSeedService {
     tenantId: Types.ObjectId,
     session?: ClientSession,
   ): Promise<Types.ObjectId> {
-    const permissions = await this.permissionModel
-      .find({ key: { $in: INITIAL_PERMISSIONS.map(({ key }) => key) } })
-      .select('_id')
-      .session(session ?? null)
-      .lean();
-
-    if (permissions.length !== INITIAL_PERMISSIONS.length) {
-      throw new Error(
-        'Los permisos iniciales no existen. Ejecuta primero el seed de control de acceso.',
-      );
-    }
+    const permissions = await this.findPermissionIds(
+      TENANT_PERMISSION_KEYS,
+      session,
+    );
 
     const profile = await this.profileModel
       .findOneAndUpdate(
@@ -111,6 +123,25 @@ export class AccessControlSeedService {
       .lean();
 
     return profile._id;
+  }
+
+  private async findPermissionIds(
+    keys: readonly string[],
+    session?: ClientSession,
+  ): Promise<Types.ObjectId[]> {
+    const permissions = await this.permissionModel
+      .find({ key: { $in: keys }, status: 'activo' })
+      .select('_id')
+      .session(session ?? null)
+      .lean();
+
+    if (permissions.length !== keys.length) {
+      throw new Error(
+        'Los permisos iniciales no existen. Ejecuta primero el seed de control de acceso.',
+      );
+    }
+
+    return permissions.map((permission) => permission._id);
   }
 
   private async removeLegacyProfileNameIndex(): Promise<void> {

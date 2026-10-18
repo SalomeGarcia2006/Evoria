@@ -18,11 +18,23 @@ export class Permission {
   })
   key!: string;
 
+  @Prop({ required: true, trim: true, lowercase: true, index: true })
+  moduleKey!: string;
+
   @Prop({ required: true, trim: true, minlength: 2, maxlength: 100 })
-  name!: string;
+  moduleName!: string;
 
   @Prop({ required: true, trim: true, maxlength: 255 })
-  description!: string;
+  moduleDescription!: string;
+
+  @Prop({ required: true, enum: ['platform', 'tenant'], index: true })
+  scope!: 'platform' | 'tenant';
+
+  @Prop({ required: true, trim: true, lowercase: true })
+  action!: string;
+
+  @Prop({ required: true, trim: true, minlength: 2, maxlength: 100 })
+  name!: string;
 
   @Prop({
     required: true,
