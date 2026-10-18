@@ -19,19 +19,20 @@ La web no decide la seguridad. Puede ocultar páginas y acciones que no
 correspondan a los permisos del usuario, pero la API debe validarlos en cada
 endpoint protegido.
 
-## Perfiles y permisos
+## Empresas, perfiles y permisos
 
-Los permisos representan acciones concretas, por ejemplo `usuarios.gestionar`
-o `eventos.crear`. Los administradores crean perfiles y asignan a cada uno los
-permisos que correspondan. Después, cada usuario recibe un perfil.
+Evoria es multitenant: cada empresa gestiona sus propios eventos y datos sin
+acceder a los de otras empresas. El usuario representa la identidad global de
+una persona; una membresía la vincula con una empresa y le asigna un perfil.
+Por ello, la misma persona puede tener perfiles diferentes en distintas
+empresas.
 
-La API reconoce las claves de permisos que protege mediante guards. Un permiso
-creado por un administrador se podrá asignar a perfiles, pero solo tendrá efecto
-en una funcionalidad cuando dicha funcionalidad requiera su clave.
+Los permisos representan acciones concretas y se asignan a perfiles. La API
+valida la membresía activa, la empresa activa y los permisos antes de atender
+cualquier endpoint protegido.
 
-El seed crea los permisos mínimos de gestión, el perfil de sistema
-`Administrador` y el administrador inicial definido en `.env`. El perfil de
-sistema permite comenzar a administrar los demás perfiles y permisos.
+El seed crea la empresa inicial definida por `SEED_TENANT_NAME`, su perfil
+`Administrador` y una membresía para el administrador inicial.
 
 ## Modelo de datos
 
@@ -41,8 +42,14 @@ referencias entre documentos.
 
 ```mermaid
 erDiagram
-  PERFILES ||--o{ USUARIOS : asigna
+  TENANTS ||--o{ MEMBERSHIPS : incluye
+  USUARIOS ||--o{ MEMBERSHIPS : pertenece
+  TENANTS ||--o{ PERFILES : contiene
+  PERFILES ||--o{ MEMBERSHIPS : asigna
   PERFILES }o--o{ PERMISOS : agrupa
+  TENANTS ||--o{ EVENTOS : posee
+  TENANTS ||--o{ RECURSOS : posee
+  TENANTS ||--o{ AUDITORIAS : registra
   USUARIOS ||--o{ EVENTOS : gestiona
   USUARIOS ||--o{ CRONOGRAMAS : es_responsable
   USUARIOS ||--o{ AUDITORIAS : realiza
@@ -66,7 +73,8 @@ erDiagram
 
   PERFILES {
     ObjectId id PK
-    string nombre UK
+    ObjectId tenant_id FK
+    string nombre
     string descripcion
     ObjectId permisos FK
     string estado
@@ -78,7 +86,6 @@ erDiagram
     string nombre
     string correo UK
     string password_hash
-    ObjectId perfil_id FK
     string estado
     int intentos_login
     datetime creado_en
@@ -87,6 +94,7 @@ erDiagram
 
   EVENTOS {
     ObjectId id PK
+    ObjectId tenant_id FK
     string nombre
     string descripcion
     datetime fecha_inicio
@@ -101,6 +109,7 @@ erDiagram
 
   RECURSOS {
     ObjectId id PK
+    ObjectId tenant_id FK
     string nombre
     string tipo
     string descripcion
@@ -115,6 +124,7 @@ erDiagram
 
   EVENTO_RECURSOS {
     ObjectId id PK
+    ObjectId tenant_id FK
     ObjectId evento_id FK
     ObjectId recurso_id FK
     int cantidad
@@ -125,6 +135,7 @@ erDiagram
 
   PRESUPUESTOS {
     ObjectId id PK
+    ObjectId tenant_id FK
     ObjectId evento_id FK
     decimal subtotal_recursos
     decimal costos_adicionales
@@ -135,6 +146,7 @@ erDiagram
 
   CRONOGRAMAS {
     ObjectId id PK
+    ObjectId tenant_id FK
     ObjectId evento_id FK
     ObjectId responsable_id FK
     string nombre
@@ -146,6 +158,7 @@ erDiagram
 
   ALERTAS {
     ObjectId id PK
+    ObjectId tenant_id FK
     ObjectId evento_id FK
     string tipo
     string mensaje
@@ -157,6 +170,7 @@ erDiagram
 
   MOVIMIENTOS_INVENTARIO {
     ObjectId id PK
+    ObjectId tenant_id FK
     ObjectId recurso_id FK
     ObjectId evento_id FK
     ObjectId usuario_id FK
@@ -168,6 +182,7 @@ erDiagram
 
   AUDITORIAS {
     ObjectId id PK
+    ObjectId tenant_id FK
     ObjectId usuario_id FK
     string accion
     string entidad
@@ -208,7 +223,10 @@ filtros y su archivo.
 ## Reglas de negocio esenciales
 
 - El correo de un usuario es único.
-- Un usuario tiene un perfil de acceso activo.
+- Un usuario tiene una membresía activa por cada empresa a la que pertenece.
+- Un perfil pertenece a una empresa y solo puede asignarse mediante una
+  membresía de esa misma empresa.
+- Toda consulta de negocio debe filtrarse por el `tenantId` de la sesión activa.
 - Un perfil puede contener varios permisos y un permiso puede pertenecer a
   varios perfiles.
 - Los perfiles y permisos de sistema no se eliminan; se protegen para evitar
@@ -287,3 +305,22 @@ deben requerir autenticación y validar el permiso requerido.
 4. Asignación de recursos y movimientos de inventario transaccionales.
 5. Presupuestos, dashboard, cronogramas, alertas y auditoría.
 6. Reportes, exportaciones y pruebas automatizadas de los flujos anteriores.
+   TENANTS {
+   ObjectId id PK
+   string nombre
+   string slug UK
+   string estado
+   ObjectId creado_por FK
+   datetime creado_en
+   datetime actualizado_en
+   }
+
+MEMBERSHIPS {
+ObjectId id PK
+ObjectId usuario_id FK
+ObjectId tenant_id FK
+ObjectId perfil_id FK
+string estado
+datetime creado_en
+datetime actualizado_en
+}

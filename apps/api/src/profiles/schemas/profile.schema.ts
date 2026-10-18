@@ -1,6 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import type { HydratedDocument, Types } from 'mongoose';
 import { Permission } from '../../permissions/schemas/permission.schema';
+import { Tenant } from '../../tenants/schemas/tenant.schema';
 import { PROFILE_STATUSES, type ProfileStatus } from '../profiles.constants';
 
 export type ProfileDocument = HydratedDocument<Profile>;
@@ -9,12 +10,14 @@ export type ProfileDocument = HydratedDocument<Profile>;
 export class Profile {
   @Prop({
     required: true,
-    unique: true,
     trim: true,
     minlength: 2,
     maxlength: 80,
   })
   name!: string;
+
+  @Prop({ type: 'ObjectId', ref: Tenant.name, required: true, index: true })
+  tenantId!: Types.ObjectId;
 
   @Prop({ required: true, trim: true, maxlength: 255 })
   description!: string;
@@ -35,3 +38,4 @@ export class Profile {
 }
 
 export const ProfileSchema = SchemaFactory.createForClass(Profile);
+ProfileSchema.index({ tenantId: 1, name: 1 }, { unique: true });

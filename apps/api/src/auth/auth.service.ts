@@ -3,8 +3,10 @@ import { JwtService } from '@nestjs/jwt';
 import { InjectModel } from '@nestjs/mongoose';
 import { randomUUID } from 'node:crypto';
 import type { Model, Types } from 'mongoose';
+import { Membership } from '../memberships/schemas/membership.schema';
 import { Permission } from '../permissions/schemas/permission.schema';
 import { Profile } from '../profiles/schemas/profile.schema';
+import { Tenant } from '../tenants/schemas/tenant.schema';
 import { PasswordService } from '../users/password.service';
 import { User } from '../users/schemas/user.schema';
 import { AuthConfigService } from './auth.config';
@@ -14,7 +16,7 @@ import { LoginDto } from './dto/login.dto';
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCK_DURATION_IN_MILLISECONDS = 15 * 60 * 1_000;
 
-type SessionUser = Pick<User, 'name' | 'email' | 'profileId' | 'status'> & {
+type SessionUser = Pick<User, 'name' | 'email' | 'status'> & {
   _id: Types.ObjectId;
 };
 
@@ -36,6 +38,14 @@ export interface AuthSession {
     id: string;
     name: string;
   };
+  tenant: {
+    id: string;
+    name: string;
+    slug: string;
+  };
+  membership: {
+    id: string;
+  };
   permissions: string[];
 }
 
@@ -51,7 +61,10 @@ export class AuthService {
     private readonly authConfigService: AuthConfigService,
     private readonly passwordService: PasswordService,
     @InjectModel(User.name) private readonly userModel: Model<User>,
+    @InjectModel(Membership.name)
+    private readonly membershipModel: Model<Membership>,
     @InjectModel(Profile.name) private readonly profileModel: Model<Profile>,
+    @InjectModel(Tenant.name) private readonly tenantModel: Model<Tenant>,
     @InjectModel(Permission.name)
     private readonly permissionModel: Model<Permission>,
   ) {}
@@ -88,6 +101,8 @@ export class AuthService {
     const tokens = await this.createTokens({
       sub: user._id.toString(),
       email: user.email,
+      tenantId: session.tenant.id,
+      membershipId: session.membership.id,
     });
 
     await this.userModel.updateOne(
@@ -127,10 +142,12 @@ export class AuthService {
       throw new UnauthorizedException('La sesión no es válida o expiró.');
     }
 
-    const session = await this.createSession(user);
+    const session = await this.createSession(user, payload.membershipId);
     const tokens = await this.createTokens({
       sub: user._id.toString(),
       email: user.email,
+      tenantId: session.tenant.id,
+      membershipId: session.membership.id,
     });
 
     await this.userModel.updateOne(
@@ -179,7 +196,7 @@ export class AuthService {
     );
   }
 
-  async getSession(userId: string): Promise<AuthSession> {
+  async getSession(userId: string, membershipId: string): Promise<AuthSession> {
     const user = await this.userModel
       .findOne({ _id: userId, status: 'activo' })
       .lean();
@@ -188,15 +205,42 @@ export class AuthService {
       throw new UnauthorizedException('La sesión no es válida o expiró.');
     }
 
-    return this.createSession(user);
+    return this.createSession(user, membershipId);
   }
 
-  private async createSession(user: SessionUser): Promise<AuthSession> {
-    const profile = await this.profileModel
-      .findOne({ _id: user.profileId, status: 'activo' })
+  private async createSession(
+    user: SessionUser,
+    membershipId?: string,
+  ): Promise<AuthSession> {
+    const membership = await this.membershipModel
+      .findOne({
+        userId: user._id,
+        status: 'activo',
+        ...(membershipId ? { _id: membershipId } : {}),
+      })
+      .sort({ createdAt: 1 })
       .lean();
 
-    if (!profile) {
+    if (!membership) {
+      throw new UnauthorizedException(
+        'La cuenta no pertenece a una empresa activa.',
+      );
+    }
+
+    const [tenant, profile] = await Promise.all([
+      this.tenantModel
+        .findOne({ _id: membership.tenantId, status: 'activo' })
+        .lean(),
+      this.profileModel
+        .findOne({
+          _id: membership.profileId,
+          tenantId: membership.tenantId,
+          status: 'activo',
+        })
+        .lean(),
+    ]);
+
+    if (!tenant || !profile) {
       throw new UnauthorizedException('La cuenta no tiene un perfil activo.');
     }
 
@@ -215,6 +259,14 @@ export class AuthService {
       profile: {
         id: profile._id.toString(),
         name: profile.name,
+      },
+      tenant: {
+        id: tenant._id.toString(),
+        name: tenant.name,
+        slug: tenant.slug,
+      },
+      membership: {
+        id: membership._id.toString(),
       },
       permissions: permissions.map((permission) => permission.key),
     };

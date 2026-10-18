@@ -1,6 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import type { HydratedDocument, Types } from 'mongoose';
-import { Profile } from '../../profiles/schemas/profile.schema';
+import type { HydratedDocument } from 'mongoose';
 
 export const USER_STATUSES = ['activo', 'inactivo', 'bloqueado'] as const;
 export type UserStatus = (typeof USER_STATUSES)[number];
@@ -27,9 +26,6 @@ export class User {
 
   @Prop({ type: String, select: false, default: null })
   refreshTokenHash!: string | null;
-
-  @Prop({ type: 'ObjectId', ref: Profile.name, required: true, index: true })
-  profileId!: Types.ObjectId;
 
   @Prop({ required: true, enum: USER_STATUSES, default: 'activo', index: true })
   status!: UserStatus;

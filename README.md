@@ -80,6 +80,7 @@ JWT_REFRESH_SECRET=
 JWT_ACCESS_EXPIRES_IN=2h
 JWT_REFRESH_EXPIRES_IN=7d
 COOKIE_SECURE=false
+SEED_TENANT_NAME=
 SEED_ADMIN_NAME=
 SEED_ADMIN_EMAIL=
 SEED_ADMIN_PASSWORD=
@@ -110,28 +111,28 @@ se guardan en la base definida por `MONGO_DATABASE`.
 
 ### Datos iniciales
 
-Antes de ejecutar el seed, define en tu archivo `.env` el nombre visible, correo
-de inicio de sesión y contraseña que tendrá el administrador inicial. No uses
-los valores de otra persona ni subas ese archivo al repositorio.
+Antes de ejecutar el seed, define en tu archivo `.env` la empresa inicial y las
+credenciales del administrador. No uses los valores de otra persona ni subas
+ese archivo al repositorio.
 
 ```env
+SEED_TENANT_NAME=Empresa de ejemplo
 SEED_ADMIN_NAME=Nombre del administrador
 SEED_ADMIN_EMAIL=admin@ejemplo.com
 SEED_ADMIN_PASSWORD=una-contraseña-larga-y-unica
 ```
 
-Con MongoDB iniciado, crea los permisos base, el perfil Administrador y el
+Con MongoDB iniciado, crea la empresa inicial, el perfil Administrador y el
 administrador inicial con:
 
 ```bash
 npm run seed
 ```
 
-El proceso es idempotente: se puede ejecutar varias veces sin duplicar los
-permisos, el perfil ni el administrador. Una vez creada la cuenta, cambiar estas
-variables no modifica sus credenciales; esto evita restablecimientos
-accidentales. La gestión de usuarios, perfiles y permisos permitirá hacerlo de
-forma segura más adelante.
+El proceso es idempotente: se puede ejecutar varias veces sin duplicar la
+empresa, los permisos, el perfil ni el administrador. Una vez creada la cuenta,
+cambiar estas variables no modifica sus credenciales; esto evita
+restablecimientos accidentales.
 
 ## Autenticación
 
@@ -260,6 +261,7 @@ JWT_ACCESS_EXPIRES_IN=2h
 JWT_REFRESH_EXPIRES_IN=7d
 COOKIE_SECURE=false
 
+SEED_TENANT_NAME=Evoria Local
 SEED_ADMIN_NAME=Administrador Evoria
 SEED_ADMIN_EMAIL=admin@evoria.com
 SEED_ADMIN_PASSWORD=Evoria123*
@@ -267,9 +269,9 @@ SEED_ADMIN_PASSWORD=Evoria123*
 
 Los secretos y la contraseña son únicamente valores de desarrollo. Cada
 integrante puede reemplazarlos por valores propios, pero las variables
-`SEED_ADMIN_NAME`, `SEED_ADMIN_EMAIL` y `SEED_ADMIN_PASSWORD` son necesarias
-para crear el usuario inicial. La contraseña debe tener al menos ocho
-caracteres.
+`SEED_TENANT_NAME`, `SEED_ADMIN_NAME`, `SEED_ADMIN_EMAIL` y
+`SEED_ADMIN_PASSWORD` son necesarias para crear la empresa y el usuario
+iniciales. La contraseña debe tener al menos ocho caracteres.
 
 ### Levantar la base de datos y crear el usuario
 
@@ -285,11 +287,11 @@ Luego ejecuta el seed desde la raíz del repositorio:
 npm run seed
 ```
 
-Este comando compila la API, crea los permisos y el perfil Administrador si no
-existen, y crea el usuario inicial con los datos de `SEED_ADMIN_*`. Es
+Este comando compila la API, crea la empresa inicial, los permisos y el perfil
+Administrador si no existen, y crea una membresía para el usuario inicial. Es
 idempotente, por lo que se puede ejecutar nuevamente sin duplicar registros.
-Modificar las variables `SEED_ADMIN_*` después de crear el usuario no cambia sus
-credenciales existentes.
+Modificar las variables `SEED_*` después de crear los registros no cambia sus
+datos existentes.
 
 Finalmente, inicia la aplicación:
 
@@ -323,8 +325,8 @@ npm install
 npm run seed
 ```
 
-Si aparece el mensaje `SEED_ADMIN_NAME es obligatoria` o equivalente, faltan
-las variables `SEED_ADMIN_NAME`, `SEED_ADMIN_EMAIL` o
+Si aparece un mensaje indicando que una variable `SEED_*` es obligatoria,
+comprueba `SEED_TENANT_NAME`, `SEED_ADMIN_NAME`, `SEED_ADMIN_EMAIL` y
 `SEED_ADMIN_PASSWORD` en el archivo `.env` de la raíz. Si el seed no puede
 conectarse a MongoDB, comprueba el estado del contenedor:
 
