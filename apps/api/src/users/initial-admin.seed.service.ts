@@ -2,7 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { isEmail } from 'class-validator';
-import type { Model } from 'mongoose';
+import type { Model, Types } from 'mongoose';
+import { Membership } from '../memberships/schemas/membership.schema';
 import { ADMINISTRATOR_PROFILE_NAME } from '../profiles/profiles.constants';
 import { Profile } from '../profiles/schemas/profile.schema';
 import { PasswordService } from './password.service';
@@ -20,10 +21,12 @@ export class InitialAdminSeedService {
     private readonly configService: ConfigService,
     private readonly passwordService: PasswordService,
     @InjectModel(Profile.name) private readonly profileModel: Model<Profile>,
+    @InjectModel(Membership.name)
+    private readonly membershipModel: Model<Membership>,
     @InjectModel(User.name) private readonly userModel: Model<User>,
   ) {}
 
-  async seed(): Promise<InitialAdminSeedResult> {
+  async seed(tenantId: Types.ObjectId): Promise<InitialAdminSeedResult> {
     const name = this.getRequiredValue('SEED_ADMIN_NAME');
     const email = this.getRequiredValue('SEED_ADMIN_EMAIL').toLowerCase();
     const password = this.getRequiredValue('SEED_ADMIN_PASSWORD');
@@ -31,7 +34,7 @@ export class InitialAdminSeedService {
     this.validateInput(name, email, password);
 
     const profile = await this.profileModel
-      .findOne({ name: ADMINISTRATOR_PROFILE_NAME })
+      .findOne({ name: ADMINISTRATOR_PROFILE_NAME, tenantId })
       .select('_id')
       .lean();
 
@@ -43,29 +46,37 @@ export class InitialAdminSeedService {
 
     const existingUser = await this.userModel
       .findOne({ email })
-      .select('_id profileId')
+      .select('_id')
       .lean();
 
     if (existingUser) {
-      if (!existingUser.profileId) {
-        await this.userModel.updateOne(
-          { _id: existingUser._id },
-          {
-            $set: { profileId: profile._id },
-            $unset: { roleId: '' },
+      const membershipResult = await this.membershipModel.updateOne(
+        { userId: existingUser._id, tenantId },
+        {
+          $setOnInsert: {
+            userId: existingUser._id,
+            tenantId,
+            profileId: profile._id,
           },
-        );
+        },
+        { upsert: true },
+      );
 
-        return { created: 0, existing: 0, migrated: 1 };
-      }
-
-      return { created: 0, existing: 1, migrated: 0 };
+      return {
+        created: 0,
+        existing: membershipResult.upsertedCount ? 0 : 1,
+        migrated: membershipResult.upsertedCount ? 1 : 0,
+      };
     }
 
-    await this.userModel.create({
+    const user = await this.userModel.create({
       name,
       email,
       passwordHash: await this.passwordService.hash(password),
+    });
+    await this.membershipModel.create({
+      userId: user._id,
+      tenantId,
       profileId: profile._id,
     });
 

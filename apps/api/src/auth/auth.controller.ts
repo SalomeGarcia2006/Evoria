@@ -84,7 +84,7 @@ export class AuthController {
   @Get('me')
   async currentSession(@CurrentUser() user: AuthenticatedUser) {
     return {
-      data: await this.authService.getSession(user.id),
+      data: await this.authService.getSession(user.id, user.membershipId),
       message: 'Sesión obtenida correctamente.',
     };
   }

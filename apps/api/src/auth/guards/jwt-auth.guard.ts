@@ -8,7 +8,9 @@ import { JwtService } from '@nestjs/jwt';
 import { InjectModel } from '@nestjs/mongoose';
 import { Reflector } from '@nestjs/core';
 import type { Model } from 'mongoose';
+import { Membership } from '../../memberships/schemas/membership.schema';
 import { Profile } from '../../profiles/schemas/profile.schema';
+import { Tenant } from '../../tenants/schemas/tenant.schema';
 import { User } from '../../users/schemas/user.schema';
 import { AuthConfigService } from '../auth.config';
 import type { AuthenticatedRequest, JwtTokenPayload } from '../auth.types';
@@ -21,7 +23,10 @@ export class JwtAuthGuard implements CanActivate {
     private readonly jwtService: JwtService,
     private readonly authConfigService: AuthConfigService,
     @InjectModel(User.name) private readonly userModel: Model<User>,
+    @InjectModel(Membership.name)
+    private readonly membershipModel: Model<Membership>,
     @InjectModel(Profile.name) private readonly profileModel: Model<Profile>,
+    @InjectModel(Tenant.name) private readonly tenantModel: Model<Tenant>,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -45,19 +50,37 @@ export class JwtAuthGuard implements CanActivate {
     const payload = await this.verifyAccessToken(accessToken);
     const user = await this.userModel
       .findOne({ _id: payload.sub, status: 'activo' })
-      .select('_id name email profileId')
+      .select('_id name email')
       .lean();
 
     if (!user) {
       throw new UnauthorizedException('La sesión no es válida o expiró.');
     }
 
-    const profile = await this.profileModel.exists({
-      _id: user.profileId,
-      status: 'activo',
-    });
+    const membership = await this.membershipModel
+      .findOne({
+        _id: payload.membershipId,
+        userId: user._id,
+        tenantId: payload.tenantId,
+        status: 'activo',
+      })
+      .select('profileId')
+      .lean();
 
-    if (!profile) {
+    if (!membership) {
+      throw new UnauthorizedException('La membresía no está activa.');
+    }
+
+    const [tenant, profile] = await Promise.all([
+      this.tenantModel.exists({ _id: payload.tenantId, status: 'activo' }),
+      this.profileModel.exists({
+        _id: membership.profileId,
+        tenantId: payload.tenantId,
+        status: 'activo',
+      }),
+    ]);
+
+    if (!tenant || !profile) {
       throw new UnauthorizedException('La cuenta no tiene un perfil activo.');
     }
 
@@ -65,7 +88,9 @@ export class JwtAuthGuard implements CanActivate {
       id: user._id.toString(),
       name: user.name,
       email: user.email,
-      profileId: user.profileId.toString(),
+      tenantId: payload.tenantId,
+      membershipId: membership._id.toString(),
+      profileId: membership.profileId.toString(),
     };
 
     return true;
