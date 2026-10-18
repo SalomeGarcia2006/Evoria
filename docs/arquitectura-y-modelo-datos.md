@@ -301,6 +301,10 @@ deben requerir autenticación y validar el permiso requerido.
 | Perfiles      | `POST /api/profiles`                           | `perfiles.crear`        | Perfil creado con permisos del catálogo.              |
 | Usuarios      | `GET /api/users`                               | `usuarios.ver`          | Lista paginada de usuarios.                           |
 | Usuarios      | `POST /api/users`                              | `usuarios.crear`        | Usuario creado sin exponer `password_hash`.           |
+| Usuarios      | `GET /api/users/profiles`                      | `usuarios.crear`        | Perfiles activos disponibles para asignar.            |
+| Usuarios      | `GET /api/users/:id`                           | `usuarios.ver`          | Usuario de la empresa activa.                         |
+| Usuarios      | `PATCH /api/users/:id`                         | `usuarios.editar`       | Perfil o estado de membresía actualizado.             |
+| Usuarios      | `DELETE /api/users/:id`                        | `usuarios.desactivar`   | Membresía del usuario desactivada.                    |
 | Eventos       | `GET /api/events`                              | `eventos.ver`           | Lista filtrable y paginada de eventos permitidos.     |
 | Eventos       | `POST /api/events`                             | `eventos.crear`         | Evento creado.                                        |
 | Eventos       | `GET /api/events/:id`                          | `eventos.ver`           | Detalle del evento, presupuesto y recursos asignados. |
