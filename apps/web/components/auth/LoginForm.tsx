@@ -10,6 +10,8 @@ export function LoginForm() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isAlertVisible, setIsAlertVisible] = useState(false);
+  const [failedAttempts, setFailedAttempts] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -19,12 +21,24 @@ export function LoginForm() {
 
     try {
       await login({ email, password });
+      setError(null);
+      setIsAlertVisible(false);
+      setFailedAttempts(0);
       router.push('/dashboard');
     } catch (submitError) {
+      const nextAttempt = Math.min(failedAttempts + 1, 5);
+      const backendMessage =
+        submitError instanceof Error ? submitError.message : '';
+      const isLocked = backendMessage.toLowerCase().includes('bloqueada');
+
+      setFailedAttempts(nextAttempt);
+      setIsAlertVisible(true);
       setError(
-        submitError instanceof Error
-          ? submitError.message
-          : 'No fue posible iniciar sesión.',
+        isLocked || nextAttempt >= 5
+          ? 'Demasiados intentos fallidos. Por seguridad, el inicio de sesión se ha desactivado por 15 minutos. Si olvidaste tu clave, restablécela aquí.'
+          : nextAttempt >= 3
+            ? `Contraseña incorrecta. Te quedan ${5 - nextAttempt} intentos antes de que la cuenta se bloquee temporalmente por seguridad.`
+            : 'Usuario o contraseña incorrectos.',
       );
     } finally {
       setIsSubmitting(false);
@@ -122,12 +136,9 @@ export function LoginForm() {
         </div>
 
         {error ? (
-          <p
-            aria-live="polite"
-            className="mb-4 text-sm text-red-700"
-            role="alert"
-          >
-            {error}
+          <p aria-live="polite" className="login-error" role="alert">
+            <span aria-hidden="true">⚠️</span>
+            <span>{error}</span>
           </p>
         ) : null}
 
@@ -135,6 +146,39 @@ export function LoginForm() {
           {isSubmitting ? 'Iniciando sesión…' : 'Iniciar sesión'}
         </button>
       </form>
+
+      {error && isAlertVisible ? (
+        <div
+          aria-live="assertive"
+          className="login-alert-backdrop fixed inset-0 z-50 grid place-items-center p-6"
+          role="alertdialog"
+          aria-modal="true"
+          aria-label="Alerta de inicio de sesión"
+        >
+          <div className="login-alert-modal">
+            <button
+              aria-label="Cerrar alerta"
+              className="login-alert-close"
+              onClick={() => setIsAlertVisible(false)}
+              type="button"
+            >
+              ×
+            </button>
+            <div className="login-alert-icon" aria-hidden="true">
+              ⚠️
+            </div>
+            <p className="login-alert-kicker">Revisa tus datos</p>
+            <p className="login-alert-message">{error}</p>
+            <button
+              className="login-alert-button"
+              onClick={() => setIsAlertVisible(false)}
+              type="button"
+            >
+              Entendido
+            </button>
+          </div>
+        </div>
+      ) : null}
     </>
   );
 }
