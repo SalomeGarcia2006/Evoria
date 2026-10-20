@@ -54,9 +54,7 @@ export function Sidebar() {
 
       <nav aria-label="Navegación principal" className="evoria-sidebar__nav">
         <ul className="evoria-sidebar__list">
-          {visibleItems
-            .filter(({ href }) => href !== '/perfiles')
-            .map(({ label, href }) => {
+          {visibleItems.map(({ label, href }) => {
               const isActive =
                 pathname === href || pathname.startsWith(`${href}/`);
 
