@@ -55,29 +55,29 @@ export function Sidebar() {
       <nav aria-label="Navegación principal" className="evoria-sidebar__nav">
         <ul className="evoria-sidebar__list">
           {visibleItems.map(({ label, href }) => {
-              const isActive =
-                pathname === href || pathname.startsWith(`${href}/`);
+            const isActive =
+              pathname === href || pathname.startsWith(`${href}/`);
 
-              return (
-                <li key={href}>
-                  <Link
-                    aria-current={isActive ? 'page' : undefined}
-                    className={`evoria-sidebar__link ${isActive ? 'is-active' : ''}`}
-                    href={href}
-                  >
-                    <Image
-                      alt=""
-                      aria-hidden="true"
-                      className="evoria-sidebar__icon"
-                      height={24}
-                      src={`/icons/${iconByRoute[href]}`}
-                      width={24}
-                    />
-                    <span className="evoria-sidebar__link-label">{label}</span>
-                  </Link>
-                </li>
-              );
-            })}
+            return (
+              <li key={href}>
+                <Link
+                  aria-current={isActive ? 'page' : undefined}
+                  className={`evoria-sidebar__link ${isActive ? 'is-active' : ''}`}
+                  href={href}
+                >
+                  <Image
+                    alt=""
+                    aria-hidden="true"
+                    className="evoria-sidebar__icon"
+                    height={24}
+                    src={`/icons/${iconByRoute[href]}`}
+                    width={24}
+                  />
+                  <span className="evoria-sidebar__link-label">{label}</span>
+                </Link>
+              </li>
+            );
+          })}
         </ul>
       </nav>
       <div className="evoria-sidebar__footer">
