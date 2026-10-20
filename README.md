@@ -180,6 +180,7 @@ interna ficticia de Evoria.
 ```json
 {
   "name": "Eventos Ejemplo",
+  "nit": "900123456-7",
   "ownerName": "Nombre del propietario",
   "ownerEmail": "propietario@ejemplo.com",
   "ownerPassword": "una-contraseña-larga-y-unica"
