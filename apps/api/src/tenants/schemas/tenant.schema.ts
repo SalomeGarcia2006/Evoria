@@ -9,6 +9,9 @@ export class Tenant {
   @Prop({ required: true, trim: true, minlength: 2, maxlength: 120 })
   name!: string;
 
+  @Prop({ required: true, trim: true, minlength: 3, maxlength: 30 })
+  nit!: string;
+
   @Prop({
     required: true,
     unique: true,
@@ -32,3 +35,7 @@ export class Tenant {
 }
 
 export const TenantSchema = SchemaFactory.createForClass(Tenant);
+TenantSchema.index(
+  { nit: 1 },
+  { unique: true, partialFilterExpression: { nit: { $exists: true } } },
+);

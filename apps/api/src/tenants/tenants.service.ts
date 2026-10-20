@@ -31,16 +31,19 @@ export class TenantsService {
 
   async create(createTenantDto: CreateTenantDto, developer: AuthenticatedUser) {
     const name = createTenantDto.name.trim();
+    const nit = createTenantDto.nit.trim();
     const slug = this.createSlug(name);
     const ownerEmail = createTenantDto.ownerEmail.trim().toLowerCase();
 
     const [existingTenant, existingOwner] = await Promise.all([
-      this.tenantModel.exists({ slug }),
+      this.tenantModel.exists({ $or: [{ slug }, { nit }] }),
       this.userModel.exists({ email: ownerEmail }),
     ]);
 
     if (existingTenant) {
-      throw new ConflictException('Ya existe una empresa con ese nombre.');
+      throw new ConflictException(
+        'Ya existe una empresa con ese nombre o NIT.',
+      );
     }
 
     if (existingOwner) {
@@ -55,6 +58,7 @@ export class TenantsService {
     try {
       tenant = await this.tenantModel.create({
         name,
+        nit,
         slug,
         createdBy: developer.id,
       });
@@ -86,6 +90,7 @@ export class TenantsService {
     return {
       id: tenant._id.toString(),
       name: tenant.name,
+      nit: tenant.nit,
       slug: tenant.slug,
       administrator: {
         id: owner._id.toString(),

@@ -7,6 +7,11 @@ export class CreateTenantDto {
   name!: string;
 
   @IsString()
+  @MinLength(3)
+  @MaxLength(30)
+  nit!: string;
+
+  @IsString()
   @MinLength(2)
   @MaxLength(120)
   ownerName!: string;

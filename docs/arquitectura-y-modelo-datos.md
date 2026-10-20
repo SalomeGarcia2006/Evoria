@@ -341,6 +341,7 @@ deben requerir autenticación y validar el permiso requerido.
    TENANTS {
    ObjectId id PK
    string nombre
+   string nit UK
    string slug UK
    string estado
    ObjectId creado_por FK
