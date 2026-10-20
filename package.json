@@ -17,9 +17,24 @@
     "seed:admin": "npm run build --workspace=@evoria/api && npm run seed:admin --workspace=@evoria/api",
     "docker:dev": "docker compose -f compose.yaml -f compose.dev.yaml watch",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "apps/api/**/*.{ts,tsx}": [
+      "eslint --fix --config apps/api/eslint.config.mjs",
+      "prettier --write"
+    ],
+    "apps/web/**/*.{ts,tsx}": [
+      "eslint --fix --config apps/web/eslint.config.mjs",
+      "prettier --write"
+    ],
+    "packages/contracts/**/*.{ts,tsx}": "prettier --write",
+    "*.{css,js,jsx,json,md,mjs,yaml,yml}": "prettier --write"
   },
   "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^17.6.0",
     "prettier": "3.9.9",
     "turbo": "2.11.7"
   }

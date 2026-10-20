@@ -202,6 +202,12 @@ GitHub Actions ejecuta esas verificaciones y además comprueba que Docker pueda
 iniciar la web, la API y MongoDB, incluyendo una operación básica sobre la base
 de datos.
 
+### Hooks de Git
+
+`npm install` activa Husky automáticamente. Antes de cada commit, el hook
+formatea los archivos preparados y ejecuta ESLint sobre los cambios de la API y
+el frontend. Si queda un error sin corregir, el commit se cancela.
+
 ## Despliegue
 
 El despliegue en un entorno productivo está por definir. La configuración actual
