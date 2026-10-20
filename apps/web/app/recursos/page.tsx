@@ -6,6 +6,7 @@ import { AppShell } from '../../components/layout/AppShell';
 import { Card } from '../../components/ui/Card';
 import { DataTable } from '../../components/ui/DataTable';
 import { StatusBadge } from '../../components/ui/StatusBadge';
+import { PermissionGate } from '../../components/auth/PermissionGate';
 import type { Recurso } from '../../types/recurso';
 
 const demoResources: Recurso[] = [
@@ -80,12 +81,14 @@ export default function RecursosPage() {
             <span className="rounded-full bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-800">
               Demostración · datos locales
             </span>
-            <Link
-              className="inline-flex items-center rounded-lg bg-navy px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
-              href="/recursos/nuevo"
-            >
-              ＋ Nuevo recurso
-            </Link>
+            <PermissionGate permission="recursos.crear">
+              <Link
+                className="inline-flex items-center rounded-lg bg-navy px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+                href="/recursos/nuevo"
+              >
+                ＋ Nuevo recurso
+              </Link>
+            </PermissionGate>
           </div>
         </div>
         <div className="grid gap-4 sm:grid-cols-3">

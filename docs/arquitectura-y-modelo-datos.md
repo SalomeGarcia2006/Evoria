@@ -19,19 +19,28 @@ La web no decide la seguridad. Puede ocultar páginas y acciones que no
 correspondan a los permisos del usuario, pero la API debe validarlos en cada
 endpoint protegido.
 
-## Perfiles y permisos
+## Empresas, perfiles y permisos
 
-Los permisos representan acciones concretas, por ejemplo `usuarios.gestionar`
-o `eventos.crear`. Los administradores crean perfiles y asignan a cada uno los
-permisos que correspondan. Después, cada usuario recibe un perfil.
+Evoria es multitenant: cada empresa gestiona sus propios eventos y datos sin
+acceder a los de otras empresas. El usuario representa la identidad global de
+una persona; una membresía la vincula con una empresa y le asigna un perfil.
+Por ello, la misma persona puede tener perfiles diferentes en distintas
+empresas.
 
-La API reconoce las claves de permisos que protege mediante guards. Un permiso
-creado por un administrador se podrá asignar a perfiles, pero solo tendrá efecto
-en una funcionalidad cuando dicha funcionalidad requiera su clave.
+Los permisos representan acciones concretas y se asignan a perfiles. La API
+valida la membresía activa, la empresa activa y los permisos antes de atender
+cualquier endpoint protegido. El desarrollador usa un perfil global; los demás
+usuarios ingresan con el perfil de su membresía empresarial.
 
-El seed crea los permisos mínimos de gestión, el perfil de sistema
-`Administrador` y el administrador inicial definido en `.env`. El perfil de
-sistema permite comenzar a administrar los demás perfiles y permisos.
+El catálogo de permisos se define en código y solo se consulta por la API: no
+hay CRUD de permisos. Cada permiso tiene la clave `<módulo>.<acción>` y conserva
+el identificador, nombre y descripción de su módulo. Así, los perfiles creados
+por cada empresa solo eligen acciones existentes del catálogo.
+
+El seed crea el perfil global `Desarrollador` y vincula a él el usuario definido
+por las variables `SEED_ADMIN_*`. Ese desarrollador no pertenece a ninguna
+empresa y es quien puede crear empresas. Al crear una empresa, la API genera su
+perfil `Administrador`, el usuario propietario y su membresía.
 
 ## Modelo de datos
 
@@ -41,8 +50,15 @@ referencias entre documentos.
 
 ```mermaid
 erDiagram
-  PERFILES ||--o{ USUARIOS : asigna
+  TENANTS ||--o{ MEMBERSHIPS : incluye
+  USUARIOS ||--o{ MEMBERSHIPS : pertenece
+  TENANTS ||--o{ PERFILES : contiene
+  PERFILES ||--o{ USUARIOS : perfil_global
+  PERFILES ||--o{ MEMBERSHIPS : asigna
   PERFILES }o--o{ PERMISOS : agrupa
+  TENANTS ||--o{ EVENTOS : posee
+  TENANTS ||--o{ RECURSOS : posee
+  TENANTS ||--o{ AUDITORIAS : registra
   USUARIOS ||--o{ EVENTOS : gestiona
   USUARIOS ||--o{ CRONOGRAMAS : es_responsable
   USUARIOS ||--o{ AUDITORIAS : realiza
@@ -59,14 +75,20 @@ erDiagram
   PERMISOS {
     ObjectId id PK
     string clave UK
-    string nombre UK
-    string descripcion
+    string modulo_clave
+    string modulo_nombre
+    string modulo_descripcion
+    string alcance
+    string accion
+    string nombre
     string estado
   }
 
   PERFILES {
     ObjectId id PK
-    string nombre UK
+    string alcance
+    ObjectId tenant_id FK
+    string nombre
     string descripcion
     ObjectId permisos FK
     string estado
@@ -78,7 +100,7 @@ erDiagram
     string nombre
     string correo UK
     string password_hash
-    ObjectId perfil_id FK
+    ObjectId perfil_plataforma_id FK
     string estado
     int intentos_login
     datetime creado_en
@@ -87,6 +109,7 @@ erDiagram
 
   EVENTOS {
     ObjectId id PK
+    ObjectId tenant_id FK
     string nombre
     string descripcion
     datetime fecha_inicio
@@ -101,6 +124,7 @@ erDiagram
 
   RECURSOS {
     ObjectId id PK
+    ObjectId tenant_id FK
     string nombre
     string tipo
     string descripcion
@@ -115,6 +139,7 @@ erDiagram
 
   EVENTO_RECURSOS {
     ObjectId id PK
+    ObjectId tenant_id FK
     ObjectId evento_id FK
     ObjectId recurso_id FK
     int cantidad
@@ -125,6 +150,7 @@ erDiagram
 
   PRESUPUESTOS {
     ObjectId id PK
+    ObjectId tenant_id FK
     ObjectId evento_id FK
     decimal subtotal_recursos
     decimal costos_adicionales
@@ -135,6 +161,7 @@ erDiagram
 
   CRONOGRAMAS {
     ObjectId id PK
+    ObjectId tenant_id FK
     ObjectId evento_id FK
     ObjectId responsable_id FK
     string nombre
@@ -146,6 +173,7 @@ erDiagram
 
   ALERTAS {
     ObjectId id PK
+    ObjectId tenant_id FK
     ObjectId evento_id FK
     string tipo
     string mensaje
@@ -157,6 +185,7 @@ erDiagram
 
   MOVIMIENTOS_INVENTARIO {
     ObjectId id PK
+    ObjectId tenant_id FK
     ObjectId recurso_id FK
     ObjectId evento_id FK
     ObjectId usuario_id FK
@@ -168,6 +197,7 @@ erDiagram
 
   AUDITORIAS {
     ObjectId id PK
+    ObjectId tenant_id FK
     ObjectId usuario_id FK
     string accion
     string entidad
@@ -208,13 +238,26 @@ filtros y su archivo.
 ## Reglas de negocio esenciales
 
 - El correo de un usuario es único.
-- Un usuario tiene un perfil de acceso activo.
+- Un usuario tiene una membresía activa por cada empresa a la que pertenece.
+- Un perfil de empresa pertenece a una empresa y solo puede asignarse mediante
+  una membresía de esa misma empresa. El perfil global `Desarrollador` no tiene
+  empresa.
+- Solo un usuario con perfil global `Desarrollador` puede crear empresas. Al
+  hacerlo se crea un perfil `Administrador` de sistema para esa empresa y se
+  asigna al propietario indicado.
+- Los permisos son un catálogo controlado por código. El perfil global recibe
+  los permisos de plataforma y el perfil `Administrador` de cada empresa recibe
+  todos los permisos de empresa.
+- Toda consulta de negocio debe filtrarse por el `tenantId` de la sesión activa.
 - Un perfil puede contener varios permisos y un permiso puede pertenecer a
   varios perfiles.
 - Los perfiles y permisos de sistema no se eliminan; se protegen para evitar
   perder el acceso administrativo.
 - Un evento debe tener fecha de finalización igual o posterior a su fecha de
   inicio.
+- Un evento cancelado se conserva como historial y no puede editarse.
+- El responsable de un evento, si existe, debe tener una membresía activa en la
+  misma empresa.
 - Una actividad del cronograma debe estar dentro del periodo de su evento.
 - Las cantidades de un recurso nunca pueden ser negativas.
 - No se puede asignar a un evento una cantidad mayor a la disponible.
@@ -254,10 +297,18 @@ deben requerir autenticación y validar el permiso requerido.
 | ------------- | ---------------------------------------------- | ----------------------- | ----------------------------------------------------- |
 | Autenticación | `POST /api/auth/login`                         | Público                 | Usuario autenticado y token o cookie de sesión.       |
 | Autenticación | `GET /api/auth/me`                             | Autenticado             | Usuario, perfil y permisos actuales.                  |
-| Permisos      | `GET /api/permissions`                         | `permisos.gestionar`    | Lista de permisos configurables.                      |
-| Perfiles      | `POST /api/profiles`                           | `perfiles.gestionar`    | Perfil creado con permisos asignados.                 |
-| Usuarios      | `GET /api/users`                               | `usuarios.gestionar`    | Lista paginada de usuarios.                           |
-| Usuarios      | `POST /api/users`                              | `usuarios.gestionar`    | Usuario creado sin exponer `password_hash`.           |
+| Permisos      | `GET /api/permissions`                         | `perfiles.ver`          | Catálogo fijo agrupado por módulo.                    |
+| Perfiles      | `GET /api/profiles`                            | `perfiles.ver`          | Perfiles y permisos de la empresa activa.             |
+| Perfiles      | `GET /api/profiles/:id`                        | `perfiles.ver`          | Detalle de un perfil y sus permisos.                  |
+| Perfiles      | `POST /api/profiles`                           | `perfiles.crear`        | Perfil creado con permisos del catálogo.              |
+| Perfiles      | `PATCH /api/profiles/:id`                      | `perfiles.editar`       | Perfil y permisos actualizados.                       |
+| Perfiles      | `DELETE /api/profiles/:id`                     | `perfiles.desactivar`   | Perfil personalizado desactivado.                     |
+| Usuarios      | `GET /api/users`                               | `usuarios.ver`          | Lista paginada de usuarios.                           |
+| Usuarios      | `POST /api/users`                              | `usuarios.crear`        | Usuario creado sin exponer `password_hash`.           |
+| Usuarios      | `GET /api/users/profiles`                      | `usuarios.crear`        | Perfiles activos disponibles para asignar.            |
+| Usuarios      | `GET /api/users/:id`                           | `usuarios.ver`          | Usuario de la empresa activa.                         |
+| Usuarios      | `PATCH /api/users/:id`                         | `usuarios.editar`       | Perfil o estado de membresía actualizado.             |
+| Usuarios      | `DELETE /api/users/:id`                        | `usuarios.desactivar`   | Membresía del usuario desactivada.                    |
 | Eventos       | `GET /api/events`                              | `eventos.ver`           | Lista filtrable y paginada de eventos permitidos.     |
 | Eventos       | `POST /api/events`                             | `eventos.crear`         | Evento creado.                                        |
 | Eventos       | `GET /api/events/:id`                          | `eventos.ver`           | Detalle del evento, presupuesto y recursos asignados. |
@@ -287,3 +338,22 @@ deben requerir autenticación y validar el permiso requerido.
 4. Asignación de recursos y movimientos de inventario transaccionales.
 5. Presupuestos, dashboard, cronogramas, alertas y auditoría.
 6. Reportes, exportaciones y pruebas automatizadas de los flujos anteriores.
+   TENANTS {
+   ObjectId id PK
+   string nombre
+   string slug UK
+   string estado
+   ObjectId creado_por FK
+   datetime creado_en
+   datetime actualizado_en
+   }
+
+MEMBERSHIPS {
+ObjectId id PK
+ObjectId usuario_id FK
+ObjectId tenant_id FK
+ObjectId perfil_id FK
+string estado
+datetime creado_en
+datetime actualizado_en
+}

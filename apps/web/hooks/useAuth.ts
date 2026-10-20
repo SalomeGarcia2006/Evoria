@@ -1,9 +1,12 @@
-'use client';
-
-import { useState } from 'react';
-import type { AuthUser } from '../types/auth';
+import { useContext } from 'react';
+import { AuthContext } from '../components/auth/AuthProvider';
 
 export function useAuth() {
-  const [user] = useState<AuthUser | null>(null);
-  return { user, isAuthenticated: user !== null };
+  const context = useContext(AuthContext);
+
+  if (!context) {
+    throw new Error('useAuth debe utilizarse dentro de AuthProvider.');
+  }
+
+  return context;
 }

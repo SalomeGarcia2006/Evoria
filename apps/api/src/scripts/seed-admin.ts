@@ -9,7 +9,6 @@ async function bootstrap(): Promise<void> {
   try {
     const accessControlResult = await app.get(AccessControlSeedService).seed();
     const adminResult = await app.get(InitialAdminSeedService).seed();
-
     process.stdout.write(
       `Permisos creados: ${accessControlResult.permissionsCreated}. Permisos existentes: ${accessControlResult.permissionsExisting}.\n`,
     );
@@ -17,7 +16,7 @@ async function bootstrap(): Promise<void> {
       `Perfiles creados: ${accessControlResult.profilesCreated}. Perfiles existentes: ${accessControlResult.profilesExisting}.\n`,
     );
     process.stdout.write(
-      `Administrador creado: ${adminResult.created}. Administrador existente: ${adminResult.existing}. Administrador migrado: ${adminResult.migrated}.\n`,
+      `Desarrollador creado: ${adminResult.created}. Desarrollador existente: ${adminResult.existing}. Desarrollador migrado: ${adminResult.migrated}.\n`,
     );
   } finally {
     await app.close();
