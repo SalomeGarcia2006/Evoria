@@ -1,14 +1,30 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import Image from 'next/image';
+import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { navigationItems } from '../../lib/access-control';
 import { useAuth } from '../../hooks/useAuth';
 
+const iconByRoute: Record<string, string> = {
+  '/dashboard': 'dashboard.svg',
+  '/eventos': 'eventos.svg',
+  '/recursos': 'recursos.svg',
+  '/inventario': 'inventario.svg',
+  '/presupuestos': 'presupuesto.svg',
+  '/cronograma': 'cronograma.svg',
+  '/alertas': 'alerta.svg',
+  '/reportes': 'reporte.svg',
+  '/auditoria': 'auditoria.svg',
+  '/usuarios': 'usuarios.svg',
+  '/perfiles': 'perfil.svg',
+};
+
 export function Sidebar() {
   const router = useRouter();
-  const { can, signOut, user } = useAuth();
+  const pathname = usePathname();
+  const { can, signOut } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   async function handleLogout() {
@@ -21,41 +37,64 @@ export function Sidebar() {
     }
   }
 
+  const visibleItems = navigationItems.filter(({ permission }) =>
+    can(permission),
+  );
+
   return (
-    <aside className="flex flex-col border-b border-sky-blue bg-white p-4 lg:fixed lg:inset-y-0 lg:left-0 lg:z-20 lg:h-screen lg:w-64 lg:border-b-0 lg:border-r">
-      <Link className="mb-6 block text-2xl font-bold tracking-tight" href="/">
-        EVORIA
-      </Link>
-      <nav
-        aria-label="Navegación principal"
-        className="min-h-0 flex-1 overflow-y-auto"
+    <aside className="evoria-sidebar">
+      <Link
+        aria-label="Ir al inicio de EVORIA"
+        className="evoria-sidebar__brand"
+        href="/"
       >
-        <ul className="grid gap-1 sm:grid-cols-3 lg:grid-cols-1">
-          {navigationItems
-            .filter(({ permission }) => can(permission))
-            .map(({ label, href }) => (
-              <li key={href}>
-                <Link
-                  className="block rounded-lg px-3 py-2 text-sm text-teal transition hover:bg-sky-blue hover:text-navy"
-                  href={href}
-                >
-                  {label}
-                </Link>
-              </li>
-            ))}
+        <span className="evoria-sidebar__brand-mark">E</span>
+        <span className="evoria-sidebar__brand-name">EVORIA</span>
+      </Link>
+
+      <nav aria-label="Navegación principal" className="evoria-sidebar__nav">
+        <ul className="evoria-sidebar__list">
+          {visibleItems
+            .filter(({ href }) => href !== '/perfiles')
+            .map(({ label, href }) => {
+              const isActive =
+                pathname === href || pathname.startsWith(`${href}/`);
+
+              return (
+                <li key={href}>
+                  <Link
+                    aria-current={isActive ? 'page' : undefined}
+                    className={`evoria-sidebar__link ${isActive ? 'is-active' : ''}`}
+                    href={href}
+                  >
+                    <Image
+                      alt=""
+                      aria-hidden="true"
+                      className="evoria-sidebar__icon"
+                      height={24}
+                      src={`/icons/${iconByRoute[href]}`}
+                      width={24}
+                    />
+                    <span className="evoria-sidebar__link-label">{label}</span>
+                  </Link>
+                </li>
+              );
+            })}
         </ul>
       </nav>
-      <div className="mt-auto border-t border-sky-blue pt-4">
-        <p className="mb-3 px-3 text-sm font-semibold">
-          {user?.name ?? 'Usuario'}
-        </p>
+      <div className="evoria-sidebar__footer">
         <button
-          className="w-full rounded-lg px-3 py-2 text-left text-sm font-semibold text-teal transition hover:bg-sky-blue hover:text-navy disabled:opacity-50"
+          className="evoria-sidebar__link evoria-sidebar__logout"
           disabled={isLoggingOut}
           onClick={handleLogout}
           type="button"
         >
-          {isLoggingOut ? 'Cerrando sesión…' : 'Salir'}
+          <span aria-hidden="true" className="evoria-sidebar__logout-icon">
+            ↪
+          </span>
+          <span className="evoria-sidebar__link-label">
+            {isLoggingOut ? 'Cerrando sesión…' : 'Cerrar sesión'}
+          </span>
         </button>
       </div>
     </aside>
