@@ -172,8 +172,22 @@ export class AuthService {
     scope?: JwtTokenPayload['scope'],
     membershipId?: string,
   ): Promise<AuthSession> {
+    const activeMembership = scope
+      ? null
+      : await this.membershipModel
+          .findOne({ userId: user._id, status: 'activo' })
+          .select('_id')
+          .sort({ createdAt: 1 })
+          .lean();
     const sessionScope =
-      scope ?? (user.platformProfileId ? 'platform' : 'tenant');
+      scope ??
+      (activeMembership
+        ? 'tenant'
+        : user.platformProfileId
+          ? 'platform'
+          : 'tenant');
+    const selectedMembershipId =
+      membershipId ?? activeMembership?._id.toString();
 
     if (sessionScope === 'platform') {
       const profile = await this.profileModel
@@ -213,7 +227,7 @@ export class AuthService {
       .findOne({
         userId: user._id,
         status: 'activo',
-        ...(membershipId ? { _id: membershipId } : {}),
+        ...(selectedMembershipId ? { _id: selectedMembershipId } : {}),
       })
       .sort({ createdAt: 1 })
       .lean();
