@@ -16,6 +16,6 @@ import { TenantsService } from './tenants.service';
   ],
   controllers: [TenantsController],
   providers: [TenantsService],
-  exports: [MongooseModule],
+  exports: [MongooseModule, TenantsService],
 })
 export class TenantsModule {}

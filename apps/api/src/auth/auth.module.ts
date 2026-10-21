@@ -9,9 +9,11 @@ import { UsersModule } from '../users/users.module';
 import { AuthConfigService } from './auth.config';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { DeveloperGuard } from './guards/developer.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { PermissionsGuard } from './guards/permissions.guard';
 import { PlatformGuard } from './guards/platform.guard';
+import { TenantSessionsController } from './tenant-sessions.controller';
 
 @Module({
   imports: [
@@ -22,7 +24,7 @@ import { PlatformGuard } from './guards/platform.guard';
     PermissionsModule,
     TenantsModule,
   ],
-  controllers: [AuthController],
+  controllers: [AuthController, TenantSessionsController],
   providers: [
     AuthConfigService,
     AuthService,
@@ -38,6 +40,11 @@ import { PlatformGuard } from './guards/platform.guard';
       provide: APP_GUARD,
       useClass: PlatformGuard,
     },
+    {
+      provide: APP_GUARD,
+      useClass: DeveloperGuard,
+    },
   ],
+  exports: [AuthService],
 })
 export class AuthModule {}
