@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AppShell } from '../../components/layout/AppShell';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -10,12 +10,61 @@ import { PermissionGate } from '../../components/auth/PermissionGate';
 import {
   ACTIONS,
   createPermissions,
-  loadProfiles,
   MODULES,
-  saveProfiles,
   type Profile,
   type Permissions as ProfilePermissions,
 } from '../../services/profile.service';
+import {
+  createProfile as createApiProfile,
+  getPermissionModules,
+  getProfiles,
+  type ApiProfile,
+  type PermissionModule,
+} from '../../services/profiles-api.service';
+
+function uiModuleKey(name: (typeof MODULES)[number]) {
+  const moduleKeys = [
+    'eventos',
+    'recursos',
+    'inventario',
+    'presupuestos',
+    'cronogramas',
+    'alertas',
+    'reportes',
+    'auditoria',
+  ];
+  return moduleKeys[MODULES.indexOf(name)] ?? name.toLowerCase();
+}
+
+function toUiProfile(profile: ApiProfile): Profile {
+  const permissions = createPermissions();
+  for (const permission of profile.permissions) {
+    const moduleName = MODULES.find(
+      (name) => uiModuleKey(name) === permission.moduleKey,
+    );
+    if (!moduleName) continue;
+    const action =
+      permission.action === 'ajustar'
+        ? 'Editar'
+        : permission.action === 'desactivar'
+          ? 'Eliminar'
+          : (
+              {
+                crear: 'Crear',
+                editar: 'Editar',
+                ver: 'Ver',
+                eliminar: 'Eliminar',
+              } as Record<string, (typeof ACTIONS)[number]>
+            )[permission.action];
+    if (action) permissions[moduleName][action] = true;
+  }
+  return {
+    id: profile.id,
+    name: profile.name,
+    status: profile.status === 'activo' ? 'Activo' : 'Inactivo',
+    permissions,
+  };
+}
 
 function PermissionSwitch({
   checked,
@@ -45,16 +94,31 @@ function PermissionSwitch({
 }
 
 export default function PerfilesPage() {
-  const [profiles, setProfiles] = useState<Profile[]>(() => loadProfiles());
+  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [permissionModules, setPermissionModules] = useState<
+    PermissionModule[]
+  >([]);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [newProfileName, setNewProfileName] = useState('');
   const [newProfilePermissions, setNewProfilePermissions] =
     useState<ProfilePermissions>(createPermissions);
 
-  function updateProfiles(nextProfiles: Profile[]) {
-    setProfiles(nextProfiles);
-    saveProfiles(nextProfiles);
-  }
+  useEffect(() => {
+    Promise.all([getProfiles(), getPermissionModules()])
+      .then(([apiProfiles, modules]) => {
+        setProfiles(apiProfiles.map(toUiProfile));
+        setPermissionModules(modules);
+      })
+      .catch((loadError: unknown) =>
+        setError(
+          loadError instanceof Error
+            ? loadError.message
+            : 'No fue posible cargar perfiles y permisos.',
+        ),
+      );
+  }, []);
 
   function openCreateForm() {
     setNewProfileName('');
@@ -62,7 +126,7 @@ export default function PerfilesPage() {
     setIsCreating(true);
   }
 
-  function createProfile(event: React.FormEvent<HTMLFormElement>) {
+  async function createProfile(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const name = newProfileName.trim();
     if (
@@ -73,16 +137,49 @@ export default function PerfilesPage() {
     )
       return;
 
-    const profile: Profile = {
-      id: `profile-${Date.now()}`,
-      name,
-      status: 'Activo',
-      permissions: newProfilePermissions,
-    };
-    updateProfiles([...profiles, profile]);
-    setNewProfileName('');
-    setNewProfilePermissions(createPermissions());
-    setIsCreating(false);
+    const permissionKeys = permissionModules.flatMap((module) => {
+      const uiName = MODULES.find((item) => uiModuleKey(item) === module.key);
+      if (!uiName) return [];
+      return module.permissions
+        .filter((permission) => {
+          const action =
+            permission.action === 'ajustar'
+              ? 'Editar'
+              : permission.action === 'desactivar'
+                ? 'Eliminar'
+                : (
+                    {
+                      crear: 'Crear',
+                      editar: 'Editar',
+                      ver: 'Ver',
+                      eliminar: 'Eliminar',
+                    } as Record<string, (typeof ACTIONS)[number]>
+                  )[permission.action];
+          return action ? newProfilePermissions[uiName][action] : false;
+        })
+        .map((permission) => permission.key);
+    });
+    setIsSaving(true);
+    setError('');
+    try {
+      const profile = await createApiProfile({
+        name,
+        description: `Perfil ${name}`,
+        permissionKeys,
+      });
+      setProfiles((current) => [...current, toUiProfile(profile)]);
+      setNewProfileName('');
+      setNewProfilePermissions(createPermissions());
+      setIsCreating(false);
+    } catch (saveError) {
+      setError(
+        saveError instanceof Error
+          ? saveError.message
+          : 'No fue posible crear el perfil.',
+      );
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   return (
@@ -106,6 +203,14 @@ export default function PerfilesPage() {
             </PermissionGate>
           </div>
         </Card>
+        {error ? (
+          <p
+            className="rounded-lg bg-red-50 p-3 text-sm text-red-800"
+            role="alert"
+          >
+            {error}
+          </p>
+        ) : null}
 
         {isCreating ? (
           <PermissionGate permission="perfiles.crear">
@@ -164,7 +269,9 @@ export default function PerfilesPage() {
                   ))}
                 </div>
                 <div className="mt-5">
-                  <Button type="submit">Guardar perfil</Button>
+                  <Button disabled={isSaving} type="submit">
+                    {isSaving ? 'Guardando…' : 'Guardar perfil'}
+                  </Button>
                 </div>
               </form>
             </Card>

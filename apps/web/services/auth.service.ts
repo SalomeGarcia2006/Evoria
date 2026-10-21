@@ -11,6 +11,8 @@ function toAuthUser(session: AuthSession): AuthUser {
     email: session.user.email,
     role: session.profile.name,
     scope: session.scope,
+    tenant: session.tenant,
+    membershipId: session.membership?.id,
     permissions: session.permissions,
   };
 }

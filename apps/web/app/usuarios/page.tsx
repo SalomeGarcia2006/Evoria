@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { AppShell } from '../../components/layout/AppShell';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -8,105 +8,135 @@ import { DataTable } from '../../components/ui/DataTable';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { PermissionGate } from '../../components/auth/PermissionGate';
 import { useAuth } from '../../hooks/useAuth';
-import { initialProfiles, loadProfiles } from '../../services/profile.service';
-
-type User = {
-  id: string;
-  name: string;
-  email: string;
-  profile: string;
-  status: 'Activo' | 'Inactivo';
-};
-
-const initialUsers: User[] = [
-  {
-    id: 'ana-garcia',
-    name: 'Ana García',
-    email: 'ana.garcia@evoria.com',
-    profile: 'Coordinadora de eventos',
-    status: 'Activo',
-  },
-  {
-    id: 'carlos-martinez',
-    name: 'Carlos Martínez',
-    email: 'carlos.martinez@evoria.com',
-    profile: 'Gestor de recursos',
-    status: 'Activo',
-  },
-  {
-    id: 'laura-rojas',
-    name: 'Laura Rojas',
-    email: 'laura.rojas@evoria.com',
-    profile: 'Asistente administrativa',
-    status: 'Inactivo',
-  },
-];
+import {
+  deactivateUser,
+  createUser,
+  getUserProfiles,
+  getUsers,
+  updateUser,
+  type CompanyUser,
+  type UserProfileOption,
+} from '../../services/users.service';
 
 export default function UsuariosPage() {
   const { can } = useAuth();
-  const [users, setUsers] = useState<User[]>(initialUsers);
-  const [profiles] = useState(() => loadProfiles());
+  const [users, setUsers] = useState<CompanyUser[]>([]);
+  const [profiles, setProfiles] = useState<UserProfileOption[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [editing, setEditing] = useState<CompanyUser | null>(null);
+  const [isFormOpen, setIsFormOpen] = useState(false);
   const [form, setForm] = useState({
     name: '',
     email: '',
-    profile: initialProfiles[0].name,
+    password: '',
+    profileId: '',
+    status: 'activo' as 'activo' | 'inactivo',
   });
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [isFormOpen, setIsFormOpen] = useState(false);
+
+  const loadData = useCallback(() => {
+    return Promise.all([
+      getUsers(),
+      can('usuarios.crear') ? getUserProfiles() : Promise.resolve([]),
+    ])
+      .then(([userItems, profileItems]) => {
+        setUsers(userItems);
+        setProfiles(profileItems);
+        setError('');
+      })
+      .catch((loadError: unknown) => {
+        setError(
+          loadError instanceof Error
+            ? loadError.message
+            : 'No fue posible cargar los usuarios.',
+        );
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
+  }, [can]);
+
+  useEffect(() => {
+    void loadData();
+  }, [loadData]);
 
   function openCreateForm() {
-    setEditingId(null);
-    setForm({ name: '', email: '', profile: profiles[0]?.name ?? '' });
+    setEditing(null);
+    setForm({
+      name: '',
+      email: '',
+      password: '',
+      profileId: profiles[0]?.id ?? '',
+      status: 'activo',
+    });
     setIsFormOpen(true);
   }
 
-  function openEditForm(user: User) {
-    setEditingId(user.id);
-    setForm({ name: user.name, email: user.email, profile: user.profile });
+  function openEditForm(user: CompanyUser) {
+    setEditing(user);
+    setForm({
+      name: user.name,
+      email: user.email,
+      password: '',
+      profileId: user.profile.id,
+      status: user.status,
+    });
     setIsFormOpen(true);
   }
 
   function closeForm() {
     setIsFormOpen(false);
-    setEditingId(null);
-    setForm({ name: '', email: '', profile: profiles[0]?.name ?? '' });
+    setEditing(null);
   }
 
-  function saveUser(event: React.FormEvent<HTMLFormElement>) {
+  async function saveUser(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!form.name.trim() || !form.email.trim()) return;
-
-    if (editingId) {
+    setError('');
+    setIsSaving(true);
+    try {
+      const saved = editing
+        ? await updateUser(editing.id, {
+            profileId: form.profileId,
+            status: form.status,
+          })
+        : await createUser({
+            name: form.name.trim(),
+            email: form.email.trim(),
+            password: form.password,
+            profileId: form.profileId,
+          });
       setUsers((current) =>
-        current.map((user) =>
-          user.id === editingId
-            ? {
-                ...user,
-                ...form,
-                name: form.name.trim(),
-                email: form.email.trim(),
-              }
-            : user,
-        ),
+        editing
+          ? current.map((item) => (item.id === saved.id ? saved : item))
+          : [saved, ...current],
       );
-    } else {
-      setUsers((current) => [
-        ...current,
-        {
-          id: `user-${Date.now()}`,
-          ...form,
-          name: form.name.trim(),
-          email: form.email.trim(),
-          status: 'Activo',
-        },
-      ]);
+      closeForm();
+    } catch (saveError) {
+      setError(
+        saveError instanceof Error
+          ? saveError.message
+          : 'No fue posible guardar el usuario.',
+      );
+    } finally {
+      setIsSaving(false);
     }
-    closeForm();
   }
 
-  function deleteUser(user: User) {
-    if (window.confirm(`¿Eliminar a ${user.name}?`)) {
-      setUsers((current) => current.filter((item) => item.id !== user.id));
+  async function deactivate(user: CompanyUser) {
+    if (!window.confirm(`¿Desactivar a ${user.name}?`)) return;
+    setError('');
+    try {
+      const saved = await deactivateUser(user.id);
+      setUsers((current) =>
+        current.map((item) => (item.id === saved.id ? saved : item)),
+      );
+    } catch (deactivateError) {
+      setError(
+        deactivateError instanceof Error
+          ? deactivateError.message
+          : 'No fue posible desactivar el usuario.',
+      );
     }
   }
 
@@ -121,7 +151,7 @@ export default function UsuariosPage() {
               </p>
               <h2 className="mt-1 text-2xl font-bold">Usuarios del sistema</h2>
               <p className="mt-2 text-teal">
-                Crea, consulta, edita y elimina usuarios. El perfil define sus
+                Crea, consulta, edita y desactiva usuarios. El perfil define sus
                 permisos de acceso.
               </p>
             </div>
@@ -130,11 +160,19 @@ export default function UsuariosPage() {
             </PermissionGate>
           </div>
         </Card>
+        {error ? (
+          <p
+            className="rounded-lg bg-red-50 p-3 text-sm text-red-800"
+            role="alert"
+          >
+            {error}
+          </p>
+        ) : null}
 
         {isFormOpen ? (
           <Card>
             <h3 className="text-xl font-bold">
-              {editingId ? 'Editar usuario' : 'Crear usuario'}
+              {editing ? 'Editar usuario' : 'Crear usuario'}
             </h3>
             <form
               className="mt-5 grid gap-4 md:grid-cols-3"
@@ -147,6 +185,7 @@ export default function UsuariosPage() {
                   onChange={(event) =>
                     setForm({ ...form, name: event.target.value })
                   }
+                  readOnly={Boolean(editing)}
                   required
                   value={form.name}
                 />
@@ -158,6 +197,7 @@ export default function UsuariosPage() {
                   onChange={(event) =>
                     setForm({ ...form, email: event.target.value })
                   }
+                  readOnly={Boolean(editing)}
                   required
                   type="email"
                   value={form.email}
@@ -168,23 +208,68 @@ export default function UsuariosPage() {
                 <select
                   className="rounded-lg border border-sky-blue bg-white px-3 py-2 font-normal outline-none focus:border-teal focus:ring-2 focus:ring-sky-blue"
                   onChange={(event) =>
-                    setForm({ ...form, profile: event.target.value })
+                    setForm({ ...form, profileId: event.target.value })
                   }
-                  value={form.profile}
+                  required
+                  value={form.profileId}
                 >
+                  {editing &&
+                  !profiles.some(
+                    (profile) => profile.id === editing.profile.id,
+                  ) ? (
+                    <option value={editing.profile.id}>
+                      {editing.profile.name}
+                    </option>
+                  ) : null}
                   {profiles.map((profile) => (
-                    <option key={profile.id} value={profile.name}>
+                    <option key={profile.id} value={profile.id}>
                       {profile.name}
                     </option>
                   ))}
                 </select>
               </label>
+              {editing ? (
+                <label className="grid gap-2 text-sm font-semibold">
+                  Estado
+                  <select
+                    className="rounded-lg border border-sky-blue bg-white px-3 py-2 font-normal"
+                    onChange={(event) =>
+                      setForm({
+                        ...form,
+                        status: event.target.value as 'activo' | 'inactivo',
+                      })
+                    }
+                    value={form.status}
+                  >
+                    <option value="activo">Activo</option>
+                    <option value="inactivo">Inactivo</option>
+                  </select>
+                </label>
+              ) : (
+                <label className="grid gap-2 text-sm font-semibold">
+                  Contraseña inicial
+                  <input
+                    className="rounded-lg border border-sky-blue px-3 py-2 font-normal"
+                    minLength={8}
+                    onChange={(event) =>
+                      setForm({ ...form, password: event.target.value })
+                    }
+                    required
+                    type="password"
+                    value={form.password}
+                  />
+                </label>
+              )}
               <div className="flex gap-3 md:col-span-3">
                 <PermissionGate
-                  permission={editingId ? 'usuarios.editar' : 'usuarios.crear'}
+                  permission={editing ? 'usuarios.editar' : 'usuarios.crear'}
                 >
-                  <Button type="submit">
-                    {editingId ? 'Guardar cambios' : 'Crear usuario'}
+                  <Button disabled={isSaving} type="submit">
+                    {isSaving
+                      ? 'Guardando…'
+                      : editing
+                        ? 'Guardar cambios'
+                        : 'Crear usuario'}
                   </Button>
                 </PermissionGate>
                 <Button onClick={closeForm} type="button" variant="secondary">
@@ -199,56 +284,69 @@ export default function UsuariosPage() {
           <div className="border-b border-sky-blue px-6 py-4">
             <h3 className="font-bold">Usuarios registrados</h3>
           </div>
-          <DataTable
-            columns={[
-              {
-                key: 'name',
-                header: 'Usuario',
-                render: (user) => (
-                  <span className="font-semibold">{user.name}</span>
-                ),
-              },
-              { key: 'email', header: 'Correo', render: (user) => user.email },
-              {
-                key: 'profile',
-                header: 'Perfil',
-                render: (user) => user.profile,
-              },
-              {
-                key: 'status',
-                header: 'Estado',
-                render: (user) => <StatusBadge status={user.status} />,
-              },
-              {
-                key: 'actions',
-                header: 'Acciones',
-                render: (user) => (
-                  <div className="flex flex-wrap gap-2">
-                    {can('usuarios.editar') ? (
-                      <Button
-                        onClick={() => openEditForm(user)}
-                        type="button"
-                        variant="secondary"
-                      >
-                        Editar
-                      </Button>
-                    ) : null}
-                    {can('usuarios.desactivar') ? (
-                      <Button
-                        onClick={() => deleteUser(user)}
-                        type="button"
-                        variant="ghost"
-                      >
-                        Eliminar
-                      </Button>
-                    ) : null}
-                  </div>
-                ),
-              },
-            ]}
-            rowKey={(user) => user.id}
-            rows={users}
-          />
+          {isLoading ? (
+            <p className="p-6 text-sm text-teal">Cargando usuarios…</p>
+          ) : (
+            <DataTable
+              columns={[
+                {
+                  key: 'name',
+                  header: 'Usuario',
+                  render: (user) => (
+                    <span className="font-semibold">{user.name}</span>
+                  ),
+                },
+                {
+                  key: 'email',
+                  header: 'Correo',
+                  render: (user) => user.email,
+                },
+                {
+                  key: 'profile',
+                  header: 'Perfil',
+                  render: (user) => user.profile.name,
+                },
+                {
+                  key: 'status',
+                  header: 'Estado',
+                  render: (user) => (
+                    <StatusBadge
+                      status={user.status === 'activo' ? 'Activo' : 'Inactivo'}
+                    />
+                  ),
+                },
+                {
+                  key: 'actions',
+                  header: 'Acciones',
+                  render: (user) => (
+                    <div className="flex flex-wrap gap-2">
+                      {can('usuarios.editar') ? (
+                        <Button
+                          onClick={() => openEditForm(user)}
+                          type="button"
+                          variant="secondary"
+                        >
+                          Editar
+                        </Button>
+                      ) : null}
+                      {can('usuarios.desactivar') &&
+                      user.status === 'activo' ? (
+                        <Button
+                          onClick={() => void deactivate(user)}
+                          type="button"
+                          variant="ghost"
+                        >
+                          Desactivar
+                        </Button>
+                      ) : null}
+                    </div>
+                  ),
+                },
+              ]}
+              rowKey={(user) => user.id}
+              rows={users}
+            />
+          )}
         </Card>
       </div>
     </AppShell>
