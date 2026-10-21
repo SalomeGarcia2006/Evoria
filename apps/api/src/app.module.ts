@@ -10,6 +10,7 @@ import { EventsModule } from './events/events.module';
 import { MembershipsModule } from './memberships/memberships.module';
 import { ProfilesModule } from './profiles/profiles.module';
 import { ResourcesModule } from './resources/resources.module';
+import { SchedulesModule } from './schedules/schedules.module';
 import { TenantsModule } from './tenants/tenants.module';
 import { UsersModule } from './users/users.module';
 
@@ -56,6 +57,7 @@ function getMongoUri(configService: ConfigService): string {
     MembershipsModule,
     ProfilesModule,
     ResourcesModule,
+    SchedulesModule,
     TenantsModule,
     UsersModule,
   ],

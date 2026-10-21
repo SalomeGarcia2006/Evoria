@@ -325,6 +325,7 @@ deben requerir autenticación y validar el permiso requerido.
 | Cronograma    | `GET /api/events/:id/schedules`                | `cronogramas.ver`       | Actividades del evento.                               |
 | Cronograma    | `POST /api/events/:id/schedules`               | `cronogramas.crear`     | Actividad creada.                                     |
 | Cronograma    | `PATCH /api/schedules/:id`                     | `cronogramas.editar`    | Actividad actualizada.                                |
+| Cronograma    | `DELETE /api/schedules/:id`                    | `cronogramas.eliminar`  | Actividad cancelada.                                  |
 | Alertas       | `GET /api/alerts`                              | `alertas.ver`           | Alertas filtrables por estado y severidad.            |
 | Alertas       | `PATCH /api/alerts/:id`                        | `alertas.editar`        | Alerta resuelta o actualizada.                        |
 | Auditoría     | `GET /api/audit-logs`                          | `auditoria.ver`         | Registro paginado de acciones.                        |
