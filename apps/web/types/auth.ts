@@ -1,4 +1,5 @@
 export interface AuthUser {
+  isDeveloper: boolean;
   id: string;
   name: string;
   email: string;
