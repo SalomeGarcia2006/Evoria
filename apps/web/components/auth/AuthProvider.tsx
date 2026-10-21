@@ -13,6 +13,7 @@ import {
   getCurrentUser,
   login,
   logout,
+  changeTenant,
   type LoginPayload,
 } from '../../services/auth.service';
 import type { AuthUser } from '../../types/auth';
@@ -25,6 +26,7 @@ export type AuthContextValue = {
   signIn: (payload: LoginPayload) => Promise<AuthUser>;
   signOut: () => Promise<void>;
   refreshSession: () => Promise<void>;
+  selectTenant: (tenantId: string | null) => Promise<void>;
 };
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
@@ -78,7 +80,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       isAuthenticated: user !== null,
       isLoading,
-      can: (permission) => user?.permissions.includes(permission) ?? false,
+      can: (permission) =>
+        (permission === 'empresas.ver' && !!user?.isDeveloper) ||
+        (user?.permissions.includes(permission) ?? false),
+      selectTenant: async (tenantId) => {
+        const session = await changeTenant(tenantId);
+        ++sessionRequestId.current;
+        setUser({
+          ...session,
+          isDeveloper: user?.isDeveloper ?? session.isDeveloper,
+        });
+      },
       signIn: async (payload) => {
         const session = await login(payload);
         ++sessionRequestId.current;

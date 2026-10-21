@@ -1,5 +1,21 @@
 import { apiRequest } from './api';
 
+export interface TenantOption {
+  id: string;
+  name: string;
+  nit: string;
+  slug: string;
+  status: 'activo' | 'inactivo';
+}
+
+export async function getTenants(): Promise<TenantOption[]> {
+  const response = await apiRequest<{ data: TenantOption[] }>('/tenants', {
+    credentials: 'include',
+    cache: 'no-store',
+  });
+  return response.data;
+}
+
 export interface CreateTenantPayload {
   name: string;
   nit: string;
