@@ -8,194 +8,252 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { isValidObjectId, type Model, type Types } from 'mongoose';
 import type { AuthenticatedUser } from '../auth/auth.types';
-import { CreateResourceDto } from './dto/create-resource.dto';
-import { FindResourcesDto } from './dto/find-resources.dto';
-import { UpdateResourceDto } from './dto/update-resource.dto';
-import { Resource, type ResourceDocument } from './schemas/resource.schema';
+import { Event } from '../events/schemas/event.schema';
+import {
+  InventoryItem,
+  type InventoryItemDocument,
+} from '../inventory/schemas/inventory-item.schema';
+import { CreateEventResourceDto } from './dto/create-event-resource.dto';
+import {
+  EventResource,
+  type EventResourceDocument,
+} from './schemas/event-resource.schema';
 
 @Injectable()
 export class ResourcesService {
   constructor(
-    @InjectModel(Resource.name) private readonly resourceModel: Model<Resource>,
+    @InjectModel(EventResource.name)
+    private readonly assignmentModel: Model<EventResource>,
+    @InjectModel(InventoryItem.name)
+    private readonly inventoryModel: Model<InventoryItem>,
+    @InjectModel(Event.name) private readonly eventModel: Model<Event>,
   ) {}
 
-  async create(createResourceDto: CreateResourceDto, user: AuthenticatedUser) {
-    const tenantId = this.getTenantId(user);
-    const resource = await this.resourceModel.create({
-      tenantId,
-      name: createResourceDto.name.trim(),
-      type: createResourceDto.type.trim(),
-      description: this.trimOptional(createResourceDto.description),
-      unitCost: createResourceDto.unitCost,
-      totalQuantity: createResourceDto.totalQuantity,
-      availableQuantity: createResourceDto.totalQuantity,
-      reservedQuantity: 0,
-      status: createResourceDto.status ?? 'disponible',
-    });
-
-    return this.toResponse(resource);
-  }
-
-  async findAll(query: FindResourcesDto, user: AuthenticatedUser) {
-    const tenantId = this.getTenantId(user);
-    const filter: {
-      tenantId: string;
-      status?: Resource['status'] | { $ne: Resource['status'] };
-      type?: RegExp;
-      $or?: Array<{ name: RegExp } | { type: RegExp }>;
-    } = {
-      tenantId,
-      ...(query.status
-        ? { status: query.status }
-        : { status: { $ne: 'inactivo' } }),
-    };
-
-    if (query.type?.trim()) {
-      filter.type = new RegExp(
-        `^${this.escapeRegExp(query.type.trim())}$`,
-        'i',
-      );
-    }
-
-    if (query.search?.trim()) {
-      const search = new RegExp(this.escapeRegExp(query.search.trim()), 'i');
-      filter.$or = [{ name: search }, { type: search }];
-    }
-
-    const skip = (query.page - 1) * query.limit;
-    const [resources, total] = await Promise.all([
-      this.resourceModel
-        .find(filter)
-        .sort({ name: 1 })
-        .skip(skip)
-        .limit(query.limit)
-        .lean(),
-      this.resourceModel.countDocuments(filter),
-    ]);
-
-    return {
-      items: resources.map((resource) => this.toResponse(resource)),
-      pagination: {
-        page: query.page,
-        limit: query.limit,
-        total,
-        totalPages: Math.ceil(total / query.limit),
-      },
-    };
-  }
-
-  async findOne(id: string, user: AuthenticatedUser) {
-    return this.toResponse(await this.findResource(id, this.getTenantId(user)));
-  }
-
-  async update(
-    id: string,
-    updateResourceDto: UpdateResourceDto,
+  async assign(
+    eventId: string,
+    dto: CreateEventResourceDto,
     user: AuthenticatedUser,
   ) {
-    const resource = await this.findResource(id, this.getTenantId(user));
+    const tenantId = this.getTenantId(user);
+    const event = await this.findEvent(eventId, tenantId);
 
-    if (resource.status === 'inactivo') {
-      throw new ConflictException('No puedes editar un recurso inactivo.');
-    }
-
-    if (
-      updateResourceDto.totalQuantity !== undefined &&
-      updateResourceDto.totalQuantity < resource.reservedQuantity
-    ) {
-      throw new BadRequestException(
-        'La cantidad total no puede ser menor que la cantidad reservada.',
+    if (event.status === 'cancelado') {
+      throw new ConflictException(
+        'No puedes asignar recursos a un evento cancelado.',
       );
     }
 
-    if (updateResourceDto.name !== undefined)
-      resource.name = updateResourceDto.name.trim();
-    if (updateResourceDto.type !== undefined)
-      resource.type = updateResourceDto.type.trim();
-    if (updateResourceDto.description !== undefined) {
-      resource.description = this.trimOptional(updateResourceDto.description);
-    }
-    if (updateResourceDto.unitCost !== undefined) {
-      resource.unitCost = updateResourceDto.unitCost;
-    }
-    if (updateResourceDto.totalQuantity !== undefined) {
-      resource.totalQuantity = updateResourceDto.totalQuantity;
-      resource.availableQuantity =
-        updateResourceDto.totalQuantity - resource.reservedQuantity;
-    }
-    if (updateResourceDto.status !== undefined) {
-      resource.status = updateResourceDto.status;
-    }
+    const inventoryItem = await this.reserveInventory(
+      dto.inventoryItemId,
+      dto.quantity,
+      tenantId,
+    );
 
-    await resource.save();
-    return this.toResponse(resource);
+    try {
+      const assignment = await this.assignmentModel.findOneAndUpdate(
+        {
+          tenantId,
+          eventId,
+          inventoryItemId: dto.inventoryItemId,
+          status: 'asignado',
+        },
+        {
+          $setOnInsert: {
+            tenantId,
+            eventId,
+            inventoryItemId: dto.inventoryItemId,
+            assignedBy: user.id,
+            assignedAt: new Date(),
+            status: 'asignado',
+            returnedAt: null,
+          },
+          $inc: { quantity: dto.quantity },
+        },
+        { new: true, upsert: true, setDefaultsOnInsert: true },
+      );
+
+      return this.toResponse(assignment, inventoryItem);
+    } catch (error) {
+      await this.restoreInventory(
+        inventoryItem._id.toString(),
+        dto.quantity,
+        tenantId,
+      );
+      throw error;
+    }
   }
 
-  async deactivate(id: string, user: AuthenticatedUser) {
-    const resource = await this.findResource(id, this.getTenantId(user));
+  async findAll(eventId: string, user: AuthenticatedUser) {
+    const tenantId = this.getTenantId(user);
+    await this.findEvent(eventId, tenantId);
 
-    if (resource.reservedQuantity > 0) {
-      throw new ConflictException(
-        'No puedes desactivar un recurso con unidades reservadas.',
+    const assignments = await this.assignmentModel
+      .find({ tenantId, eventId, status: 'asignado' })
+      .sort({ assignedAt: 1 })
+      .lean();
+    const inventoryItems = await this.inventoryModel
+      .find({
+        _id: {
+          $in: assignments.map((assignment) => assignment.inventoryItemId),
+        },
+        tenantId,
+      })
+      .lean();
+    const inventoryById = new Map(
+      inventoryItems.map((item) => [item._id.toString(), item]),
+    );
+
+    return assignments.flatMap((assignment) => {
+      const inventoryItem = inventoryById.get(
+        assignment.inventoryItemId.toString(),
+      );
+      return inventoryItem ? [this.toResponse(assignment, inventoryItem)] : [];
+    });
+  }
+
+  async release(
+    eventId: string,
+    inventoryItemId: string,
+    user: AuthenticatedUser,
+  ) {
+    const tenantId = this.getTenantId(user);
+    await this.findEvent(eventId, tenantId);
+
+    if (!isValidObjectId(inventoryItemId)) {
+      throw new BadRequestException(
+        'El identificador del inventario no es válido.',
       );
     }
 
-    resource.status = 'inactivo';
-    await resource.save();
+    const assignment = await this.assignmentModel.findOneAndUpdate(
+      {
+        tenantId,
+        eventId,
+        inventoryItemId,
+        status: 'asignado',
+      },
+      { $set: { status: 'devuelto', returnedAt: new Date() } },
+      { new: true },
+    );
+    if (!assignment) {
+      throw new NotFoundException('El recurso no está asignado a este evento.');
+    }
 
-    return this.toResponse(resource);
+    const inventoryItem = await this.inventoryModel.findOneAndUpdate(
+      {
+        _id: inventoryItemId,
+        tenantId,
+        reservedQuantity: { $gte: assignment.quantity },
+      },
+      {
+        $inc: {
+          availableQuantity: assignment.quantity,
+          reservedQuantity: -assignment.quantity,
+        },
+      },
+      { new: true },
+    );
+    if (!inventoryItem) {
+      await this.assignmentModel.updateOne(
+        { _id: assignment._id, status: 'devuelto' },
+        { $set: { status: 'asignado', returnedAt: null } },
+      );
+      throw new ConflictException(
+        'No se pudo liberar la reserva de inventario.',
+      );
+    }
+
+    return this.toResponse(assignment, inventoryItem);
   }
 
   private getTenantId(user: AuthenticatedUser): string {
     if (user.scope !== 'tenant' || !user.tenantId) {
       throw new ForbiddenException('Esta acción requiere una empresa activa.');
     }
-
     return user.tenantId;
   }
 
-  private async findResource(
-    id: string,
-    tenantId: string,
-  ): Promise<ResourceDocument> {
-    if (!isValidObjectId(id)) {
+  private async findEvent(eventId: string, tenantId: string) {
+    if (!isValidObjectId(eventId)) {
       throw new BadRequestException(
-        'El identificador del recurso no es válido.',
+        'El identificador del evento no es válido.',
       );
     }
 
-    const resource = await this.resourceModel.findOne({ _id: id, tenantId });
+    const event = await this.eventModel.findOne({ _id: eventId, tenantId });
+    if (!event) throw new NotFoundException('El evento no existe.');
+    return event;
+  }
 
-    if (!resource) {
-      throw new NotFoundException('El recurso no existe.');
+  private async reserveInventory(
+    inventoryItemId: string,
+    quantity: number,
+    tenantId: string,
+  ): Promise<InventoryItemDocument> {
+    if (!isValidObjectId(inventoryItemId)) {
+      throw new BadRequestException(
+        'El identificador del inventario no es válido.',
+      );
     }
 
-    return resource;
+    const inventoryItem = await this.inventoryModel.findOneAndUpdate(
+      {
+        _id: inventoryItemId,
+        tenantId,
+        status: 'disponible',
+        availableQuantity: { $gte: quantity },
+      },
+      {
+        $inc: { availableQuantity: -quantity, reservedQuantity: quantity },
+      },
+      { new: true },
+    );
+    if (inventoryItem) return inventoryItem;
+
+    const existingItem = await this.inventoryModel.exists({
+      _id: inventoryItemId,
+      tenantId,
+    });
+    if (!existingItem) {
+      throw new NotFoundException('El ítem de inventario no existe.');
+    }
+    throw new ConflictException('No hay suficientes unidades disponibles.');
   }
 
-  private trimOptional(value?: string | null): string | null {
-    return value?.trim() || null;
-  }
-
-  private escapeRegExp(value: string): string {
-    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  private async restoreInventory(
+    inventoryItemId: string,
+    quantity: number,
+    tenantId: string,
+  ) {
+    await this.inventoryModel.updateOne(
+      { _id: inventoryItemId, tenantId },
+      {
+        $inc: { availableQuantity: quantity, reservedQuantity: -quantity },
+      },
+    );
   }
 
   private toResponse(
-    resource: ResourceDocument | (Resource & { _id: Types.ObjectId }),
+    assignment:
+      EventResourceDocument | (EventResource & { _id: Types.ObjectId }),
+    inventoryItem:
+      InventoryItemDocument | (InventoryItem & { _id: Types.ObjectId }),
   ) {
     return {
-      id: resource._id.toString(),
-      name: resource.name,
-      type: resource.type,
-      description: resource.description,
-      unitCost: resource.unitCost,
-      totalQuantity: resource.totalQuantity,
-      availableQuantity: resource.availableQuantity,
-      reservedQuantity: resource.reservedQuantity,
-      status: resource.status,
-      createdAt: resource.createdAt,
-      updatedAt: resource.updatedAt,
+      id: assignment._id.toString(),
+      eventId: assignment.eventId.toString(),
+      inventoryItemId: assignment.inventoryItemId.toString(),
+      quantity: assignment.quantity,
+      status: assignment.status,
+      assignedAt: assignment.assignedAt,
+      returnedAt: assignment.returnedAt,
+      inventoryItem: {
+        id: inventoryItem._id.toString(),
+        name: inventoryItem.name,
+        type: inventoryItem.type,
+        availableQuantity: inventoryItem.availableQuantity,
+        unitCost: inventoryItem.unitCost,
+      },
     };
   }
 }

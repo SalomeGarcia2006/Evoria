@@ -1,13 +1,20 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { InventoryModule } from '../inventory/inventory.module';
+import { Event, EventSchema } from '../events/schemas/event.schema';
 import { ResourcesController } from './resources.controller';
 import { ResourcesService } from './resources.service';
-import { Resource, ResourceSchema } from './schemas/resource.schema';
+import {
+  EventResource,
+  EventResourceSchema,
+} from './schemas/event-resource.schema';
 
 @Module({
   imports: [
+    InventoryModule,
     MongooseModule.forFeature([
-      { name: Resource.name, schema: ResourceSchema },
+      { name: Event.name, schema: EventSchema },
+      { name: EventResource.name, schema: EventResourceSchema },
     ]),
   ],
   controllers: [ResourcesController],

@@ -1,7 +1,4 @@
-export const RESOURCE_STATUSES = [
-  'disponible',
-  'mantenimiento',
-  'inactivo',
-] as const;
+export const RESOURCE_ASSIGNMENT_STATUSES = ['asignado', 'devuelto'] as const;
 
-export type ResourceStatus = (typeof RESOURCE_STATUSES)[number];
+export type ResourceAssignmentStatus =
+  (typeof RESOURCE_ASSIGNMENT_STATUSES)[number];
