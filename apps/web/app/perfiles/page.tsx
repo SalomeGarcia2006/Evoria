@@ -22,7 +22,7 @@ import {
   type PermissionModule,
 } from '../../services/profiles-api.service';
 
-function uiModuleKey(name: string) {
+function uiModuleKey(name: (typeof MODULES)[number]) {
   const moduleKeys = [
     'eventos',
     'recursos',

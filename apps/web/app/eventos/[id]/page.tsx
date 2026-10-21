@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { AppShell } from '../../../components/layout/AppShell';
 import { Button } from '../../../components/ui/Button';
@@ -17,7 +17,6 @@ import {
 
 export default function EventoDetailPage() {
   const params = useParams<{ id: string }>();
-  const router = useRouter();
   const { can } = useAuth();
   const [event, setEvent] = useState<EventItem | null>(null);
   const [error, setError] = useState('');

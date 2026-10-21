@@ -35,24 +35,26 @@ export default function UsuariosPage() {
     status: 'activo' as 'activo' | 'inactivo',
   });
 
-  const loadData = useCallback(async () => {
-    try {
-      const [userItems, profileItems] = await Promise.all([
-        getUsers(),
-        can('usuarios.crear') ? getUserProfiles() : Promise.resolve([]),
-      ]);
-      setUsers(userItems);
-      setProfiles(profileItems);
-      setError('');
-    } catch (loadError) {
-      setError(
-        loadError instanceof Error
-          ? loadError.message
-          : 'No fue posible cargar los usuarios.',
-      );
-    } finally {
-      setIsLoading(false);
-    }
+  const loadData = useCallback(() => {
+    return Promise.all([
+      getUsers(),
+      can('usuarios.crear') ? getUserProfiles() : Promise.resolve([]),
+    ])
+      .then(([userItems, profileItems]) => {
+        setUsers(userItems);
+        setProfiles(profileItems);
+        setError('');
+      })
+      .catch((loadError: unknown) => {
+        setError(
+          loadError instanceof Error
+            ? loadError.message
+            : 'No fue posible cargar los usuarios.',
+        );
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
   }, [can]);
 
   useEffect(() => {
