@@ -3,7 +3,10 @@
 import { useState, type FormEvent } from 'react';
 import { AppShell } from '../../components/layout/AppShell';
 import { useAuth } from '../../hooks/useAuth';
-import { createTenant, type CreatedTenant } from '../../services/tenants.service';
+import {
+  createTenant,
+  type CreatedTenant,
+} from '../../services/tenants.service';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 
@@ -14,7 +17,9 @@ export default function EmpresasPage() {
   const { user } = useAuth();
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
-  const [createdTenant, setCreatedTenant] = useState<CreatedTenant | null>(null);
+  const [createdTenant, setCreatedTenant] = useState<CreatedTenant | null>(
+    null,
+  );
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -54,7 +59,8 @@ export default function EmpresasPage() {
           </p>
           <h2 className="mt-2 text-3xl font-bold">Empresas</h2>
           <p className="mt-1 text-teal">
-            Registra una empresa y crea su cuenta propietaria con perfil Administrador.
+            Registra una empresa y crea su cuenta propietaria con perfil
+            Administrador.
           </p>
         </header>
 
@@ -74,14 +80,16 @@ export default function EmpresasPage() {
             </div>
           ) : (
             <p className="mt-3 rounded-xl bg-beige p-4 text-sm leading-6 text-teal">
-              Tu sesión de Desarrollador es de plataforma y no tiene una empresa activa.
-              La API actual permite crear empresas, pero todavía no ofrece operaciones
-              para listar empresas o cambiar el contexto de sesión.
+              Tu sesión de Desarrollador es de plataforma y no tiene una empresa
+              activa. La API actual permite crear empresas, pero todavía no
+              ofrece operaciones para listar empresas o cambiar el contexto de
+              sesión.
             </p>
           )}
           <p className="mt-3 text-xs leading-5 text-teal">
-            El selector de empresa y el cambio de empresa activa requieren endpoints
-            de consulta y selección de membresía que aún no están disponibles para el frontend.
+            El selector de empresa y el cambio de empresa activa requieren
+            endpoints de consulta y selección de membresía que aún no están
+            disponibles para el frontend.
           </p>
         </Card>
 
@@ -89,26 +97,36 @@ export default function EmpresasPage() {
           <div className="mb-5">
             <h3 className="text-lg font-bold">Crear empresa</h3>
             <p className="mt-1 text-sm text-teal">
-              El backend también crea el perfil Administrador y vincula al propietario.
+              El backend también crea el perfil Administrador y vincula al
+              propietario.
             </p>
           </div>
 
           {createdTenant ? (
-            <div className="mb-5 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900" role="status">
+            <div
+              className="mb-5 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900"
+              role="status"
+            >
               <p className="font-semibold">Empresa creada correctamente</p>
-              <p className="mt-1">{createdTenant.name} · NIT {createdTenant.nit}</p>
               <p className="mt-1">
-                Cuenta propietaria: {createdTenant.administrator.name} ({createdTenant.administrator.email}).
+                {createdTenant.name} · NIT {createdTenant.nit}
+              </p>
+              <p className="mt-1">
+                Cuenta propietaria: {createdTenant.administrator.name} (
+                {createdTenant.administrator.email}).
               </p>
               <p className="mt-2">
-                El propietario puede iniciar sesión con estas credenciales. Tu sesión de Desarrollador
-                permanece en el contexto de plataforma.
+                El propietario puede iniciar sesión con estas credenciales. Tu
+                sesión de Desarrollador permanece en el contexto de plataforma.
               </p>
             </div>
           ) : null}
 
           {error ? (
-            <p className="mb-5 rounded-lg bg-red-50 p-3 text-sm text-red-800" role="alert">
+            <p
+              className="mb-5 rounded-lg bg-red-50 p-3 text-sm text-red-800"
+              role="alert"
+            >
               {error}
             </p>
           ) : null}
@@ -116,24 +134,61 @@ export default function EmpresasPage() {
           <form className="grid gap-4 sm:grid-cols-2" onSubmit={handleSubmit}>
             <label className="grid gap-2 text-sm font-semibold">
               Nombre de la empresa
-              <input autoComplete="organization" className={fieldClassName} maxLength={120} minLength={2} name="name" required />
+              <input
+                autoComplete="organization"
+                className={fieldClassName}
+                maxLength={120}
+                minLength={2}
+                name="name"
+                required
+              />
             </label>
             <label className="grid gap-2 text-sm font-semibold">
               NIT
-              <input className={fieldClassName} maxLength={30} minLength={3} name="nit" required />
+              <input
+                className={fieldClassName}
+                maxLength={30}
+                minLength={3}
+                name="nit"
+                required
+              />
             </label>
             <label className="grid gap-2 text-sm font-semibold">
               Nombre del propietario
-              <input autoComplete="name" className={fieldClassName} maxLength={120} minLength={2} name="ownerName" required />
+              <input
+                autoComplete="name"
+                className={fieldClassName}
+                maxLength={120}
+                minLength={2}
+                name="ownerName"
+                required
+              />
             </label>
             <label className="grid gap-2 text-sm font-semibold">
               Correo del propietario
-              <input autoComplete="email" className={fieldClassName} maxLength={150} name="ownerEmail" required type="email" />
+              <input
+                autoComplete="email"
+                className={fieldClassName}
+                maxLength={150}
+                name="ownerEmail"
+                required
+                type="email"
+              />
             </label>
             <label className="grid gap-2 text-sm font-semibold sm:col-span-2">
               Contraseña inicial del propietario
-              <input autoComplete="new-password" className={`${fieldClassName} sm:max-w-md`} minLength={8} name="ownerPassword" required type="password" />
-              <span className="font-normal text-teal">Mínimo 8 caracteres. Compártela de forma segura con el propietario.</span>
+              <input
+                autoComplete="new-password"
+                className={`${fieldClassName} sm:max-w-md`}
+                minLength={8}
+                name="ownerPassword"
+                required
+                type="password"
+              />
+              <span className="font-normal text-teal">
+                Mínimo 8 caracteres. Compártela de forma segura con el
+                propietario.
+              </span>
             </label>
             <div className="sm:col-span-2">
               <Button disabled={isSaving} type="submit">

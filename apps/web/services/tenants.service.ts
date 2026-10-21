@@ -24,15 +24,12 @@ export interface CreatedTenant {
 export async function createTenant(
   payload: CreateTenantPayload,
 ): Promise<CreatedTenant> {
-  const response = await apiRequest<{ data: CreatedTenant }>(
-    '/tenants',
-    {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    },
-  );
+  const response = await apiRequest<{ data: CreatedTenant }>('/tenants', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
 
   return response.data;
 }

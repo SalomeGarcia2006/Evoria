@@ -8,7 +8,15 @@ import { DataTable } from '../../components/ui/DataTable';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { PermissionGate } from '../../components/auth/PermissionGate';
 import { useAuth } from '../../hooks/useAuth';
-import { deactivateUser, createUser, getUserProfiles, getUsers, updateUser, type CompanyUser, type UserProfileOption } from '../../services/users.service';
+import {
+  deactivateUser,
+  createUser,
+  getUserProfiles,
+  getUsers,
+  updateUser,
+  type CompanyUser,
+  type UserProfileOption,
+} from '../../services/users.service';
 
 export default function UsuariosPage() {
   const { can } = useAuth();
@@ -19,44 +27,98 @@ export default function UsuariosPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [editing, setEditing] = useState<CompanyUser | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [form, setForm] = useState({ name: '', email: '', password: '', profileId: '', status: 'activo' as 'activo' | 'inactivo' });
+  const [form, setForm] = useState({
+    name: '',
+    email: '',
+    password: '',
+    profileId: '',
+    status: 'activo' as 'activo' | 'inactivo',
+  });
 
   const loadData = useCallback(async () => {
     try {
-      const [userItems, profileItems] = await Promise.all([getUsers(), can('usuarios.crear') ? getUserProfiles() : Promise.resolve([])]);
-      setUsers(userItems); setProfiles(profileItems); setError('');
+      const [userItems, profileItems] = await Promise.all([
+        getUsers(),
+        can('usuarios.crear') ? getUserProfiles() : Promise.resolve([]),
+      ]);
+      setUsers(userItems);
+      setProfiles(profileItems);
+      setError('');
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'No fue posible cargar los usuarios.');
-    } finally { setIsLoading(false); }
+      setError(
+        loadError instanceof Error
+          ? loadError.message
+          : 'No fue posible cargar los usuarios.',
+      );
+    } finally {
+      setIsLoading(false);
+    }
   }, [can]);
 
-  useEffect(() => { void loadData(); }, [loadData]);
+  useEffect(() => {
+    void loadData();
+  }, [loadData]);
 
   function openCreateForm() {
     setEditing(null);
-    setForm({ name: '', email: '', password: '', profileId: profiles[0]?.id ?? '', status: 'activo' });
+    setForm({
+      name: '',
+      email: '',
+      password: '',
+      profileId: profiles[0]?.id ?? '',
+      status: 'activo',
+    });
     setIsFormOpen(true);
   }
 
   function openEditForm(user: CompanyUser) {
     setEditing(user);
-    setForm({ name: user.name, email: user.email, password: '', profileId: user.profile.id, status: user.status });
+    setForm({
+      name: user.name,
+      email: user.email,
+      password: '',
+      profileId: user.profile.id,
+      status: user.status,
+    });
     setIsFormOpen(true);
   }
 
-  function closeForm() { setIsFormOpen(false); setEditing(null); }
+  function closeForm() {
+    setIsFormOpen(false);
+    setEditing(null);
+  }
 
   async function saveUser(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault(); setError(''); setIsSaving(true);
+    event.preventDefault();
+    setError('');
+    setIsSaving(true);
     try {
       const saved = editing
-        ? await updateUser(editing.id, { profileId: form.profileId, status: form.status })
-        : await createUser({ name: form.name.trim(), email: form.email.trim(), password: form.password, profileId: form.profileId });
-      setUsers((current) => editing ? current.map((item) => item.id === saved.id ? saved : item) : [saved, ...current]);
+        ? await updateUser(editing.id, {
+            profileId: form.profileId,
+            status: form.status,
+          })
+        : await createUser({
+            name: form.name.trim(),
+            email: form.email.trim(),
+            password: form.password,
+            profileId: form.profileId,
+          });
+      setUsers((current) =>
+        editing
+          ? current.map((item) => (item.id === saved.id ? saved : item))
+          : [saved, ...current],
+      );
       closeForm();
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : 'No fue posible guardar el usuario.');
-    } finally { setIsSaving(false); }
+      setError(
+        saveError instanceof Error
+          ? saveError.message
+          : 'No fue posible guardar el usuario.',
+      );
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   async function deactivate(user: CompanyUser) {
@@ -64,9 +126,15 @@ export default function UsuariosPage() {
     setError('');
     try {
       const saved = await deactivateUser(user.id);
-      setUsers((current) => current.map((item) => item.id === saved.id ? saved : item));
+      setUsers((current) =>
+        current.map((item) => (item.id === saved.id ? saved : item)),
+      );
     } catch (deactivateError) {
-      setError(deactivateError instanceof Error ? deactivateError.message : 'No fue posible desactivar el usuario.');
+      setError(
+        deactivateError instanceof Error
+          ? deactivateError.message
+          : 'No fue posible desactivar el usuario.',
+      );
     }
   }
 
@@ -76,37 +144,207 @@ export default function UsuariosPage() {
         <Card>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-wide text-teal">Administración</p>
+              <p className="text-sm font-semibold uppercase tracking-wide text-teal">
+                Administración
+              </p>
               <h2 className="mt-1 text-2xl font-bold">Usuarios del sistema</h2>
-              <p className="mt-2 text-teal">Crea, consulta, edita y desactiva usuarios. El perfil define sus permisos de acceso.</p>
+              <p className="mt-2 text-teal">
+                Crea, consulta, edita y desactiva usuarios. El perfil define sus
+                permisos de acceso.
+              </p>
             </div>
-            <PermissionGate permission="usuarios.crear"><Button onClick={openCreateForm}>Nuevo usuario</Button></PermissionGate>
+            <PermissionGate permission="usuarios.crear">
+              <Button onClick={openCreateForm}>Nuevo usuario</Button>
+            </PermissionGate>
           </div>
         </Card>
-        {error ? <p className="rounded-lg bg-red-50 p-3 text-sm text-red-800" role="alert">{error}</p> : null}
+        {error ? (
+          <p
+            className="rounded-lg bg-red-50 p-3 text-sm text-red-800"
+            role="alert"
+          >
+            {error}
+          </p>
+        ) : null}
 
         {isFormOpen ? (
           <Card>
-            <h3 className="text-xl font-bold">{editing ? 'Editar usuario' : 'Crear usuario'}</h3>
-            <form className="mt-5 grid gap-4 md:grid-cols-3" onSubmit={saveUser}>
-              <label className="grid gap-2 text-sm font-semibold">Nombre completo<input className="rounded-lg border border-sky-blue px-3 py-2 font-normal outline-none focus:border-teal focus:ring-2 focus:ring-sky-blue" onChange={(event) => setForm({ ...form, name: event.target.value })} readOnly={Boolean(editing)} required value={form.name} /></label>
-              <label className="grid gap-2 text-sm font-semibold">Correo electrónico<input className="rounded-lg border border-sky-blue px-3 py-2 font-normal outline-none focus:border-teal focus:ring-2 focus:ring-sky-blue" onChange={(event) => setForm({ ...form, email: event.target.value })} readOnly={Boolean(editing)} required type="email" value={form.email} /></label>
-              <label className="grid gap-2 text-sm font-semibold">Perfil<select className="rounded-lg border border-sky-blue bg-white px-3 py-2 font-normal outline-none focus:border-teal focus:ring-2 focus:ring-sky-blue" onChange={(event) => setForm({ ...form, profileId: event.target.value })} required value={form.profileId}>{editing && !profiles.some((profile) => profile.id === editing.profile.id) ? <option value={editing.profile.id}>{editing.profile.name}</option> : null}{profiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.name}</option>)}</select></label>
-              {editing ? <label className="grid gap-2 text-sm font-semibold">Estado<select className="rounded-lg border border-sky-blue bg-white px-3 py-2 font-normal" onChange={(event) => setForm({ ...form, status: event.target.value as 'activo' | 'inactivo' })} value={form.status}><option value="activo">Activo</option><option value="inactivo">Inactivo</option></select></label> : <label className="grid gap-2 text-sm font-semibold">Contraseña inicial<input className="rounded-lg border border-sky-blue px-3 py-2 font-normal" minLength={8} onChange={(event) => setForm({ ...form, password: event.target.value })} required type="password" value={form.password} /></label>}
-              <div className="flex gap-3 md:col-span-3"><PermissionGate permission={editing ? 'usuarios.editar' : 'usuarios.crear'}><Button disabled={isSaving} type="submit">{isSaving ? 'Guardando…' : editing ? 'Guardar cambios' : 'Crear usuario'}</Button></PermissionGate><Button onClick={closeForm} type="button" variant="secondary">Cancelar</Button></div>
+            <h3 className="text-xl font-bold">
+              {editing ? 'Editar usuario' : 'Crear usuario'}
+            </h3>
+            <form
+              className="mt-5 grid gap-4 md:grid-cols-3"
+              onSubmit={saveUser}
+            >
+              <label className="grid gap-2 text-sm font-semibold">
+                Nombre completo
+                <input
+                  className="rounded-lg border border-sky-blue px-3 py-2 font-normal outline-none focus:border-teal focus:ring-2 focus:ring-sky-blue"
+                  onChange={(event) =>
+                    setForm({ ...form, name: event.target.value })
+                  }
+                  readOnly={Boolean(editing)}
+                  required
+                  value={form.name}
+                />
+              </label>
+              <label className="grid gap-2 text-sm font-semibold">
+                Correo electrónico
+                <input
+                  className="rounded-lg border border-sky-blue px-3 py-2 font-normal outline-none focus:border-teal focus:ring-2 focus:ring-sky-blue"
+                  onChange={(event) =>
+                    setForm({ ...form, email: event.target.value })
+                  }
+                  readOnly={Boolean(editing)}
+                  required
+                  type="email"
+                  value={form.email}
+                />
+              </label>
+              <label className="grid gap-2 text-sm font-semibold">
+                Perfil
+                <select
+                  className="rounded-lg border border-sky-blue bg-white px-3 py-2 font-normal outline-none focus:border-teal focus:ring-2 focus:ring-sky-blue"
+                  onChange={(event) =>
+                    setForm({ ...form, profileId: event.target.value })
+                  }
+                  required
+                  value={form.profileId}
+                >
+                  {editing &&
+                  !profiles.some(
+                    (profile) => profile.id === editing.profile.id,
+                  ) ? (
+                    <option value={editing.profile.id}>
+                      {editing.profile.name}
+                    </option>
+                  ) : null}
+                  {profiles.map((profile) => (
+                    <option key={profile.id} value={profile.id}>
+                      {profile.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {editing ? (
+                <label className="grid gap-2 text-sm font-semibold">
+                  Estado
+                  <select
+                    className="rounded-lg border border-sky-blue bg-white px-3 py-2 font-normal"
+                    onChange={(event) =>
+                      setForm({
+                        ...form,
+                        status: event.target.value as 'activo' | 'inactivo',
+                      })
+                    }
+                    value={form.status}
+                  >
+                    <option value="activo">Activo</option>
+                    <option value="inactivo">Inactivo</option>
+                  </select>
+                </label>
+              ) : (
+                <label className="grid gap-2 text-sm font-semibold">
+                  Contraseña inicial
+                  <input
+                    className="rounded-lg border border-sky-blue px-3 py-2 font-normal"
+                    minLength={8}
+                    onChange={(event) =>
+                      setForm({ ...form, password: event.target.value })
+                    }
+                    required
+                    type="password"
+                    value={form.password}
+                  />
+                </label>
+              )}
+              <div className="flex gap-3 md:col-span-3">
+                <PermissionGate
+                  permission={editing ? 'usuarios.editar' : 'usuarios.crear'}
+                >
+                  <Button disabled={isSaving} type="submit">
+                    {isSaving
+                      ? 'Guardando…'
+                      : editing
+                        ? 'Guardar cambios'
+                        : 'Crear usuario'}
+                  </Button>
+                </PermissionGate>
+                <Button onClick={closeForm} type="button" variant="secondary">
+                  Cancelar
+                </Button>
+              </div>
             </form>
           </Card>
         ) : null}
 
         <Card className="p-0">
-          <div className="border-b border-sky-blue px-6 py-4"><h3 className="font-bold">Usuarios registrados</h3></div>
-          {isLoading ? <p className="p-6 text-sm text-teal">Cargando usuarios…</p> : <DataTable columns={[
-            { key: 'name', header: 'Usuario', render: (user) => <span className="font-semibold">{user.name}</span> },
-            { key: 'email', header: 'Correo', render: (user) => user.email },
-            { key: 'profile', header: 'Perfil', render: (user) => user.profile.name },
-            { key: 'status', header: 'Estado', render: (user) => <StatusBadge status={user.status === 'activo' ? 'Activo' : 'Inactivo'} /> },
-            { key: 'actions', header: 'Acciones', render: (user) => <div className="flex flex-wrap gap-2">{can('usuarios.editar') ? <Button onClick={() => openEditForm(user)} type="button" variant="secondary">Editar</Button> : null}{can('usuarios.desactivar') && user.status === 'activo' ? <Button onClick={() => void deactivate(user)} type="button" variant="ghost">Desactivar</Button> : null}</div> },
-          ]} rowKey={(user) => user.id} rows={users} />}
+          <div className="border-b border-sky-blue px-6 py-4">
+            <h3 className="font-bold">Usuarios registrados</h3>
+          </div>
+          {isLoading ? (
+            <p className="p-6 text-sm text-teal">Cargando usuarios…</p>
+          ) : (
+            <DataTable
+              columns={[
+                {
+                  key: 'name',
+                  header: 'Usuario',
+                  render: (user) => (
+                    <span className="font-semibold">{user.name}</span>
+                  ),
+                },
+                {
+                  key: 'email',
+                  header: 'Correo',
+                  render: (user) => user.email,
+                },
+                {
+                  key: 'profile',
+                  header: 'Perfil',
+                  render: (user) => user.profile.name,
+                },
+                {
+                  key: 'status',
+                  header: 'Estado',
+                  render: (user) => (
+                    <StatusBadge
+                      status={user.status === 'activo' ? 'Activo' : 'Inactivo'}
+                    />
+                  ),
+                },
+                {
+                  key: 'actions',
+                  header: 'Acciones',
+                  render: (user) => (
+                    <div className="flex flex-wrap gap-2">
+                      {can('usuarios.editar') ? (
+                        <Button
+                          onClick={() => openEditForm(user)}
+                          type="button"
+                          variant="secondary"
+                        >
+                          Editar
+                        </Button>
+                      ) : null}
+                      {can('usuarios.desactivar') &&
+                      user.status === 'activo' ? (
+                        <Button
+                          onClick={() => void deactivate(user)}
+                          type="button"
+                          variant="ghost"
+                        >
+                          Desactivar
+                        </Button>
+                      ) : null}
+                    </div>
+                  ),
+                },
+              ]}
+              rowKey={(user) => user.id}
+              rows={users}
+            />
+          )}
         </Card>
       </div>
     </AppShell>
