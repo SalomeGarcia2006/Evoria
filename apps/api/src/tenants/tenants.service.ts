@@ -4,12 +4,13 @@ import {
   Injectable,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import type { Model } from 'mongoose';
+import { isValidObjectId, type Model } from 'mongoose';
 import {
   Membership,
   type MembershipDocument,
 } from '../memberships/schemas/membership.schema';
 import { AccessControlSeedService } from '../profiles/access-control.seed.service';
+import { ADMINISTRATOR_PROFILE_NAME } from '../profiles/profiles.constants';
 import { Profile } from '../profiles/schemas/profile.schema';
 import { PasswordService } from '../users/password.service';
 import { User, type UserDocument } from '../users/schemas/user.schema';
@@ -99,6 +100,105 @@ export class TenantsService {
         membershipId: membership._id.toString(),
       },
     };
+  }
+
+  async findAll() {
+    const tenants = await this.tenantModel
+      .find({ status: 'activo' })
+      .select('name nit slug status')
+      .sort({ name: 1 })
+      .lean();
+
+    return tenants.map((tenant) => ({
+      id: tenant._id.toString(),
+      name: tenant.name,
+      nit: tenant.nit,
+      slug: tenant.slug,
+      status: tenant.status,
+    }));
+  }
+
+  async join(tenantId: string, userId: string) {
+    if (!isValidObjectId(tenantId)) {
+      throw new BadRequestException('La empresa seleccionada no es válida.');
+    }
+
+    const [tenant, activeMembership] = await Promise.all([
+      this.tenantModel.findOne({ _id: tenantId, status: 'activo' }).lean(),
+      this.membershipModel
+        .findOne({ userId, status: 'activo' })
+        .select('_id')
+        .lean(),
+    ]);
+
+    if (!tenant) {
+      throw new BadRequestException('La empresa seleccionada no está activa.');
+    }
+
+    if (activeMembership) {
+      throw new ConflictException(
+        'Debes salir de la empresa actual antes de ingresar a otra.',
+      );
+    }
+
+    const profile = await this.profileModel
+      .findOne({
+        name: ADMINISTRATOR_PROFILE_NAME,
+        scope: 'tenant',
+        tenantId: tenant._id,
+        status: 'activo',
+        isSystem: true,
+      })
+      .select('_id')
+      .lean();
+
+    if (!profile) {
+      throw new BadRequestException(
+        'La empresa no tiene un perfil Administrador disponible.',
+      );
+    }
+
+    const previousMembership = await this.membershipModel
+      .findOneAndUpdate(
+        { userId, tenantId: tenant._id, status: 'inactivo' },
+        { $set: { profileId: profile._id, status: 'activo' } },
+        { new: true },
+      )
+      .lean();
+
+    if (previousMembership) {
+      return { id: previousMembership._id.toString() };
+    }
+
+    try {
+      const membership = await this.membershipModel.create({
+        userId,
+        tenantId: tenant._id,
+        profileId: profile._id,
+      });
+
+      return { id: membership._id.toString() };
+    } catch (error) {
+      if (this.isDuplicateKeyError(error)) {
+        throw new ConflictException(
+          'Debes salir de la empresa actual antes de ingresar a otra.',
+        );
+      }
+
+      throw error;
+    }
+  }
+
+  async leave(userId: string): Promise<void> {
+    const membership = await this.membershipModel.findOneAndUpdate(
+      { userId, status: 'activo' },
+      { $set: { status: 'inactivo' } },
+      { new: true },
+    );
+
+    if (!membership) {
+      throw new ConflictException('No tienes una empresa activa.');
+    }
   }
 
   private createSlug(name: string): string {

@@ -79,31 +79,7 @@ export class AuthService {
       throw new UnauthorizedException('Correo o contraseña inválidos.');
     }
 
-    const session = await this.createSession(user);
-    const tokens = await this.createTokens({
-      sub: user._id.toString(),
-      email: user.email,
-      scope: session.scope,
-      profileId: session.profile.id,
-      ...(session.tenant ? { tenantId: session.tenant.id } : {}),
-      ...(session.membership ? { membershipId: session.membership.id } : {}),
-    });
-
-    await this.userModel.updateOne(
-      { _id: user._id },
-      {
-        $set: {
-          loginAttempts: 0,
-          lockedUntil: null,
-          refreshTokenHash: this.passwordService.hash(tokens.refreshToken),
-        },
-      },
-    );
-
-    return {
-      session,
-      tokens,
-    };
+    return this.createLoginResult(user, undefined, undefined, true);
   }
 
   async refresh(refreshToken?: string): Promise<LoginResult> {
@@ -126,33 +102,7 @@ export class AuthService {
       throw new UnauthorizedException('La sesión no es válida o expiró.');
     }
 
-    const session = await this.createSession(
-      user,
-      payload.scope,
-      payload.membershipId,
-    );
-    const tokens = await this.createTokens({
-      sub: user._id.toString(),
-      email: user.email,
-      scope: session.scope,
-      profileId: session.profile.id,
-      ...(session.tenant ? { tenantId: session.tenant.id } : {}),
-      ...(session.membership ? { membershipId: session.membership.id } : {}),
-    });
-
-    await this.userModel.updateOne(
-      { _id: user._id },
-      {
-        $set: {
-          refreshTokenHash: this.passwordService.hash(tokens.refreshToken),
-        },
-      },
-    );
-
-    return {
-      session,
-      tokens,
-    };
+    return this.createLoginResult(user, payload.scope, payload.membershipId);
   }
 
   async logout(refreshToken?: string): Promise<void> {
@@ -200,6 +150,21 @@ export class AuthService {
     }
 
     return this.createSession(user, scope, membershipId);
+  }
+
+  async createTenantSession(
+    userId: string,
+    membershipId: string,
+  ): Promise<LoginResult> {
+    const user = await this.findActiveUser(userId);
+
+    return this.createLoginResult(user, 'tenant', membershipId);
+  }
+
+  async createPlatformSession(userId: string): Promise<LoginResult> {
+    const user = await this.findActiveUser(userId);
+
+    return this.createLoginResult(user, 'platform');
   }
 
   private async createSession(
@@ -304,6 +269,49 @@ export class AuthService {
       },
       permissions: permissions.map((permission) => permission.key),
     };
+  }
+
+  private async createLoginResult(
+    user: SessionUser,
+    scope?: JwtTokenPayload['scope'],
+    membershipId?: string,
+    resetLoginAttempts = false,
+  ): Promise<LoginResult> {
+    const session = await this.createSession(user, scope, membershipId);
+    const tokens = await this.createTokens({
+      sub: user._id.toString(),
+      email: user.email,
+      scope: session.scope,
+      profileId: session.profile.id,
+      ...(session.tenant ? { tenantId: session.tenant.id } : {}),
+      ...(session.membership ? { membershipId: session.membership.id } : {}),
+    });
+
+    await this.userModel.updateOne(
+      { _id: user._id },
+      {
+        $set: {
+          ...(resetLoginAttempts
+            ? { loginAttempts: 0, lockedUntil: null }
+            : {}),
+          refreshTokenHash: this.passwordService.hash(tokens.refreshToken),
+        },
+      },
+    );
+
+    return { session, tokens };
+  }
+
+  private async findActiveUser(userId: string): Promise<SessionUser> {
+    const user = await this.userModel
+      .findOne({ _id: userId, status: 'activo' })
+      .lean();
+
+    if (!user) {
+      throw new UnauthorizedException('La sesión no es válida o expiró.');
+    }
+
+    return user;
   }
 
   private async createTokens(payload: JwtTokenPayload): Promise<AuthTokens> {
