@@ -156,76 +156,76 @@ export default function EmpresasPage() {
                     {error}
                   </p>
                 ) : null}
-              <label className="grid gap-2 text-sm font-semibold">
-                Nombre de la empresa
-                <input
-                  autoComplete="organization"
-                  className={fieldClassName}
-                  maxLength={120}
-                  minLength={2}
-                  name="name"
-                  required
-                />
-              </label>
-              <label className="grid gap-2 text-sm font-semibold">
-                NIT
-                <input
-                  className={fieldClassName}
-                  maxLength={30}
-                  minLength={3}
-                  name="nit"
-                  required
-                />
-              </label>
-              <label className="grid gap-2 text-sm font-semibold">
-                Nombre del propietario
-                <input
-                  autoComplete="name"
-                  className={fieldClassName}
-                  maxLength={120}
-                  minLength={2}
-                  name="ownerName"
-                  required
-                />
-              </label>
-              <label className="grid gap-2 text-sm font-semibold">
-                Correo del propietario
-                <input
-                  autoComplete="email"
-                  className={fieldClassName}
-                  maxLength={150}
-                  name="ownerEmail"
-                  required
-                  type="email"
-                />
-              </label>
-              <label className="grid gap-2 text-sm font-semibold sm:col-span-2">
-                Contraseña inicial del propietario
-                <input
-                  autoComplete="new-password"
-                  className={`${fieldClassName} sm:max-w-md`}
-                  minLength={8}
-                  name="ownerPassword"
-                  required
-                  type="password"
-                />
-                <span className="font-normal text-teal">
-                  Mínimo 8 caracteres. Compártela de forma segura con el
-                  propietario.
-                </span>
-              </label>
-              <div className="flex flex-wrap gap-3 border-t border-sky-blue pt-5 sm:col-span-2">
-                <Button disabled={isSaving} type="submit">
-                  {isSaving ? 'Creando empresa…' : 'Crear empresa'}
-                </Button>
-                <Button
-                  onClick={() => companyDialog.current?.close()}
-                  type="button"
-                  variant="secondary"
-                >
-                  Cancelar
-                </Button>
-              </div>
+                <label className="grid gap-2 text-sm font-semibold">
+                  Nombre de la empresa
+                  <input
+                    autoComplete="organization"
+                    className={fieldClassName}
+                    maxLength={120}
+                    minLength={2}
+                    name="name"
+                    required
+                  />
+                </label>
+                <label className="grid gap-2 text-sm font-semibold">
+                  NIT
+                  <input
+                    className={fieldClassName}
+                    maxLength={30}
+                    minLength={3}
+                    name="nit"
+                    required
+                  />
+                </label>
+                <label className="grid gap-2 text-sm font-semibold">
+                  Nombre del propietario
+                  <input
+                    autoComplete="name"
+                    className={fieldClassName}
+                    maxLength={120}
+                    minLength={2}
+                    name="ownerName"
+                    required
+                  />
+                </label>
+                <label className="grid gap-2 text-sm font-semibold">
+                  Correo del propietario
+                  <input
+                    autoComplete="email"
+                    className={fieldClassName}
+                    maxLength={150}
+                    name="ownerEmail"
+                    required
+                    type="email"
+                  />
+                </label>
+                <label className="grid gap-2 text-sm font-semibold sm:col-span-2">
+                  Contraseña inicial del propietario
+                  <input
+                    autoComplete="new-password"
+                    className={`${fieldClassName} sm:max-w-md`}
+                    minLength={8}
+                    name="ownerPassword"
+                    required
+                    type="password"
+                  />
+                  <span className="font-normal text-teal">
+                    Mínimo 8 caracteres. Compártela de forma segura con el
+                    propietario.
+                  </span>
+                </label>
+                <div className="flex flex-wrap gap-3 border-t border-sky-blue pt-5 sm:col-span-2">
+                  <Button disabled={isSaving} type="submit">
+                    {isSaving ? 'Creando empresa…' : 'Crear empresa'}
+                  </Button>
+                  <Button
+                    onClick={() => companyDialog.current?.close()}
+                    type="button"
+                    variant="secondary"
+                  >
+                    Cancelar
+                  </Button>
+                </div>
               </form>
             </dialog>
           </PermissionGate>
