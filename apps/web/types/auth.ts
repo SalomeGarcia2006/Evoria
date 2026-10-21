@@ -4,5 +4,11 @@ export interface AuthUser {
   email: string;
   role: string;
   scope: 'platform' | 'tenant';
+  tenant?: {
+    id: string;
+    name: string;
+    slug: string;
+  };
+  membershipId?: string;
   permissions: string[];
 }

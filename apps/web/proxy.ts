@@ -23,5 +23,6 @@ export const config = {
     '/auditoria/:path*',
     '/usuarios/:path*',
     '/perfiles/:path*',
+    '/empresas/:path*',
   ],
 };

@@ -19,6 +19,7 @@ const iconByRoute: Record<string, string> = {
   '/auditoria': 'auditoria.svg',
   '/usuarios': 'usuarios.svg',
   '/perfiles': 'perfil.svg',
+  '/empresas': 'empresas.svg',
 };
 
 export function Sidebar() {

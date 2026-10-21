@@ -57,6 +57,13 @@ export async function getEvents(): Promise<EventList> {
   return response.data;
 }
 
+export async function getEvent(id: string): Promise<EventItem> {
+  const response = await apiRequest<ApiResponse<EventItem>>(`/events/${id}`, {
+    credentials: 'include',
+  });
+  return response.data;
+}
+
 export async function createEvent(
   payload: CreateEventPayload,
 ): Promise<EventItem> {
