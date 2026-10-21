@@ -1,63 +1,85 @@
+'use client';
+
 import Link from 'next/link';
+import { useParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { AppShell } from '../../../components/layout/AppShell';
+import { ResourceForm } from '../../../components/resources/ResourceForm';
+import { Button } from '../../../components/ui/Button';
 import { Card } from '../../../components/ui/Card';
+import { ErrorMessage } from '../../../components/ui/ErrorMessage';
+import { LoadingState } from '../../../components/ui/LoadingState';
 import { StatusBadge } from '../../../components/ui/StatusBadge';
+import { useAuth } from '../../../hooks/useAuth';
+import {
+  deactivateResource,
+  getResource,
+  type ResourceItem,
+} from '../../../services/recursos.service';
 
-const samples = [
-  {
-    id: 'r-01',
-    name: 'Sillas plegables',
-    category: 'Mobiliario',
-    available: 120,
-    total: 160,
-    cost: '$18.000',
-    description: 'Sillas plegables para auditorios y espacios exteriores.',
-  },
-  {
-    id: 'r-02',
-    name: 'Proyector audiovisual',
-    category: 'Tecnología',
-    available: 8,
-    total: 10,
-    cost: '$2.400.000',
-    description: 'Proyector portátil para presentaciones y conferencias.',
-  },
-  {
-    id: 'r-03',
-    name: 'Carpas 3 × 3 m',
-    category: 'Mobiliario',
-    available: 2,
-    total: 12,
-    cost: '$850.000',
-    description: 'Carpas plegables para actividades al aire libre.',
-  },
-  {
-    id: 'r-04',
-    name: 'Micrófonos inalámbricos',
-    category: 'Tecnología',
-    available: 14,
-    total: 16,
-    cost: '$320.000',
-    description: 'Micrófonos inalámbricos para escenarios y salas.',
-  },
-  {
-    id: 'r-05',
-    name: 'Mesas rectangulares',
-    category: 'Mobiliario',
-    available: 0,
-    total: 18,
-    cost: '$95.000',
-    description: 'Mesas plegables rectangulares.',
-  },
-];
+const statusLabels = {
+  disponible: 'Disponible',
+  mantenimiento: 'En mantenimiento',
+  inactivo: 'Inactivo',
+} as const;
 
-export default async function RecursoDetallePage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = await params;
-  const resource = samples.find((item) => item.id === id);
+export default function RecursoDetallePage() {
+  const { can } = useAuth();
+  const { id } = useParams<{ id: string }>();
+  const [resource, setResource] = useState<ResourceItem | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isDeactivating, setIsDeactivating] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    getResource(id)
+      .then((result) => {
+        if (isMounted) setResource(result);
+      })
+      .catch((loadError: unknown) => {
+        if (isMounted) {
+          setError(
+            loadError instanceof Error
+              ? loadError.message
+              : 'No se pudo cargar el recurso.',
+          );
+        }
+      })
+      .finally(() => {
+        if (isMounted) setIsLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [id]);
+
+  async function handleDeactivate() {
+    if (
+      !resource ||
+      !window.confirm(`¿Deseas desactivar "${resource.name}"?`)
+    ) {
+      return;
+    }
+
+    setIsDeactivating(true);
+    setError(null);
+    try {
+      setResource(await deactivateResource(resource.id));
+    } catch (deactivateError) {
+      setError(
+        deactivateError instanceof Error
+          ? deactivateError.message
+          : 'No se pudo desactivar el recurso.',
+      );
+    } finally {
+      setIsDeactivating(false);
+    }
+  }
+
   return (
     <AppShell title="Detalle del recurso">
       <div className="mx-auto grid max-w-3xl gap-6">
@@ -67,46 +89,84 @@ export default async function RecursoDetallePage({
         >
           ← Volver al catálogo
         </Link>
+        {error ? <ErrorMessage message={error} /> : null}
+        {isLoading ? <LoadingState label="Cargando recurso…" /> : null}
+        {!isLoading && !resource && !error ? (
+          <Card>
+            <h1 className="text-xl font-bold">Recurso no encontrado</h1>
+          </Card>
+        ) : null}
         {resource ? (
-          <Card>
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold uppercase tracking-[.16em] text-teal">
-                  {resource.category}
-                </p>
-                <h2 className="mt-2 text-3xl font-bold">{resource.name}</h2>
-              </div>
-              <StatusBadge
-                status={resource.available ? 'Disponible' : 'Agotado'}
-              />
-            </div>
-            <p className="mt-5 text-teal">{resource.description}</p>
-            <div className="mt-7 grid gap-4 border-t border-sky-blue pt-6 sm:grid-cols-3">
-              {[
-                ['Disponibles', `${resource.available} unidades`],
-                ['Cantidad total', `${resource.total} unidades`],
-                ['Costo unitario', resource.cost],
-              ].map(([label, value]) => (
-                <div className="rounded-xl bg-beige p-4" key={label}>
-                  <p className="text-sm text-teal">{label}</p>
-                  <p className="mt-2 font-bold">{value}</p>
+          isEditing ? (
+            <ResourceForm
+              onSaved={(savedResource) => {
+                setResource(savedResource);
+                setIsEditing(false);
+              }}
+              resource={resource}
+            />
+          ) : (
+            <Card>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold uppercase tracking-[.16em] text-teal">
+                    {resource.type}
+                  </p>
+                  <h1 className="mt-2 text-3xl font-bold">{resource.name}</h1>
                 </div>
-              ))}
-            </div>
-            <p className="mt-6 text-xs text-teal">
-              Información de ejemplo. El detalle se conectará cuando exista el
-              endpoint de recursos.
-            </p>
-          </Card>
-        ) : (
-          <Card>
-            <h2 className="text-xl font-bold">Recurso no encontrado</h2>
-            <p className="mt-2 text-teal">
-              No hay un recurso de demostración con este identificador.
-            </p>
-          </Card>
-        )}
+                <StatusBadge status={statusLabels[resource.status]} />
+              </div>
+              <p className="mt-5 text-teal">
+                {resource.description ?? 'Sin descripción registrada.'}
+              </p>
+              <div className="mt-7 grid gap-4 border-t border-sky-blue pt-6 sm:grid-cols-3">
+                <DetailMetric
+                  label="Disponibles"
+                  value={`${resource.availableQuantity} unidades`}
+                />
+                <DetailMetric
+                  label="Cantidad total"
+                  value={`${resource.totalQuantity} unidades`}
+                />
+                <DetailMetric
+                  label="Costo unitario"
+                  value={new Intl.NumberFormat('es-CO', {
+                    style: 'currency',
+                    currency: 'COP',
+                    maximumFractionDigits: 0,
+                  }).format(resource.unitCost)}
+                />
+              </div>
+              <div className="mt-6 flex flex-wrap gap-3">
+                {can('recursos.editar') && resource.status !== 'inactivo' ? (
+                  <Button onClick={() => setIsEditing(true)} type="button">
+                    Editar recurso
+                  </Button>
+                ) : null}
+                {can('recursos.eliminar') && resource.status !== 'inactivo' ? (
+                  <Button
+                    disabled={isDeactivating}
+                    onClick={() => void handleDeactivate()}
+                    type="button"
+                    variant="secondary"
+                  >
+                    {isDeactivating ? 'Desactivando…' : 'Desactivar'}
+                  </Button>
+                ) : null}
+              </div>
+            </Card>
+          )
+        ) : null}
       </div>
     </AppShell>
+  );
+}
+
+function DetailMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl bg-beige p-4">
+      <p className="text-sm text-teal">{label}</p>
+      <p className="mt-2 font-bold">{value}</p>
+    </div>
   );
 }

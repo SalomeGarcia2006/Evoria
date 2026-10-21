@@ -1,7 +1,3 @@
-export interface Recurso {
-  id: string;
-  name: string;
-  type?: string;
-  availableQuantity?: number;
-  status?: string;
-}
+import type { Resource } from '@evoria/contracts';
+
+export type Recurso = Resource;
