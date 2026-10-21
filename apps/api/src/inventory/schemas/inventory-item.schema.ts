@@ -1,11 +1,14 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import type { HydratedDocument, Types } from 'mongoose';
-import { RESOURCE_STATUSES, type ResourceStatus } from '../resources.constants';
+import {
+  INVENTORY_STATUSES,
+  type InventoryStatus,
+} from '../inventory.constants';
 
-export type ResourceDocument = HydratedDocument<Resource>;
+export type InventoryItemDocument = HydratedDocument<InventoryItem>;
 
 @Schema({ collection: 'resources', timestamps: true, versionKey: false })
-export class Resource {
+export class InventoryItem {
   @Prop({ type: 'ObjectId', ref: 'Tenant', required: true, index: true })
   tenantId!: Types.ObjectId;
 
@@ -38,17 +41,17 @@ export class Resource {
 
   @Prop({
     required: true,
-    enum: RESOURCE_STATUSES,
+    enum: INVENTORY_STATUSES,
     default: 'disponible',
     index: true,
   })
-  status!: ResourceStatus;
+  status!: InventoryStatus;
 
   createdAt!: Date;
 
   updatedAt!: Date;
 }
 
-export const ResourceSchema = SchemaFactory.createForClass(Resource);
-ResourceSchema.index({ tenantId: 1, name: 1 });
-ResourceSchema.index({ tenantId: 1, status: 1 });
+export const InventoryItemSchema = SchemaFactory.createForClass(InventoryItem);
+InventoryItemSchema.index({ tenantId: 1, name: 1 });
+InventoryItemSchema.index({ tenantId: 1, status: 1 });

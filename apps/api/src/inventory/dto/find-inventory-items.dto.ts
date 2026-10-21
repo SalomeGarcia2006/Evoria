@@ -8,9 +8,12 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
-import { RESOURCE_STATUSES, type ResourceStatus } from '../resources.constants';
+import {
+  INVENTORY_STATUSES,
+  type InventoryStatus,
+} from '../inventory.constants';
 
-export class FindResourcesDto {
+export class FindInventoryItemsDto {
   @IsOptional()
   @IsString()
   @MaxLength(120)
@@ -22,8 +25,8 @@ export class FindResourcesDto {
   type?: string;
 
   @IsOptional()
-  @IsEnum(RESOURCE_STATUSES)
-  status?: ResourceStatus;
+  @IsEnum(INVENTORY_STATUSES)
+  status?: InventoryStatus;
 
   @IsOptional()
   @Type(() => Number)

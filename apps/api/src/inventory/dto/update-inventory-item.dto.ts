@@ -9,35 +9,42 @@ import {
   Min,
   MinLength,
 } from 'class-validator';
-import { RESOURCE_STATUSES, type ResourceStatus } from '../resources.constants';
+import {
+  INVENTORY_STATUSES,
+  type InventoryStatus,
+} from '../inventory.constants';
 
-export class CreateResourceDto {
+export class UpdateInventoryItemDto {
+  @IsOptional()
   @IsString()
   @MinLength(2)
   @MaxLength(120)
-  name!: string;
+  name?: string;
 
+  @IsOptional()
   @IsString()
   @MinLength(2)
   @MaxLength(80)
-  type!: string;
+  type?: string;
 
   @IsOptional()
   @IsString()
   @MaxLength(1000)
-  description?: string;
+  description?: string | null;
 
+  @IsOptional()
   @Type(() => Number)
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
-  unitCost!: number;
+  unitCost?: number;
 
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(0)
-  totalQuantity!: number;
+  totalQuantity?: number;
 
   @IsOptional()
-  @IsEnum(RESOURCE_STATUSES)
-  status?: ResourceStatus;
+  @IsEnum(INVENTORY_STATUSES)
+  status?: InventoryStatus;
 }

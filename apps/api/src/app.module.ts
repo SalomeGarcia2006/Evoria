@@ -7,6 +7,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { EventsModule } from './events/events.module';
+import { InventoryModule } from './inventory/inventory.module';
 import { MembershipsModule } from './memberships/memberships.module';
 import { ProfilesModule } from './profiles/profiles.module';
 import { ResourcesModule } from './resources/resources.module';
@@ -54,6 +55,7 @@ function getMongoUri(configService: ConfigService): string {
     }),
     AuthModule,
     EventsModule,
+    InventoryModule,
     MembershipsModule,
     ProfilesModule,
     ResourcesModule,
