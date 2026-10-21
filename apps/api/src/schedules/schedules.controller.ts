@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -59,6 +60,18 @@ export class SchedulesController {
     return {
       data: await this.schedulesService.update(id, updateScheduleDto, user),
       message: 'Actividad actualizada correctamente.',
+    };
+  }
+
+  @Delete('schedules/:id')
+  @RequirePermissions('cronogramas.eliminar')
+  async cancel(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return {
+      data: await this.schedulesService.cancel(id, user),
+      message: 'Actividad cancelada correctamente.',
     };
   }
 }

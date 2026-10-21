@@ -85,6 +85,7 @@ export class SchedulesService {
     const schedule = await this.findSchedule(id, tenantId);
     const event = await this.findEvent(schedule.eventId.toString(), tenantId);
     this.ensureEventIsEditable(event);
+    this.ensureScheduleIsEditable(schedule);
 
     const startAt = updateScheduleDto.startAt ?? schedule.startAt.toISOString();
     const endAt = updateScheduleDto.endAt ?? schedule.endAt.toISOString();
@@ -118,6 +119,14 @@ export class SchedulesService {
     }
 
     await schedule.save();
+    return this.toResponse(schedule);
+  }
+
+  async cancel(id: string, user: AuthenticatedUser) {
+    const schedule = await this.findSchedule(id, this.getTenantId(user));
+    schedule.status = 'cancelado';
+    await schedule.save();
+
     return this.toResponse(schedule);
   }
 
@@ -172,6 +181,12 @@ export class SchedulesService {
       throw new ConflictException(
         'No puedes modificar el cronograma de un evento cancelado.',
       );
+    }
+  }
+
+  private ensureScheduleIsEditable(schedule: ScheduleDocument): void {
+    if (schedule.status === 'cancelado') {
+      throw new ConflictException('No puedes editar una actividad cancelada.');
     }
   }
 
