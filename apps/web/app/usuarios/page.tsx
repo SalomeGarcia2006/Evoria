@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppShell } from '../../components/layout/AppShell';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -26,7 +26,7 @@ export default function UsuariosPage() {
   const [error, setError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [editing, setEditing] = useState<CompanyUser | null>(null);
-  const [isFormOpen, setIsFormOpen] = useState(false);
+  const userDialog = useRef<HTMLDialogElement>(null);
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -70,7 +70,7 @@ export default function UsuariosPage() {
       profileId: profiles[0]?.id ?? '',
       status: 'activo',
     });
-    setIsFormOpen(true);
+    userDialog.current?.showModal();
   }
 
   function openEditForm(user: CompanyUser) {
@@ -82,11 +82,11 @@ export default function UsuariosPage() {
       profileId: user.profile.id,
       status: user.status,
     });
-    setIsFormOpen(true);
+    userDialog.current?.showModal();
   }
 
   function closeForm() {
-    setIsFormOpen(false);
+    userDialog.current?.close();
     setEditing(null);
   }
 
@@ -156,7 +156,9 @@ export default function UsuariosPage() {
               </p>
             </div>
             <PermissionGate permission="usuarios.crear">
-              <Button onClick={openCreateForm}>Nuevo usuario</Button>
+              <Button onClick={openCreateForm} type="button">
+                Nuevo usuario
+              </Button>
             </PermissionGate>
           </div>
         </Card>
@@ -169,116 +171,132 @@ export default function UsuariosPage() {
           </p>
         ) : null}
 
-        {isFormOpen ? (
-          <Card>
-            <h3 className="text-xl font-bold">
-              {editing ? 'Editar usuario' : 'Crear usuario'}
-            </h3>
-            <form
-              className="mt-5 grid gap-4 md:grid-cols-3"
-              onSubmit={saveUser}
+        <dialog
+          aria-labelledby="user-dialog-title"
+          className="m-auto max-h-[calc(100dvh-2rem)] w-11/12 max-w-4xl overflow-y-auto rounded-2xl border border-sky-blue bg-white p-0 text-navy shadow-2xl backdrop:bg-navy/60"
+          onClose={() => setEditing(null)}
+          ref={userDialog}
+        >
+          <div className="flex items-start justify-between gap-4 border-b border-sky-blue p-6">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[.16em] text-teal">
+                Usuarios
+              </p>
+              <h2 className="mt-1 text-2xl font-bold" id="user-dialog-title">
+                {editing ? 'Editar usuario' : 'Crear usuario'}
+              </h2>
+            </div>
+            <Button
+              aria-label="Cerrar formulario"
+              className="px-3 text-xl leading-none"
+              onClick={closeForm}
+              type="button"
+              variant="ghost"
             >
+              ×
+            </Button>
+          </div>
+          <form className="grid gap-4 p-6 md:grid-cols-3" onSubmit={saveUser}>
+            <label className="grid gap-2 text-sm font-semibold">
+              Nombre completo
+              <input
+                className="rounded-lg border border-sky-blue px-3 py-2 font-normal outline-none focus:border-teal focus:ring-2 focus:ring-sky-blue"
+                onChange={(event) =>
+                  setForm({ ...form, name: event.target.value })
+                }
+                readOnly={Boolean(editing)}
+                required
+                value={form.name}
+              />
+            </label>
+            <label className="grid gap-2 text-sm font-semibold">
+              Correo electrónico
+              <input
+                className="rounded-lg border border-sky-blue px-3 py-2 font-normal outline-none focus:border-teal focus:ring-2 focus:ring-sky-blue"
+                onChange={(event) =>
+                  setForm({ ...form, email: event.target.value })
+                }
+                readOnly={Boolean(editing)}
+                required
+                type="email"
+                value={form.email}
+              />
+            </label>
+            <label className="grid gap-2 text-sm font-semibold">
+              Perfil
+              <select
+                className="rounded-lg border border-sky-blue bg-white px-3 py-2 font-normal outline-none focus:border-teal focus:ring-2 focus:ring-sky-blue"
+                onChange={(event) =>
+                  setForm({ ...form, profileId: event.target.value })
+                }
+                required
+                value={form.profileId}
+              >
+                {editing &&
+                !profiles.some(
+                  (profile) => profile.id === editing.profile.id,
+                ) ? (
+                  <option value={editing.profile.id}>
+                    {editing.profile.name}
+                  </option>
+                ) : null}
+                {profiles.map((profile) => (
+                  <option key={profile.id} value={profile.id}>
+                    {profile.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {editing ? (
               <label className="grid gap-2 text-sm font-semibold">
-                Nombre completo
-                <input
-                  className="rounded-lg border border-sky-blue px-3 py-2 font-normal outline-none focus:border-teal focus:ring-2 focus:ring-sky-blue"
-                  onChange={(event) =>
-                    setForm({ ...form, name: event.target.value })
-                  }
-                  readOnly={Boolean(editing)}
-                  required
-                  value={form.name}
-                />
-              </label>
-              <label className="grid gap-2 text-sm font-semibold">
-                Correo electrónico
-                <input
-                  className="rounded-lg border border-sky-blue px-3 py-2 font-normal outline-none focus:border-teal focus:ring-2 focus:ring-sky-blue"
-                  onChange={(event) =>
-                    setForm({ ...form, email: event.target.value })
-                  }
-                  readOnly={Boolean(editing)}
-                  required
-                  type="email"
-                  value={form.email}
-                />
-              </label>
-              <label className="grid gap-2 text-sm font-semibold">
-                Perfil
+                Estado
                 <select
-                  className="rounded-lg border border-sky-blue bg-white px-3 py-2 font-normal outline-none focus:border-teal focus:ring-2 focus:ring-sky-blue"
+                  className="rounded-lg border border-sky-blue bg-white px-3 py-2 font-normal"
                   onChange={(event) =>
-                    setForm({ ...form, profileId: event.target.value })
+                    setForm({
+                      ...form,
+                      status: event.target.value as 'activo' | 'inactivo',
+                    })
                   }
-                  required
-                  value={form.profileId}
+                  value={form.status}
                 >
-                  {editing &&
-                  !profiles.some(
-                    (profile) => profile.id === editing.profile.id,
-                  ) ? (
-                    <option value={editing.profile.id}>
-                      {editing.profile.name}
-                    </option>
-                  ) : null}
-                  {profiles.map((profile) => (
-                    <option key={profile.id} value={profile.id}>
-                      {profile.name}
-                    </option>
-                  ))}
+                  <option value="activo">Activo</option>
+                  <option value="inactivo">Inactivo</option>
                 </select>
               </label>
-              {editing ? (
-                <label className="grid gap-2 text-sm font-semibold">
-                  Estado
-                  <select
-                    className="rounded-lg border border-sky-blue bg-white px-3 py-2 font-normal"
-                    onChange={(event) =>
-                      setForm({
-                        ...form,
-                        status: event.target.value as 'activo' | 'inactivo',
-                      })
-                    }
-                    value={form.status}
-                  >
-                    <option value="activo">Activo</option>
-                    <option value="inactivo">Inactivo</option>
-                  </select>
-                </label>
-              ) : (
-                <label className="grid gap-2 text-sm font-semibold">
-                  Contraseña inicial
-                  <input
-                    className="rounded-lg border border-sky-blue px-3 py-2 font-normal"
-                    minLength={8}
-                    onChange={(event) =>
-                      setForm({ ...form, password: event.target.value })
-                    }
-                    required
-                    type="password"
-                    value={form.password}
-                  />
-                </label>
-              )}
-              <div className="flex gap-3 md:col-span-3">
-                <PermissionGate
-                  permission={editing ? 'usuarios.editar' : 'usuarios.crear'}
-                >
-                  <Button disabled={isSaving} type="submit">
-                    {isSaving
-                      ? 'Guardando…'
-                      : editing
-                        ? 'Guardar cambios'
-                        : 'Crear usuario'}
-                  </Button>
-                </PermissionGate>
-                <Button onClick={closeForm} type="button" variant="secondary">
-                  Cancelar
+            ) : (
+              <label className="grid gap-2 text-sm font-semibold">
+                Contraseña inicial
+                <input
+                  className="rounded-lg border border-sky-blue px-3 py-2 font-normal"
+                  minLength={8}
+                  onChange={(event) =>
+                    setForm({ ...form, password: event.target.value })
+                  }
+                  required
+                  type="password"
+                  value={form.password}
+                />
+              </label>
+            )}
+            <div className="flex gap-3 border-t border-sky-blue pt-5 md:col-span-3">
+              <PermissionGate
+                permission={editing ? 'usuarios.editar' : 'usuarios.crear'}
+              >
+                <Button disabled={isSaving} type="submit">
+                  {isSaving
+                    ? 'Guardando…'
+                    : editing
+                      ? 'Guardar cambios'
+                      : 'Crear usuario'}
                 </Button>
-              </div>
-            </form>
-          </Card>
-        ) : null}
+              </PermissionGate>
+              <Button onClick={closeForm} type="button" variant="secondary">
+                Cancelar
+              </Button>
+            </div>
+          </form>
+        </dialog>
 
         <Card className="p-0">
           <div className="border-b border-sky-blue px-6 py-4">

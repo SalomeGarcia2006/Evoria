@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AppShell } from '../../components/layout/AppShell';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -100,7 +100,7 @@ export default function PerfilesPage() {
   >([]);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
-  const [isCreating, setIsCreating] = useState(false);
+  const profileDialog = useRef<HTMLDialogElement>(null);
   const [newProfileName, setNewProfileName] = useState('');
   const [newProfilePermissions, setNewProfilePermissions] =
     useState<ProfilePermissions>(createPermissions);
@@ -123,7 +123,7 @@ export default function PerfilesPage() {
   function openCreateForm() {
     setNewProfileName('');
     setNewProfilePermissions(createPermissions());
-    setIsCreating(true);
+    profileDialog.current?.showModal();
   }
 
   async function createProfile(event: React.FormEvent<HTMLFormElement>) {
@@ -170,7 +170,7 @@ export default function PerfilesPage() {
       setProfiles((current) => [...current, toUiProfile(profile)]);
       setNewProfileName('');
       setNewProfilePermissions(createPermissions());
-      setIsCreating(false);
+      profileDialog.current?.close();
     } catch (saveError) {
       setError(
         saveError instanceof Error
@@ -212,71 +212,84 @@ export default function PerfilesPage() {
           </p>
         ) : null}
 
-        {isCreating ? (
-          <PermissionGate permission="perfiles.crear">
-            <Card>
-              <div className="flex flex-col gap-1 border-b border-sky-blue pb-5 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-sm text-teal">Nuevo perfil</p>
-                  <h3 className="text-xl font-bold">Configura sus permisos</h3>
-                </div>
+        <PermissionGate permission="perfiles.crear">
+          <dialog
+            aria-labelledby="profile-dialog-title"
+            className="m-auto max-h-[calc(100dvh-2rem)] w-11/12 max-w-6xl overflow-y-auto rounded-2xl border border-sky-blue bg-white p-0 text-navy shadow-2xl backdrop:bg-navy/60"
+            ref={profileDialog}
+          >
+            <div className="flex flex-col gap-1 border-b border-sky-blue p-6 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm text-teal">Nuevo perfil</p>
+                <h2 className="text-2xl font-bold" id="profile-dialog-title">
+                  Configura sus permisos
+                </h2>
+              </div>
+              <Button
+                aria-label="Cerrar formulario"
+                className="px-3 text-xl leading-none"
+                onClick={() => profileDialog.current?.close()}
+                type="button"
+                variant="ghost"
+              >
+                ×
+              </Button>
+            </div>
+            <form className="p-6" onSubmit={createProfile}>
+              <label className="grid max-w-md gap-2 text-sm font-semibold">
+                Nombre del perfil
+                <input
+                  aria-label="Nombre del nuevo perfil"
+                  className="rounded-lg border border-sky-blue px-3 py-2 font-normal outline-none focus:border-teal focus:ring-2 focus:ring-sky-blue"
+                  onChange={(event) => setNewProfileName(event.target.value)}
+                  placeholder="Ej. Gestor de eventos"
+                  required
+                  value={newProfileName}
+                />
+              </label>
+              <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {MODULES.map((moduleName) => (
+                  <section
+                    className="rounded-xl border border-sky-blue bg-beige/50 p-4"
+                    key={moduleName}
+                  >
+                    <h4 className="mb-3 font-bold">{moduleName}</h4>
+                    <div className="grid gap-2">
+                      {ACTIONS.map((action) => (
+                        <PermissionSwitch
+                          checked={newProfilePermissions[moduleName][action]}
+                          key={`${moduleName}-${action}`}
+                          label={action}
+                          onChange={() =>
+                            setNewProfilePermissions((current) => ({
+                              ...current,
+                              [moduleName]: {
+                                ...current[moduleName],
+                                [action]: !current[moduleName][action],
+                              },
+                            }))
+                          }
+                        />
+                      ))}
+                    </div>
+                  </section>
+                ))}
+              </div>
+              <div className="mt-5 flex gap-3 border-t border-sky-blue pt-5">
+                <Button disabled={isSaving} type="submit">
+                  {isSaving ? 'Guardando…' : 'Guardar perfil'}
+                </Button>
                 <Button
-                  onClick={() => setIsCreating(false)}
+                  onClick={() => profileDialog.current?.close()}
                   type="button"
                   variant="secondary"
                 >
                   Cancelar
                 </Button>
               </div>
-              <form className="mt-5" onSubmit={createProfile}>
-                <label className="grid max-w-md gap-2 text-sm font-semibold">
-                  Nombre del perfil
-                  <input
-                    aria-label="Nombre del nuevo perfil"
-                    className="rounded-lg border border-sky-blue px-3 py-2 font-normal outline-none focus:border-teal focus:ring-2 focus:ring-sky-blue"
-                    onChange={(event) => setNewProfileName(event.target.value)}
-                    placeholder="Ej. Gestor de eventos"
-                    required
-                    value={newProfileName}
-                  />
-                </label>
-                <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {MODULES.map((moduleName) => (
-                    <section
-                      className="rounded-xl border border-sky-blue bg-beige/50 p-4"
-                      key={moduleName}
-                    >
-                      <h4 className="mb-3 font-bold">{moduleName}</h4>
-                      <div className="grid gap-2">
-                        {ACTIONS.map((action) => (
-                          <PermissionSwitch
-                            checked={newProfilePermissions[moduleName][action]}
-                            key={`${moduleName}-${action}`}
-                            label={action}
-                            onChange={() =>
-                              setNewProfilePermissions((current) => ({
-                                ...current,
-                                [moduleName]: {
-                                  ...current[moduleName],
-                                  [action]: !current[moduleName][action],
-                                },
-                              }))
-                            }
-                          />
-                        ))}
-                      </div>
-                    </section>
-                  ))}
-                </div>
-                <div className="mt-5">
-                  <Button disabled={isSaving} type="submit">
-                    {isSaving ? 'Guardando…' : 'Guardar perfil'}
-                  </Button>
-                </div>
-              </form>
-            </Card>
-          </PermissionGate>
-        ) : null}
+            </form>
+          </dialog>
+        </PermissionGate>
 
         <Card className="p-0">
           <div className="border-b border-sky-blue px-6 py-4">
