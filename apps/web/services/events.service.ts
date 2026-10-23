@@ -57,6 +57,24 @@ export async function getEvents(): Promise<EventList> {
   return response.data;
 }
 
+export async function getAllEvents(): Promise<EventItem[]> {
+  const firstPage = await apiRequest<ApiResponse<EventList>>(
+    '/events?limit=100&page=1',
+    { credentials: 'include' },
+  );
+  const events = [...firstPage.data.items];
+
+  for (let page = 2; page <= firstPage.data.pagination.totalPages; page += 1) {
+    const response = await apiRequest<ApiResponse<EventList>>(
+      `/events?limit=100&page=${page}`,
+      { credentials: 'include' },
+    );
+    events.push(...response.data.items);
+  }
+
+  return events;
+}
+
 export async function getEvent(id: string): Promise<EventItem> {
   const response = await apiRequest<ApiResponse<EventItem>>(`/events/${id}`, {
     credentials: 'include',
