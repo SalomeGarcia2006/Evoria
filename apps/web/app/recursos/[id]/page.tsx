@@ -1,63 +1,77 @@
+'use client';
 import Link from 'next/link';
+import { useParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { AppShell } from '../../../components/layout/AppShell';
 import { Card } from '../../../components/ui/Card';
-import { StatusBadge } from '../../../components/ui/StatusBadge';
+import { Button } from '../../../components/ui/Button';
+import { ErrorMessage } from '../../../components/ui/ErrorMessage';
+import { LoadingState } from '../../../components/ui/LoadingState';
+import { PermissionGate } from '../../../components/auth/PermissionGate';
+import { ResourceForm } from '../../../components/resources/ResourceForm';
+import {
+  getResource,
+  deactivateResource,
+} from '../../../services/recursos.service';
+import { type Recurso, resourceStatusLabels } from '../../../types/recurso';
 
-const samples = [
-  {
-    id: 'r-01',
-    name: 'Sillas plegables',
-    category: 'Mobiliario',
-    available: 120,
-    total: 160,
-    cost: '$18.000',
-    description: 'Sillas plegables para auditorios y espacios exteriores.',
-  },
-  {
-    id: 'r-02',
-    name: 'Proyector audiovisual',
-    category: 'Tecnología',
-    available: 8,
-    total: 10,
-    cost: '$2.400.000',
-    description: 'Proyector portátil para presentaciones y conferencias.',
-  },
-  {
-    id: 'r-03',
-    name: 'Carpas 3 × 3 m',
-    category: 'Mobiliario',
-    available: 2,
-    total: 12,
-    cost: '$850.000',
-    description: 'Carpas plegables para actividades al aire libre.',
-  },
-  {
-    id: 'r-04',
-    name: 'Micrófonos inalámbricos',
-    category: 'Tecnología',
-    available: 14,
-    total: 16,
-    cost: '$320.000',
-    description: 'Micrófonos inalámbricos para escenarios y salas.',
-  },
-  {
-    id: 'r-05',
-    name: 'Mesas rectangulares',
-    category: 'Mobiliario',
-    available: 0,
-    total: 18,
-    cost: '$95.000',
-    description: 'Mesas plegables rectangulares.',
-  },
-];
-
-export default async function RecursoDetallePage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = await params;
-  const resource = samples.find((item) => item.id === id);
+export default function RecursoDetallePage() {
+  const { id } = useParams<{ id: string }>();
+  const [result, setResult] = useState<{
+    id: string;
+    resource?: Recurso;
+    error?: string;
+  }>({ id: '' });
+  const [attempt, setAttempt] = useState(0);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isDeactivating, setIsDeactivating] = useState(false);
+  const [actionError, setActionError] = useState('');
+  const [notice, setNotice] = useState('');
+  useEffect(() => {
+    let active = true;
+    getResource(id)
+      .then((resource) => {
+        if (active) setResult({ id, resource });
+      })
+      .catch((error: unknown) => {
+        if (active)
+          setResult({
+            id,
+            error:
+              error instanceof Error
+                ? error.message
+                : 'No fue posible cargar el recurso.',
+          });
+      });
+    return () => {
+      active = false;
+    };
+  }, [id, attempt]);
+  const resource = result.id === id ? result.resource : undefined;
+  async function deactivate() {
+    if (
+      isDeactivating ||
+      !window.confirm(
+        '¿Desactivar este recurso? Dejará de aparecer en el catálogo de recursos activos.',
+      )
+    )
+      return;
+    setIsDeactivating(true);
+    setActionError('');
+    setNotice('');
+    try {
+      setResult({ id, resource: await deactivateResource(id) });
+      setNotice('Recurso desactivado correctamente.');
+    } catch (error) {
+      setActionError(
+        error instanceof Error
+          ? error.message
+          : 'No fue posible desactivar el recurso.',
+      );
+    } finally {
+      setIsDeactivating(false);
+    }
+  }
   return (
     <AppShell title="Detalle del recurso">
       <div className="mx-auto grid max-w-3xl gap-6">
@@ -67,45 +81,106 @@ export default async function RecursoDetallePage({
         >
           ← Volver al catálogo
         </Link>
-        {resource ? (
+        {result.id !== id ? (
+          <LoadingState label="Cargando recurso…" />
+        ) : result.error ? (
           <Card>
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold uppercase tracking-[.16em] text-teal">
-                  {resource.category}
-                </p>
-                <h2 className="mt-2 text-3xl font-bold">{resource.name}</h2>
+            <ErrorMessage message={result.error} />
+            <Button
+              type="button"
+              onClick={() => {
+                setResult({ id: '' });
+                setAttempt((value) => value + 1);
+              }}
+            >
+              Reintentar
+            </Button>
+          </Card>
+        ) : resource ? (
+          <Card>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-3xl font-bold">{resource.name}</h2>
+              <span className="text-sm text-teal">
+                {resourceStatusLabels[resource.status]}
+              </span>
+            </div>
+            {notice ? (
+              <p className="mt-4 text-sm text-teal" role="status">
+                {notice}
+              </p>
+            ) : null}
+            {actionError ? <ErrorMessage message={actionError} /> : null}
+            {isEditing ? (
+              <div className="mt-6">
+                <ResourceForm
+                  key={resource.id}
+                  resource={resource}
+                  onSaved={(saved) => {
+                    setResult({ id, resource: saved });
+                    setIsEditing(false);
+                    setNotice('Recurso actualizado correctamente.');
+                  }}
+                  onCancel={() => setIsEditing(false)}
+                />
               </div>
-              <StatusBadge
-                status={resource.available ? 'Disponible' : 'Agotado'}
-              />
-            </div>
-            <p className="mt-5 text-teal">{resource.description}</p>
-            <div className="mt-7 grid gap-4 border-t border-sky-blue pt-6 sm:grid-cols-3">
-              {[
-                ['Disponibles', `${resource.available} unidades`],
-                ['Cantidad total', `${resource.total} unidades`],
-                ['Costo unitario', resource.cost],
-              ].map(([label, value]) => (
-                <div className="rounded-xl bg-beige p-4" key={label}>
-                  <p className="text-sm text-teal">{label}</p>
-                  <p className="mt-2 font-bold">{value}</p>
-                </div>
-              ))}
-            </div>
-            <p className="mt-6 text-xs text-teal">
-              Información de ejemplo. El detalle se conectará cuando exista el
-              endpoint de recursos.
-            </p>
+            ) : (
+              <>
+                <p className="mt-3 font-semibold text-teal">{resource.type}</p>
+                <p className="mt-4 whitespace-pre-wrap text-teal">
+                  {resource.description || 'Sin descripción.'}
+                </p>
+                <dl className="my-6 grid gap-4 sm:grid-cols-2">
+                  {[
+                    ['Cantidad total', resource.totalQuantity],
+                    ['Disponibles', resource.availableQuantity],
+                    ['Reservados', resource.reservedQuantity],
+                    [
+                      'Costo unitario',
+                      new Intl.NumberFormat('es-CO', {
+                        style: 'currency',
+                        currency: 'COP',
+                      }).format(resource.unitCost),
+                    ],
+                  ].map(([label, value]) => (
+                    <div className="rounded-xl bg-beige p-4" key={label}>
+                      <dt className="text-sm text-teal">{label}</dt>
+                      <dd className="mt-2 font-bold">{value}</dd>
+                    </div>
+                  ))}
+                </dl>
+                {resource.status !== 'inactivo' ? (
+                  <div className="flex flex-wrap gap-3">
+                    <PermissionGate permission="inventario.ajustar">
+                      <Button
+                        type="button"
+                        disabled={isDeactivating}
+                        onClick={() => {
+                          setIsEditing(true);
+                          setActionError('');
+                          setNotice('');
+                        }}
+                      >
+                        Editar recurso
+                      </Button>
+                    </PermissionGate>
+                    <PermissionGate permission="inventario.ajustar">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        disabled={isDeactivating}
+                        onClick={() => void deactivate()}
+                      >
+                        {isDeactivating
+                          ? 'Desactivando…'
+                          : 'Desactivar recurso'}
+                      </Button>
+                    </PermissionGate>
+                  </div>
+                ) : null}
+              </>
+            )}
           </Card>
-        ) : (
-          <Card>
-            <h2 className="text-xl font-bold">Recurso no encontrado</h2>
-            <p className="mt-2 text-teal">
-              No hay un recurso de demostración con este identificador.
-            </p>
-          </Card>
-        )}
+        ) : null}
       </div>
     </AppShell>
   );

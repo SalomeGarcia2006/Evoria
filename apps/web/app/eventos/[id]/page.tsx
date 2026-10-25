@@ -9,6 +9,7 @@ import { Card } from '../../../components/ui/Card';
 import { ErrorMessage } from '../../../components/ui/ErrorMessage';
 import { LoadingState } from '../../../components/ui/LoadingState';
 import { useAuth } from '../../../hooks/useAuth';
+import { EventResources } from '../../../components/resources/EventResources';
 import {
   cancelEvent,
   getEvent,
@@ -139,6 +140,13 @@ export default function EventoDetailPage() {
           <Card>
             <h2 className="text-xl font-bold">Evento no encontrado</h2>
           </Card>
+        ) : null}
+        {event && !isLoading && can('asignaciones.ver') ? (
+          <EventResources
+            key={event.id}
+            eventId={event.id}
+            cancelled={event.status === 'cancelado'}
+          />
         ) : null}
       </div>
     </AppShell>
