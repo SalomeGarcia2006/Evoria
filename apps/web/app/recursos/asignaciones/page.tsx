@@ -91,6 +91,7 @@ export default function AsignacionesPage() {
         </Card>
         {selected ? (
           <EventResources
+            editable
             key={selected.id}
             eventId={selected.id}
             cancelled={selected.status === 'cancelado'}

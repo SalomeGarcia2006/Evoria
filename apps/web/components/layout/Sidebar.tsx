@@ -10,7 +10,6 @@ import { useAuth } from '../../hooks/useAuth';
 const iconByRoute: Record<string, string> = {
   '/dashboard': 'dashboard.svg',
   '/eventos': 'eventos.svg',
-  '/recursos': 'recursos.svg',
   '/recursos/asignaciones': 'recursos.svg',
   '/inventario': 'inventario.svg',
   '/presupuestos': 'presupuesto.svg',

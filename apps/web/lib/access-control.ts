@@ -7,7 +7,6 @@ export type NavigationItem = {
 export const navigationItems: NavigationItem[] = [
   { label: 'Dashboard', href: '/dashboard', permission: 'dashboard.ver' },
   { label: 'Eventos', href: '/eventos', permission: 'eventos.ver' },
-  { label: 'Recursos', href: '/recursos', permission: 'inventario.ver' },
   {
     label: 'Asignaciones',
     href: '/recursos/asignaciones',
@@ -35,7 +34,7 @@ export const navigationItems: NavigationItem[] = [
 const routePermissions = [
   { prefix: '/recursos/asignaciones', permission: 'asignaciones.ver' },
   { prefix: '/eventos/nuevo', permission: 'eventos.crear' },
-  { prefix: '/recursos/nuevo', permission: 'inventario.ajustar' },
+  { prefix: '/inventario/nuevo', permission: 'inventario.ajustar' },
   ...navigationItems.map(({ href, permission }) => ({
     prefix: href,
     permission,
