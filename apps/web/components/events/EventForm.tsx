@@ -56,6 +56,7 @@ export function EventForm() {
   });
   const [error, setError] = useState<string | null>(null);
   const [validationAlert, setValidationAlert] = useState<string | null>(null);
+  const [successAlert, setSuccessAlert] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   function updateField(field: keyof typeof form, value: string): void {
@@ -120,7 +121,7 @@ export function EventForm() {
 
     try {
       await createEvent(payload);
-      router.push('/eventos');
+      setSuccessAlert(true);
     } catch (submitError) {
       setError(
         submitError instanceof Error
@@ -130,6 +131,11 @@ export function EventForm() {
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  function closeSuccessAlert() {
+    setSuccessAlert(false);
+    router.push('/eventos');
   }
 
   return (
@@ -277,6 +283,34 @@ export function EventForm() {
               type="button"
             >
               Entendido
+            </button>
+          </div>
+        </div>
+      ) : null}
+      {successAlert ? (
+        <div
+          aria-label="Evento creado correctamente"
+          aria-live="polite"
+          className="login-alert-backdrop fixed inset-0 z-50 grid place-items-center p-6"
+          role="alertdialog"
+          aria-modal="true"
+        >
+          <div className="event-success-modal">
+            <div className="event-success-icon" aria-hidden="true">
+              ✓
+            </div>
+            <p className="event-success-title">
+              ¡Listo, evento creado exitosamente!
+            </p>
+            <p className="event-success-message">
+              El evento se creó correctamente.
+            </p>
+            <button
+              className="event-success-button"
+              onClick={closeSuccessAlert}
+              type="button"
+            >
+              Ver eventos
             </button>
           </div>
         </div>
