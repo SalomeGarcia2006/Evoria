@@ -19,13 +19,20 @@ import { LoadingState } from '../ui/LoadingState';
 export function EventResources({
   eventId,
   cancelled = false,
+  editable = false,
 }: {
   eventId: string;
   cancelled?: boolean;
+  editable?: boolean;
 }) {
   const { can } = useAuth();
+  const canView = can('asignaciones.ver');
   const canAssign =
-    can('asignaciones.crear') && can('inventario.ver') && !cancelled;
+    editable &&
+    canView &&
+    can('asignaciones.crear') &&
+    can('inventario.ver') &&
+    !cancelled;
   const [assignments, setAssignments] = useState<EventResourceAssignment[]>([]);
   const [inventory, setInventory] = useState<Recurso[]>([]);
   const [selectedId, setSelectedId] = useState('');
@@ -40,6 +47,7 @@ export function EventResources({
   const selected = inventory.find((item) => item.id === selectedId);
 
   useEffect(() => {
+    if (!canView) return;
     let active = true;
     getEventResources(eventId)
       .then((items) => {
@@ -62,7 +70,7 @@ export function EventResources({
     return () => {
       active = false;
     };
-  }, [eventId, revision]);
+  }, [canView, eventId, revision]);
 
   useEffect(() => {
     if (!canAssign) return;
@@ -92,7 +100,7 @@ export function EventResources({
   async function assign(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const amount = Number(quantity);
-    if (busy) return;
+    if (busy || !canAssign) return;
     if (
       !selected ||
       !Number.isInteger(amount) ||
@@ -130,6 +138,9 @@ export function EventResources({
 
   async function release(item: EventResourceAssignment) {
     if (
+      !editable ||
+      !canView ||
+      !can('asignaciones.eliminar') ||
       busy ||
       !window.confirm(
         `¿Liberar las ${item.quantity} unidades de ${item.inventoryItem.name}?`,
@@ -157,15 +168,16 @@ export function EventResources({
     }
   }
 
-  if (!can('asignaciones.ver')) return null;
+  if (!canView) return null;
   return (
-    <Card>
+    <Card className="min-w-0">
       <h3 className="text-xl font-bold">Recursos del evento</h3>
       <p className="mt-2 text-sm text-teal">
-        Cada asignación reserva unidades del inventario. Liberar devuelve todas
-        las unidades de ese recurso.
+        {editable
+          ? 'Cada asignación reserva unidades del inventario. Liberar devuelve todas las unidades de ese recurso.'
+          : 'Unidades del inventario reservadas para este evento. Las reservas y devoluciones se gestionan en Asignaciones.'}
       </p>
-      {cancelled ? (
+      {cancelled && editable ? (
         <p className="mt-3 text-sm text-teal">
           Este evento está cancelado. Puedes consultar y liberar sus recursos,
           pero no asignar más unidades.
@@ -262,7 +274,10 @@ export function EventResources({
             </p>
           ) : null}
         </form>
-      ) : !cancelled && can('asignaciones.crear') && !can('inventario.ver') ? (
+      ) : editable &&
+        !cancelled &&
+        can('asignaciones.crear') &&
+        !can('inventario.ver') ? (
         <p className="my-4 text-sm text-teal">
           Necesitas permiso para consultar inventario y seleccionar los recursos
           disponibles.
@@ -304,23 +319,24 @@ export function EventResources({
               render: (item) =>
                 new Date(item.assignedAt).toLocaleString('es-CO'),
             },
-            {
-              key: 'action',
-              header: 'Acción',
-              render: (item) =>
-                can('asignaciones.eliminar') ? (
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    disabled={busy || loading}
-                    onClick={() => void release(item)}
-                  >
-                    Liberar recurso
-                  </Button>
-                ) : (
-                  'Solo consulta'
-                ),
-            },
+            ...(editable && can('asignaciones.eliminar')
+              ? [
+                  {
+                    key: 'action',
+                    header: 'Acción',
+                    render: (item: EventResourceAssignment) => (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        disabled={busy || loading}
+                        onClick={() => void release(item)}
+                      >
+                        Liberar recurso
+                      </Button>
+                    ),
+                  },
+                ]
+              : []),
           ]}
         />
       )}
