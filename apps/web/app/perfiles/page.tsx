@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useEffect, useRef, useState } from 'react';
 import { AppShell } from '../../components/layout/AppShell';
 import { Button } from '../../components/ui/Button';
@@ -66,6 +67,36 @@ function toUiProfile(profile: ApiProfile): Profile {
   };
 }
 
+const moduleDetails: Record<
+  (typeof MODULES)[number],
+  { description: string; icon: string }
+> = {
+  Eventos: { description: 'Gestión de eventos', icon: 'eventos.svg' },
+  Recursos: { description: 'Administración de recursos', icon: 'recursos.svg' },
+  Inventario: { description: 'Control de inventario', icon: 'inventario.svg' },
+  Presupuestos: {
+    description: 'Gestión presupuestal',
+    icon: 'presupuesto.svg',
+  },
+  Cronograma: {
+    description: 'Planificación de actividades',
+    icon: 'cronograma.svg',
+  },
+  Alertas: { description: 'Notificaciones del sistema', icon: 'alerta.svg' },
+  Reportes: { description: 'Generación de reportes', icon: 'reporte.svg' },
+  Auditoría: { description: 'Registro de acciones', icon: 'auditoria.svg' },
+};
+
+const actionDetails: Record<
+  (typeof ACTIONS)[number],
+  { description: string; icon: string }
+> = {
+  Crear: { description: 'Añadir nuevos registros', icon: 'crear.svg' },
+  Editar: { description: 'Modificar registros', icon: 'editar.svg' },
+  Ver: { description: 'Visualizar información', icon: 'ver.svg' },
+  Eliminar: { description: 'Eliminar registros', icon: 'eliminar.svg' },
+};
+
 function PermissionSwitch({
   checked,
   label,
@@ -76,19 +107,16 @@ function PermissionSwitch({
   onChange: () => void;
 }) {
   return (
-    <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-sky-blue px-3 py-2.5 transition hover:bg-beige">
-      <span className="text-sm font-medium">{label}</span>
-      <span className="relative inline-flex items-center">
-        <input
-          aria-label={label}
-          checked={checked}
-          className="peer sr-only"
-          onChange={onChange}
-          type="checkbox"
-        />
-        <span className="h-6 w-11 rounded-full bg-sky-blue transition peer-checked:bg-teal peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-navy" />
-        <span className="pointer-events-none absolute left-1 size-4 rounded-full bg-white transition peer-checked:translate-x-5" />
-      </span>
+    <label className="relative inline-flex cursor-pointer items-center">
+      <input
+        aria-label={label}
+        checked={checked}
+        className="peer sr-only"
+        onChange={onChange}
+        type="checkbox"
+      />
+      <span className="h-6 w-11 rounded-full bg-sky-blue transition peer-checked:bg-teal peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-navy" />
+      <span className="pointer-events-none absolute left-1 size-4 rounded-full bg-white transition peer-checked:translate-x-5" />
     </label>
   );
 }
@@ -102,6 +130,7 @@ export default function PerfilesPage() {
   const [error, setError] = useState('');
   const profileDialog = useRef<HTMLDialogElement>(null);
   const [newProfileName, setNewProfileName] = useState('');
+  const [moduleSearch, setModuleSearch] = useState('');
   const [newProfilePermissions, setNewProfilePermissions] =
     useState<ProfilePermissions>(createPermissions);
 
@@ -122,9 +151,14 @@ export default function PerfilesPage() {
 
   function openCreateForm() {
     setNewProfileName('');
+    setModuleSearch('');
     setNewProfilePermissions(createPermissions());
     profileDialog.current?.showModal();
   }
+
+  const visibleModules = MODULES.filter((moduleName) =>
+    moduleName.toLowerCase().includes(moduleSearch.toLowerCase()),
+  );
 
   async function createProfile(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -215,10 +249,10 @@ export default function PerfilesPage() {
         <PermissionGate permission="perfiles.crear">
           <dialog
             aria-labelledby="profile-dialog-title"
-            className="m-auto max-h-[calc(100dvh-2rem)] w-11/12 max-w-6xl overflow-y-auto rounded-2xl border border-sky-blue bg-white p-0 text-navy shadow-2xl backdrop:bg-navy/60"
+            className="m-auto h-[calc(100dvh-2rem)] w-11/12 max-w-7xl flex-col overflow-hidden rounded-2xl border border-sky-blue bg-white p-0 text-navy shadow-2xl backdrop:bg-navy/60 open:flex"
             ref={profileDialog}
           >
-            <div className="flex flex-col gap-1 border-b border-sky-blue p-6 sm:flex-row sm:items-center sm:justify-between">
+            <div className="shrink-0 flex flex-col gap-1 border-b border-sky-blue p-6 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-sm text-teal">Nuevo perfil</p>
                 <h2 className="text-2xl font-bold" id="profile-dialog-title">
@@ -235,8 +269,11 @@ export default function PerfilesPage() {
                 ×
               </Button>
             </div>
-            <form className="p-6" onSubmit={createProfile}>
-              <label className="grid max-w-md gap-2 text-sm font-semibold">
+            <form
+              className="flex min-h-0 flex-1 flex-col p-8"
+              onSubmit={createProfile}
+            >
+              <label className="grid max-w-md shrink-0 gap-2 text-sm font-semibold">
                 Nombre del perfil
                 <input
                   aria-label="Nombre del nuevo perfil"
@@ -247,35 +284,111 @@ export default function PerfilesPage() {
                   value={newProfileName}
                 />
               </label>
-              <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                {MODULES.map((moduleName) => (
-                  <section
-                    className="rounded-xl border border-sky-blue bg-beige/50 p-4"
-                    key={moduleName}
-                  >
-                    <h4 className="mb-3 font-bold">{moduleName}</h4>
-                    <div className="grid gap-2">
+              <section className="mt-5 flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-sky-blue">
+                <div className="flex flex-col gap-4 border-b border-sky-blue px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h3 className="font-bold">Módulos del sistema</h3>
+                    <p className="text-xs text-teal">
+                      Activa o desactiva los permisos según el rol o perfil.
+                    </p>
+                  </div>
+                  <label className="relative block">
+                    <span className="sr-only">Buscar módulo</span>
+                    <input
+                      className="w-full rounded-lg border border-sky-blue bg-white py-2 pl-3 pr-9 text-sm font-normal outline-none focus:border-teal focus:ring-2 focus:ring-sky-blue sm:w-44"
+                      onChange={(event) => setModuleSearch(event.target.value)}
+                      placeholder="Buscar módulo..."
+                      type="search"
+                      value={moduleSearch}
+                    />
+                    <span
+                      aria-hidden="true"
+                      className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-teal"
+                    >
+                      ⌕
+                    </span>
+                  </label>
+                </div>
+                <div className="min-h-0 flex-1 overflow-auto">
+                  <div className="min-w-[860px]">
+                    <div className="grid grid-cols-[minmax(18rem,1.8fr)_repeat(4,minmax(7rem,1fr))] bg-beige text-center">
+                      <div className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-teal">
+                        Módulo
+                      </div>
                       {ACTIONS.map((action) => (
-                        <PermissionSwitch
-                          checked={newProfilePermissions[moduleName][action]}
-                          key={`${moduleName}-${action}`}
-                          label={action}
-                          onChange={() =>
-                            setNewProfilePermissions((current) => ({
-                              ...current,
-                              [moduleName]: {
-                                ...current[moduleName],
-                                [action]: !current[moduleName][action],
-                              },
-                            }))
-                          }
-                        />
+                        <div className="px-4 py-3" key={action}>
+                          <div className="flex items-center justify-center gap-2 font-semibold">
+                            <span
+                              aria-hidden="true"
+                              className={`size-5 ${action === 'Eliminar' ? 'bg-red-500' : 'bg-navy'}`}
+                              style={{
+                                mask: `url(/icons/${actionDetails[action].icon}) center / contain no-repeat`,
+                                WebkitMask: `url(/icons/${actionDetails[action].icon}) center / contain no-repeat`,
+                              }}
+                            />
+                            {action}
+                          </div>
+                          <p className="text-[10px] font-normal text-teal">
+                            {actionDetails[action].description}
+                          </p>
+                        </div>
                       ))}
                     </div>
-                  </section>
-                ))}
-              </div>
-              <div className="mt-5 flex gap-3 border-t border-sky-blue pt-5">
+                    {visibleModules.map((moduleName, index) => (
+                      <div
+                        className={`grid grid-cols-[minmax(18rem,1.8fr)_repeat(4,minmax(7rem,1fr))] items-center border-t border-sky-blue/60 ${index % 2 === 0 ? 'bg-white' : 'bg-beige/40'}`}
+                        key={moduleName}
+                      >
+                        <div className="flex items-center gap-4 px-6 py-4">
+                          <span className="grid size-10 place-items-center rounded-lg bg-navy">
+                            <Image
+                              alt=""
+                              aria-hidden="true"
+                              height={22}
+                              src={`/icons/${moduleDetails[moduleName].icon}`}
+                              width={22}
+                            />
+                          </span>
+                          <div>
+                            <h4 className="font-semibold">{moduleName}</h4>
+                            <p className="text-xs text-teal">
+                              {moduleDetails[moduleName].description}
+                            </p>
+                          </div>
+                        </div>
+                        {ACTIONS.map((action) => (
+                          <div
+                            className="flex justify-center px-4 py-4"
+                            key={action}
+                          >
+                            <PermissionSwitch
+                              checked={
+                                newProfilePermissions[moduleName][action]
+                              }
+                              label={`${action} en ${moduleName}`}
+                              onChange={() =>
+                                setNewProfilePermissions((current) => ({
+                                  ...current,
+                                  [moduleName]: {
+                                    ...current[moduleName],
+                                    [action]: !current[moduleName][action],
+                                  },
+                                }))
+                              }
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                    {visibleModules.length === 0 ? (
+                      <p className="p-5 text-center text-sm text-teal">
+                        No se encontraron módulos.
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+              </section>
+              <div className="mt-5 flex shrink-0 gap-3 border-t border-sky-blue pt-5">
                 <Button disabled={isSaving} type="submit">
                   {isSaving ? 'Guardando…' : 'Guardar perfil'}
                 </Button>

@@ -340,6 +340,53 @@ body {
   transform: translateY(-1px);
 }
 
+.event-success-modal {
+  width: min(100%, 24rem);
+  padding: 2.5rem 2rem 1.75rem;
+  border-radius: 1.5rem;
+  background: var(--color-white);
+  box-shadow: 0 1.5rem 4rem rgb(31 45 61 / 24%);
+  color: var(--color-navy);
+  text-align: center;
+  animation: login-alert-appear 0.2s ease-out;
+}
+
+.event-success-icon {
+  display: grid;
+  width: 5.5rem;
+  height: 5.5rem;
+  margin: 0 auto 1.5rem;
+  place-items: center;
+  border: 0.3125rem solid #b8f5bf;
+  border-radius: 50%;
+  color: #55d867;
+  font-size: 4rem;
+  font-weight: 300;
+  line-height: 1;
+}
+
+.event-success-title {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.event-success-message {
+  margin: 0.75rem 0 1.5rem;
+  color: var(--color-teal);
+}
+
+.event-success-button {
+  width: 100%;
+  min-height: 2.875rem;
+  border: 0;
+  border-radius: 0.75rem;
+  background: var(--color-teal);
+  color: var(--color-white);
+  cursor: pointer;
+  font: bold 0.95rem var(--font-sans);
+}
+
 @keyframes login-alert-appear {
   from {
     opacity: 0;
