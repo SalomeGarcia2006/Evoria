@@ -37,7 +37,13 @@ function formatDate(value: string): string {
   }).format(new Date(value));
 }
 
-export function EventList() {
+export function EventList({
+  onCreate,
+  revision = 0,
+}: {
+  onCreate?: () => void;
+  revision?: number;
+}) {
   const { can } = useAuth();
   const [events, setEvents] = useState<EventItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -67,7 +73,7 @@ export function EventList() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [revision]);
 
   async function handleCancel(event: EventItem) {
     if (!window.confirm(`¿Deseas cancelar el evento "${event.name}"?`)) return;
@@ -162,12 +168,18 @@ export function EventList() {
         <div className="rounded-xl border border-sky-blue bg-white p-8 text-center">
           <p className="font-semibold">No hay eventos registrados.</p>
           {can('eventos.crear') ? (
-            <Link
-              className="mt-4 inline-block rounded-lg bg-navy px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
-              href="/eventos/nuevo"
-            >
-              Crear el primer evento
-            </Link>
+            onCreate ? (
+              <Button className="mt-4" onClick={onCreate} type="button">
+                Crear el primer evento
+              </Button>
+            ) : (
+              <Link
+                className="mt-4 inline-block rounded-lg bg-navy px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
+                href="/eventos/nuevo"
+              >
+                Crear el primer evento
+              </Link>
+            )
           ) : null}
         </div>
       ) : (
