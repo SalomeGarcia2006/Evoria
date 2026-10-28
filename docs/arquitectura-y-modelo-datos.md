@@ -209,6 +209,10 @@ Los eventos históricos que aún no tengan este campo se interpretan como `0`;
 ese valor indica que el monto histórico debe revisarse, no que el cliente
 necesariamente asignó cero.
 
+La migración `20261028-add-event-base-budget` completa ese valor en eventos
+existentes al ejecutar `npm run migrate`. Las migraciones aplicadas se guardan
+en la colección `migrations` para no ejecutarlas dos veces.
+
 No se incluye moneda en esta primera versión. Todos los valores monetarios se
 manejarán bajo la moneda definida para el proyecto.
 
