@@ -59,6 +59,7 @@ export function EventForm({
     endTime: '18:00',
     location: '',
     type: '',
+    baseBudget: '',
   });
   const [error, setError] = useState<string | null>(null);
   const [validationAlert, setValidationAlert] = useState<string | null>(null);
@@ -83,6 +84,7 @@ export function EventForm({
       !form.endTime && 'Hora de finalización',
       !form.location.trim() && 'Ubicación',
       !form.type && 'Tipo de evento',
+      !form.baseBudget && 'Presupuesto base',
     ].filter(Boolean);
 
     if (missingFields.length > 0) {
@@ -113,6 +115,14 @@ export function EventForm({
       return;
     }
 
+    const baseBudget = Number(form.baseBudget);
+    if (!Number.isFinite(baseBudget) || baseBudget < 0) {
+      setValidationAlert(
+        'El presupuesto base debe ser un valor igual o mayor a cero.',
+      );
+      return;
+    }
+
     const startAt = combineDateAndTime(form.startDate, form.startTime);
     const endAt = combineDateAndTime(form.endDate, form.endTime);
 
@@ -123,6 +133,7 @@ export function EventForm({
       endAt,
       location: form.location.trim() || undefined,
       type: form.type.trim() || undefined,
+      baseBudget,
     };
 
     setIsSubmitting(true);
@@ -254,6 +265,20 @@ export function EventForm({
                 </option>
               ))}
             </select>
+          </label>
+          <label className="grid gap-2">
+            <span className="text-sm font-semibold">Presupuesto base</span>
+            <input
+              className="rounded-lg border border-sky-blue px-3 py-2 outline-none focus:border-teal focus:ring-2 focus:ring-sky-blue"
+              min="0"
+              onChange={(event) =>
+                updateField('baseBudget', event.target.value)
+              }
+              required
+              step="0.01"
+              type="number"
+              value={form.baseBudget}
+            />
           </label>
         </div>
         <div className="flex flex-wrap gap-3 border-t border-sky-blue pt-5">
