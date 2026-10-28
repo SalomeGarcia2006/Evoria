@@ -86,10 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       selectTenant: async (tenantId) => {
         const session = await changeTenant(tenantId);
         ++sessionRequestId.current;
-        setUser({
-          ...session,
-          isDeveloper: user?.isDeveloper ?? session.isDeveloper,
-        });
+        setUser(session);
       },
       signIn: async (payload) => {
         const session = await login(payload);

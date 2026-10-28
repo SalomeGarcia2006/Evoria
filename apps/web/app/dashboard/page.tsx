@@ -1,25 +1,46 @@
+'use client';
+
+import Link from 'next/link';
 import { AppShell } from '../../components/layout/AppShell';
 import { Card } from '../../components/ui/Card';
+import { useAuth } from '../../hooks/useAuth';
 
 const metrics = [
-  { label: 'Eventos activos', value: '12', change: '+2 este mes', icon: '✦' },
+  {
+    label: 'Eventos activos',
+    value: '12',
+    change: '+2 este mes',
+    icon: '✦',
+    href: '/eventos',
+    permission: 'eventos.ver',
+    module: 'Eventos',
+  },
   {
     label: 'Recursos disponibles',
     value: '84',
     change: 'de 126 en total',
     icon: '◈',
+    href: '/inventario',
+    permission: 'inventario.ver',
+    module: 'Inventario',
   },
   {
     label: 'Presupuesto utilizado',
     value: '$8.4M',
     change: '68% del total',
     icon: '$',
+    href: '/presupuestos',
+    permission: 'presupuestos.ver',
+    module: 'Presupuestos',
   },
   {
     label: 'Alertas pendientes',
     value: '3',
     change: 'Requieren atención',
     icon: '!',
+    href: '/alertas',
+    permission: 'alertas.ver',
+    module: 'Alertas',
   },
 ];
 
@@ -45,6 +66,7 @@ const events = [
 ];
 
 export default function DashboardPage() {
+  const { can } = useAuth();
   return (
     <AppShell title="Dashboard">
       <div className="grid gap-6">
@@ -69,22 +91,38 @@ export default function DashboardPage() {
           aria-label="Métricas principales"
           className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
         >
-          {metrics.map((metric, index) => (
-            <Card className="relative overflow-hidden" key={metric.label}>
-              <div className="flex items-start justify-between">
-                <p className="text-sm font-medium text-teal">{metric.label}</p>
-                <span
-                  className={`grid size-10 place-items-center rounded-xl text-lg font-bold ${index === 3 ? 'bg-amber-100 text-amber-800' : 'bg-sky-blue/50 text-navy'}`}
-                >
-                  {metric.icon}
-                </span>
-              </div>
-              <p className="mt-5 text-3xl font-bold tracking-tight">
-                {metric.value}
-              </p>
-              <p className="mt-1 text-xs text-teal">{metric.change}</p>
-            </Card>
-          ))}
+          {metrics.map((metric, index) => {
+            const card = (
+              <Card className="relative h-full overflow-hidden">
+                <div className="flex items-start justify-between">
+                  <p className="text-sm font-medium text-teal">
+                    {metric.label}
+                  </p>
+                  <span
+                    className={`grid size-10 place-items-center rounded-xl text-lg font-bold ${index === 3 ? 'bg-amber-100 text-amber-800' : 'bg-sky-blue/50 text-navy'}`}
+                  >
+                    {metric.icon}
+                  </span>
+                </div>
+                <p className="mt-5 text-3xl font-bold tracking-tight">
+                  {metric.value}
+                </p>
+                <p className="mt-1 text-xs text-teal">{metric.change}</p>
+              </Card>
+            );
+            return can(metric.permission) ? (
+              <Link
+                key={metric.label}
+                href={metric.href}
+                aria-label={`Ir a ${metric.module}`}
+                className="block h-full rounded-2xl transition hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal"
+              >
+                {card}
+              </Link>
+            ) : (
+              <div key={metric.label}>{card}</div>
+            );
+          })}
         </section>
 
         <section className="grid gap-6 xl:grid-cols-[1.2fr_.8fr]">
@@ -163,7 +201,14 @@ export default function DashboardPage() {
                 Eventos que requieren seguimiento
               </p>
             </div>
-            <span className="text-sm font-semibold text-teal">Ver todos →</span>
+            {can('eventos.ver') ? (
+              <Link
+                href="/eventos"
+                className="text-sm font-semibold text-teal hover:underline"
+              >
+                Ver todos →
+              </Link>
+            ) : null}
           </div>
           <div className="divide-y divide-sky-blue">
             {events.map((event) => (
