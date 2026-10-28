@@ -18,7 +18,6 @@ export interface EventItem {
   endAt: string;
   location: string | null;
   type: string | null;
-  baseBudget: number;
   status: EventStatus;
   responsibleUserId: string | null;
   createdBy: string;
@@ -33,7 +32,6 @@ export interface CreateEventPayload {
   endAt: string;
   location?: string;
   type?: string;
-  baseBudget: number;
   status?: EventStatus;
 }
 
