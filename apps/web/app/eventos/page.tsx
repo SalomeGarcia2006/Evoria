@@ -1,9 +1,24 @@
+'use client';
+
 import { AppShell } from '../../components/layout/AppShell';
+import { EventForm } from '../../components/events/EventForm';
 import { EventList } from '../../components/events/EventList';
-import Link from 'next/link';
+import { useRef, useState } from 'react';
 import { PermissionGate } from '../../components/auth/PermissionGate';
+import { Button } from '../../components/ui/Button';
 
 export default function EventosPage() {
+  const eventDialog = useRef<HTMLDialogElement>(null);
+  const [revision, setRevision] = useState(0);
+
+  function openCreateForm() {
+    eventDialog.current?.showModal();
+  }
+
+  function closeCreateForm() {
+    eventDialog.current?.close();
+  }
+
   return (
     <AppShell title="Eventos">
       <div className="grid gap-6">
@@ -15,15 +30,49 @@ export default function EventosPage() {
             </p>
           </div>
           <PermissionGate permission="eventos.crear">
-            <Link
-              className="rounded-lg bg-navy px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
-              href="/eventos/nuevo"
-            >
+            <Button onClick={openCreateForm} type="button">
               + Nuevo evento
-            </Link>
+            </Button>
           </PermissionGate>
         </div>
-        <EventList />
+        <EventList onCreate={openCreateForm} revision={revision} />
+
+        <PermissionGate permission="eventos.crear">
+          <dialog
+            aria-labelledby="event-dialog-title"
+            className="m-auto max-h-[calc(100dvh-2rem)] w-11/12 max-w-4xl overflow-y-auto rounded-2xl border border-sky-blue bg-white p-0 text-navy shadow-2xl backdrop:bg-navy/60"
+            ref={eventDialog}
+          >
+            <div className="flex items-start justify-between gap-4 border-b border-sky-blue p-6">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-[.16em] text-teal">
+                  Eventos
+                </p>
+                <h2 className="mt-1 text-2xl font-bold" id="event-dialog-title">
+                  Nuevo evento
+                </h2>
+              </div>
+              <Button
+                aria-label="Cerrar formulario"
+                className="px-3 text-xl leading-none"
+                onClick={closeCreateForm}
+                type="button"
+                variant="ghost"
+              >
+                ×
+              </Button>
+            </div>
+            <div className="p-6">
+              <EventForm
+                onCancel={closeCreateForm}
+                onSuccess={() => {
+                  closeCreateForm();
+                  setRevision((current) => current + 1);
+                }}
+              />
+            </div>
+          </dialog>
+        </PermissionGate>
       </div>
     </AppShell>
   );
