@@ -205,9 +205,9 @@ Cada evento registra el presupuesto inicial proporcionado por el cliente en
 `presupuesto_base`. Es obligatorio al crear el evento y puede actualizarse si
 el cliente modifica el monto disponible.
 
-Los eventos existentes se completan con `0` mediante
-`npm run migrate:event-base-budget`; ese valor indica que el monto histórico
-debe revisarse, no que el cliente necesariamente asignó cero.
+Los eventos históricos que aún no tengan este campo se interpretan como `0`;
+ese valor indica que el monto histórico debe revisarse, no que el cliente
+necesariamente asignó cero.
 
 No se incluye moneda en esta primera versión. Todos los valores monetarios se
 manejarán bajo la moneda definida para el proyecto.

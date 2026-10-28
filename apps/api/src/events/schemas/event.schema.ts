@@ -27,7 +27,7 @@ export class Event {
   @Prop({ type: String, trim: true, maxlength: 80, default: null })
   type!: string | null;
 
-  @Prop({ required: true, min: 0 })
+  @Prop({ required: true, min: 0, default: 0 })
   baseBudget!: number;
 
   @Prop({

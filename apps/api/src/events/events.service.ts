@@ -203,7 +203,7 @@ export class EventsService {
       endAt: event.endAt,
       location: event.location,
       type: event.type,
-      baseBudget: event.baseBudget,
+      baseBudget: event.baseBudget ?? 0,
       status: event.status,
       responsibleUserId: event.responsibleUserId?.toString() ?? null,
       createdBy: event.createdBy.toString(),
