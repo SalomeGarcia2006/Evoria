@@ -41,7 +41,13 @@ function getTomorrowDate(): string {
   return formatDateForInput(tomorrow);
 }
 
-export function EventForm() {
+export function EventForm({
+  onCancel,
+  onSuccess,
+}: {
+  onCancel?: () => void;
+  onSuccess?: () => void;
+}) {
   const router = useRouter();
   const minimumStartDate = getTomorrowDate();
   const [form, setForm] = useState({
@@ -70,10 +76,12 @@ export function EventForm() {
 
     const missingFields = [
       !form.name.trim() && 'Nombre',
+      !form.description.trim() && 'Descripción',
       !form.startDate && 'Fecha de inicio',
       !form.endDate && 'Fecha de finalización',
       !form.startTime && 'Hora de inicio',
       !form.endTime && 'Hora de finalización',
+      !form.location.trim() && 'Ubicación',
       !form.type && 'Tipo de evento',
     ].filter(Boolean);
 
@@ -135,6 +143,10 @@ export function EventForm() {
 
   function closeSuccessAlert() {
     setSuccessAlert(false);
+    if (onSuccess) {
+      onSuccess();
+      return;
+    }
     router.push('/eventos');
   }
 
@@ -167,6 +179,7 @@ export function EventForm() {
               onChange={(event) =>
                 updateField('description', event.target.value)
               }
+              required
               rows={4}
               value={form.description}
             />
@@ -219,6 +232,7 @@ export function EventForm() {
               className="rounded-lg border border-sky-blue px-3 py-2 outline-none focus:border-teal focus:ring-2 focus:ring-sky-blue"
               maxLength={255}
               onChange={(event) => updateField('location', event.target.value)}
+              required
               type="text"
               value={form.location}
             />
@@ -247,7 +261,7 @@ export function EventForm() {
             {isSubmitting ? 'Guardando…' : 'Guardar evento'}
           </Button>
           <Button
-            onClick={() => router.push('/eventos')}
+            onClick={() => (onCancel ? onCancel() : router.push('/eventos'))}
             type="button"
             variant="secondary"
           >

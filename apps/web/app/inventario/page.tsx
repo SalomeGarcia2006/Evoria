@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { AppShell } from '../../components/layout/AppShell';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -10,8 +10,10 @@ import { LoadingState } from '../../components/ui/LoadingState';
 import { PermissionGate } from '../../components/auth/PermissionGate';
 import { useRecursos } from '../../hooks/useRecursos';
 import { resourceStatusLabels, type ResourceStatus } from '../../types/recurso';
+import { ResourceForm } from '../../components/resources/ResourceForm';
 
 export default function InventarioPage() {
+  const resourceDialog = useRef<HTMLDialogElement>(null);
   const [filters, setFilters] = useState({
     search: '',
     type: '',
@@ -40,12 +42,12 @@ export default function InventarioPage() {
             </p>
           </div>
           <PermissionGate permission="inventario.ajustar">
-            <Link
-              className="rounded-lg bg-navy px-4 py-2 text-sm font-semibold text-white"
-              href="/inventario/nuevo"
+            <Button
+              onClick={() => resourceDialog.current?.showModal()}
+              type="button"
             >
               ＋ Nuevo recurso
-            </Link>
+            </Button>
           </PermissionGate>
         </div>
         <Card className="min-w-0">
@@ -199,6 +201,45 @@ export default function InventarioPage() {
             </div>
           </Card>
         )}
+        <PermissionGate permission="inventario.ajustar">
+          <dialog
+            aria-labelledby="resource-dialog-title"
+            className="m-auto max-h-[calc(100dvh-2rem)] w-11/12 max-w-3xl overflow-y-auto rounded-2xl border border-sky-blue bg-white p-0 text-navy shadow-2xl backdrop:bg-navy/60"
+            ref={resourceDialog}
+          >
+            <div className="flex items-start justify-between gap-4 border-b border-sky-blue p-6">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-[.16em] text-teal">
+                  Inventario
+                </p>
+                <h2
+                  className="mt-1 text-2xl font-bold"
+                  id="resource-dialog-title"
+                >
+                  Nuevo recurso
+                </h2>
+              </div>
+              <Button
+                aria-label="Cerrar formulario"
+                className="px-3 text-xl leading-none"
+                onClick={() => resourceDialog.current?.close()}
+                type="button"
+                variant="ghost"
+              >
+                ×
+              </Button>
+            </div>
+            <div className="p-6">
+              <ResourceForm
+                onCancel={() => resourceDialog.current?.close()}
+                onSaved={() => {
+                  resourceDialog.current?.close();
+                  retry();
+                }}
+              />
+            </div>
+          </dialog>
+        </PermissionGate>
       </div>
     </AppShell>
   );
