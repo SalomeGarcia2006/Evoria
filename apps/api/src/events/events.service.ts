@@ -36,6 +36,7 @@ export class EventsService {
       endAt: new Date(createEventDto.endAt),
       location: this.trimOptional(createEventDto.location),
       type: this.trimOptional(createEventDto.type),
+      baseBudget: createEventDto.baseBudget,
       status: createEventDto.status,
       responsibleUserId: createEventDto.responsibleUserId ?? null,
     });
@@ -112,6 +113,9 @@ export class EventsService {
     }
     if (updateEventDto.type !== undefined) {
       event.type = this.trimOptional(updateEventDto.type);
+    }
+    if (updateEventDto.baseBudget !== undefined) {
+      event.baseBudget = updateEventDto.baseBudget;
     }
     if (updateEventDto.startAt)
       event.startAt = new Date(updateEventDto.startAt);
@@ -199,6 +203,7 @@ export class EventsService {
       endAt: event.endAt,
       location: event.location,
       type: event.type,
+      baseBudget: event.baseBudget,
       status: event.status,
       responsibleUserId: event.responsibleUserId?.toString() ?? null,
       createdBy: event.createdBy.toString(),

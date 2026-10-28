@@ -8,6 +8,7 @@
     "start": "node dist/main",
     "seed:access-control": "node dist/scripts/seed-access-control.js",
     "seed:admin": "node dist/scripts/seed-admin.js",
+    "migrate:event-base-budget": "node dist/scripts/migrate-event-base-budget.js",
     "lint": "eslint \"src/**/*.ts\"",
     "typecheck": "tsc --noEmit"
   },
