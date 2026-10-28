@@ -8,7 +8,7 @@ export const navigationItems: NavigationItem[] = [
   { label: 'Dashboard', href: '/dashboard', permission: 'dashboard.ver' },
   { label: 'Eventos', href: '/eventos', permission: 'eventos.ver' },
   {
-    label: 'Asignaciones',
+    label: 'Recursos',
     href: '/recursos/asignaciones',
     permission: 'asignaciones.ver',
   },
