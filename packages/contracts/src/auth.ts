@@ -7,6 +7,7 @@ export interface LoginRequest {
 
 export interface AuthSession {
   scope: AuthScope;
+  isDeveloper: boolean;
   user: {
     id: string;
     name: string;

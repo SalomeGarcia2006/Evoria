@@ -13,10 +13,12 @@ export function ResourceForm({
   resource,
   onSaved,
   onCancel,
+  onSavingChange,
 }: {
   resource?: Recurso;
   onSaved: (resource: Recurso) => void;
   onCancel?: () => void;
+  onSavingChange?: (isSaving: boolean) => void;
 }) {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
@@ -40,6 +42,7 @@ export function ResourceForm({
       return;
     }
     setIsSaving(true);
+    onSavingChange?.(true);
     setError('');
     try {
       onSaved(
@@ -63,14 +66,18 @@ export function ResourceForm({
       );
     } finally {
       setIsSaving(false);
+      onSavingChange?.(false);
     }
   }
   const inputClass =
-    'rounded-lg border border-sky-blue bg-white px-3 py-2 font-normal';
+    'min-w-0 rounded-lg border border-sky-blue bg-white px-3 py-2 font-normal';
   return (
-    <form onSubmit={submit} className="grid gap-5">
+    <form onSubmit={submit} className="grid min-w-0 gap-5">
       {error ? <ErrorMessage message={error} /> : null}
-      <fieldset disabled={isSaving} className="grid gap-5 sm:grid-cols-2">
+      <fieldset
+        disabled={isSaving}
+        className="grid min-w-0 gap-5 sm:grid-cols-2"
+      >
         <label className="grid gap-2 text-sm font-semibold sm:col-span-2">
           Nombre del recurso
           <input
@@ -149,7 +156,7 @@ export function ResourceForm({
           />
         </label>
       </fieldset>
-      <div className="flex gap-3">
+      <div className="flex flex-wrap gap-3">
         <Button type="submit" disabled={isSaving}>
           {isSaving ? 'Guardando…' : 'Guardar recurso'}
         </Button>
