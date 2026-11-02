@@ -119,6 +119,30 @@ export const INITIAL_PERMISSION_MODULES = [
     ],
   },
   {
+    key: 'proveedores',
+    name: 'Proveedores',
+    description: 'Directorio de contactos de proveedores.',
+    scope: 'tenant',
+    actions: [
+      { key: 'ver', name: 'Ver' },
+      { key: 'crear', name: 'Crear' },
+      { key: 'editar', name: 'Editar' },
+      { key: 'desactivar', name: 'Desactivar' },
+    ],
+  },
+  {
+    key: 'servicios_proveedor',
+    name: 'Servicios de proveedores',
+    description: 'Acuerdos de servicios de proveedores para eventos.',
+    scope: 'tenant',
+    actions: [
+      { key: 'ver', name: 'Ver' },
+      { key: 'crear', name: 'Crear' },
+      { key: 'editar', name: 'Editar' },
+      { key: 'cancelar', name: 'Cancelar' },
+    ],
+  },
+  {
     key: 'alertas',
     name: 'Alertas',
     description: 'Consulta y gestión de alertas.',
