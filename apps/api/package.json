@@ -9,6 +9,8 @@
     "seed:access-control": "node dist/scripts/seed-access-control.js",
     "seed:admin": "node dist/scripts/seed-admin.js",
     "lint": "eslint \"src/**/*.ts\"",
+    "test:providers": "node --require ts-node/register --test src/providers/providers.service.spec.ts src/provider-services/provider-services.service.spec.ts",
+    "test:providers:e2e": "node test/provider-services.e2e.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

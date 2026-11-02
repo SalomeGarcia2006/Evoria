@@ -1,6 +1,16 @@
 # Propuesta: proveedores y servicios para eventos
 
-Estado: propuesta funcional y técnica para coordinar backend y frontend. Las rutas, colecciones y permisos descritos aquí aún no están implementados.
+Estado: backend implementado; la interfaz de frontend queda pendiente de integración.
+
+## Integración con el backend
+
+Las rutas descritas abajo están disponibles bajo `/api` y responden con `{ data, message }`. Se requiere sesión de empresa activa. El directorio se consulta con `GET /api/providers?search=&category=&status=&page=&limit=`; la respuesta `data` contiene `{ items, pagination }`. Sin `status`, el listado incluye proveedores activos e inactivos; para el selector de nuevos acuerdos, usar `status=activo`. La búsqueda cubre nombre y persona de contacto. Las claves de categoría son `transporte`, `alimentacion`, `espacios`, `decoracion`, `audiovisual` y `otros`.
+
+Los acuerdos se consultan con `GET /api/events/:eventId/provider-services`. Por defecto devuelve solo los confirmados; agregar `?includeCancelled=true` para incluir el historial cancelado. Cada elemento incorpora `provider` con `id`, `name`, `categoryKeys` y `status`, además de los datos del acuerdo. `DELETE` cambia su estado a `cancelado` y establece `cancelledAt`; no borra el registro. Las fechas se envían como `YYYY-MM-DD`, las horas como `HH:mm` y `agreedAmountCop` como entero positivo. Los campos opcionales se pueden limpiar con `null` en `PATCH`.
+
+Los permisos son `proveedores.ver`, `.crear`, `.editar`, `.desactivar` y `servicios_proveedor.ver`, `.crear`, `.editar`, `.cancelar`. Crear un acuerdo exige también `proveedores.ver`. Después de incorporar el backend en un entorno con base de datos existente, ejecutar `npm run seed:access-control` para crear los permisos y actualizar el perfil Administrador. Los tipos de solicitud y respuesta están en `packages/contracts/src/providers.ts` y `packages/contracts/src/provider-services.ts`.
+
+La prueba de integración `npm run test:providers:e2e --workspace=@evoria/api` requiere una API iniciada contra una base de pruebas aislada y un desarrollador inicial creado. Configurar `API_BASE_URL` (incluido `/api`), `E2E_DEV_EMAIL` y `E2E_DEV_PASSWORD` antes de ejecutarla. Crea empresas, usuarios y registros ficticios; no debe apuntar a una base compartida.
 
 ## Objetivo
 
@@ -45,7 +55,7 @@ Ejemplos: `Cena principal` con inicio el día del evento a las 19:00; `Alquiler 
 - En la lista del evento, mostrar proveedor, servicio, fecha o intervalo, valor y estado. Incluir acciones de editar y cancelar según permisos. La cancelación pide confirmación y no borra el registro.
 - Si la fecha acordada cae fuera del intervalo del evento, mostrar una advertencia, pero permitir guardar: montaje, preparación y desmontaje pueden ocurrir antes o después del evento.
 
-## Backend propuesto
+## Backend implementado
 
 ### Datos
 
@@ -55,7 +65,7 @@ Ejemplos: `Cena principal` con inicio el día del evento a las 19:00; `Alquiler 
 
 Índices sugeridos: proveedores por `(tenantId, name)` y `(tenantId, categoryKeys, status)`; servicios por `(tenantId, eventId, status)` y `(tenantId, providerId)`. No imponer unicidad entre proveedor y evento, porque puede haber varios servicios distintos.
 
-### API sugerida
+### API
 
 Seguir el patrón actual de respuestas `{ data, message }` y de paginación de listados de la API.
 
@@ -91,7 +101,7 @@ Ejemplo de cuerpo para crear un servicio:
 - Derivar siempre `tenantId` de la sesión. Verificar que proveedor, evento y servicio pertenezcan a la misma empresa antes de leer o modificar. La web solo oculta acciones; la API aplica las reglas.
 - Validar identificadores, longitud de textos, categorías admitidas, correo cuando exista, al menos un contacto, fecha válida, fin no anterior al inicio y valor acordado mayor que cero. Exigir fecha de fin si se informa hora de fin. No inventar una comprobación automática de disponibilidad.
 - No permitir asignar a un evento cancelado ni seleccionar un proveedor inactivo para un nuevo acuerdo. Mantener la consulta de acuerdos antiguos aunque el proveedor se desactive.
-- Proponer permisos empresariales separados: `proveedores.ver`, `proveedores.crear`, `proveedores.editar`, `proveedores.desactivar`; y `servicios_proveedor.ver`, `servicios_proveedor.crear`, `servicios_proveedor.editar`, `servicios_proveedor.cancelar`. La ventana necesita además `proveedores.ver` para seleccionar el contacto. Así la gestión del directorio puede delegarse por separado de la asignación a eventos.
+- Aplicar permisos empresariales separados: `proveedores.ver`, `proveedores.crear`, `proveedores.editar`, `proveedores.desactivar`; y `servicios_proveedor.ver`, `servicios_proveedor.crear`, `servicios_proveedor.editar`, `servicios_proveedor.cancelar`. La ventana necesita además `proveedores.ver` para seleccionar el contacto. Así la gestión del directorio puede delegarse por separado de la asignación a eventos.
 - Compartir los tipos de solicitud y respuesta entre API y web mediante `packages/contracts`, siguiendo la estructura del monorepo.
 
 ## Límites de esta propuesta
