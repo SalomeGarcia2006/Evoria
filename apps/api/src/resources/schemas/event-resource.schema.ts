@@ -21,6 +21,9 @@ export class EventResource {
   @Prop({ required: true, min: 1 })
   quantity!: number;
 
+  @Prop({ type: Number, min: 0 })
+  costAmountCop?: number;
+
   @Prop({
     required: true,
     enum: RESOURCE_ASSIGNMENT_STATUSES,

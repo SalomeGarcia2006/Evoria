@@ -58,6 +58,7 @@ export interface EventResourceAssignment {
   eventId: string;
   inventoryItemId: string;
   quantity: number;
+  costAmountCop: number;
   status: ResourceAssignmentStatus;
   assignedAt: string;
   returnedAt: string | null;

@@ -8,6 +8,7 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { isValidObjectId, type Model, type Types } from 'mongoose';
 import type { AuthenticatedUser } from '../auth/auth.types';
+import { BudgetLedgerService } from '../budgets/budget-ledger.service';
 import { Event } from '../events/schemas/event.schema';
 import {
   Provider,
@@ -28,6 +29,7 @@ export class ProviderServicesService {
     private readonly serviceModel: Model<EventProviderService>,
     @InjectModel(Provider.name) private readonly providerModel: Model<Provider>,
     @InjectModel(Event.name) private readonly eventModel: Model<Event>,
+    private readonly budgetLedger: BudgetLedgerService,
   ) {}
 
   async findAll(
@@ -81,22 +83,36 @@ export class ProviderServicesService {
     const serviceName = dto.serviceName.trim();
     this.validateServiceName(serviceName);
     this.validateDates(dto.startDate, dto.startTime, dto.endDate, dto.endTime);
-    const service = await this.serviceModel.create({
+    await this.budgetLedger.reserveProviderCost(
       tenantId,
       eventId,
-      providerId: dto.providerId,
-      serviceName,
-      description: this.trimOptional(dto.description),
-      startDate: dto.startDate,
-      startTime: dto.startTime ?? null,
-      endDate: dto.endDate ?? null,
-      endTime: dto.endTime ?? null,
-      agreedAmountCop: dto.agreedAmountCop,
-      status: 'confirmado',
-      assignedBy: user.id,
-      cancelledAt: null,
-    });
-    return this.toResponse(service, provider);
+      dto.agreedAmountCop,
+    );
+    try {
+      const service = await this.serviceModel.create({
+        tenantId,
+        eventId,
+        providerId: dto.providerId,
+        serviceName,
+        description: this.trimOptional(dto.description),
+        startDate: dto.startDate,
+        startTime: dto.startTime ?? null,
+        endDate: dto.endDate ?? null,
+        endTime: dto.endTime ?? null,
+        agreedAmountCop: dto.agreedAmountCop,
+        status: 'confirmado',
+        assignedBy: user.id,
+        cancelledAt: null,
+      });
+      return this.toResponse(service, provider);
+    } catch (error) {
+      await this.budgetLedger.releaseProviderCost(
+        tenantId,
+        eventId,
+        dto.agreedAmountCop,
+      );
+      throw error;
+    }
   }
 
   async update(
@@ -139,25 +155,46 @@ export class ProviderServicesService {
     const endTime = dto.endTime === undefined ? existing.endTime : dto.endTime;
     this.validateDates(startDate, startTime, endDate, endTime);
 
-    const service = await this.serviceModel.findOneAndUpdate(
-      { _id: id, tenantId, eventId, status: 'confirmado' },
-      {
-        $set: {
-          providerId,
-          serviceName,
-          description:
-            dto.description === undefined
-              ? existing.description
-              : this.trimOptional(dto.description),
-          startDate,
-          startTime: startTime ?? null,
-          endDate: endDate ?? null,
-          endTime: endTime ?? null,
-          agreedAmountCop: dto.agreedAmountCop ?? existing.agreedAmountCop,
+    const agreedAmountCop = dto.agreedAmountCop ?? existing.agreedAmountCop;
+    const increase = Math.max(0, agreedAmountCop - existing.agreedAmountCop);
+    const decrease = Math.max(0, existing.agreedAmountCop - agreedAmountCop);
+    await this.budgetLedger.reserveProviderCost(tenantId, eventId, increase);
+    let service: EventProviderServiceDocument | null;
+    try {
+      service = await this.serviceModel.findOneAndUpdate(
+        {
+          _id: id,
+          tenantId,
+          eventId,
+          status: 'confirmado',
+          agreedAmountCop: existing.agreedAmountCop,
         },
-      },
-      { new: true, runValidators: true },
-    );
+        {
+          $set: {
+            providerId,
+            serviceName,
+            description:
+              dto.description === undefined
+                ? existing.description
+                : this.trimOptional(dto.description),
+            startDate,
+            startTime: startTime ?? null,
+            endDate: endDate ?? null,
+            endTime: endTime ?? null,
+            agreedAmountCop,
+          },
+        },
+        { new: true, runValidators: true },
+      );
+      if (!service)
+        throw new ConflictException('El servicio ya no está confirmado.');
+    } catch (error) {
+      await this.budgetLedger.releaseProviderCost(tenantId, eventId, increase);
+      throw error;
+    }
+    if (decrease > 0) {
+      await this.budgetLedger.releaseProviderCost(tenantId, eventId, decrease);
+    }
     if (!service)
       throw new ConflictException('El servicio ya no está confirmado.');
     return this.toResponse(service, provider);
@@ -173,6 +210,21 @@ export class ProviderServicesService {
       { new: true },
     );
     if (!service) throw new ConflictException('El servicio ya está cancelado.');
+    if (await this.budgetLedger.hasBudget(tenantId, eventId)) {
+      try {
+        await this.budgetLedger.releaseProviderCost(
+          tenantId,
+          eventId,
+          service.agreedAmountCop,
+        );
+      } catch (error) {
+        await this.serviceModel.updateOne(
+          { _id: service._id, tenantId, eventId, status: 'cancelado' },
+          { $set: { status: 'confirmado', cancelledAt: null } },
+        );
+        throw error;
+      }
+    }
     const provider = await this.findProvider(
       service.providerId.toString(),
       tenantId,

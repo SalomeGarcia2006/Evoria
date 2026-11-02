@@ -83,6 +83,7 @@ export const INITIAL_PERMISSION_MODULES = [
     actions: [
       { key: 'ver', name: 'Ver' },
       { key: 'editar', name: 'Editar' },
+      { key: 'aprobar', name: 'Aprobar' },
     ],
   },
   {

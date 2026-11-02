@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import { validateSync } from 'class-validator';
 import { Types, type Model } from 'mongoose';
 import type { AuthenticatedUser } from '../auth/auth.types';
+import { BudgetLedgerService } from '../budgets/budget-ledger.service';
 import { Event } from '../events/schemas/event.schema';
 import { Provider } from '../providers/schemas/provider.schema';
 import { CreateProviderServiceDto } from './dto/create-provider-service.dto';
@@ -52,12 +53,17 @@ function setup(eventStatus = 'confirmado', providerStatus = 'activo') {
       };
     },
   } as unknown as Model<EventProviderService>;
+  const ledger = {
+    reserveProviderCost: async () => undefined,
+    releaseProviderCost: async () => undefined,
+  } as unknown as BudgetLedgerService;
   return {
     created,
     service: new ProviderServicesService(
       serviceModel,
       providerModel,
       eventModel,
+      ledger,
     ),
   };
 }
@@ -181,6 +187,7 @@ test('consulta el historial de un evento cancelado con proveedor inactivo', asyn
     serviceModel,
     providerModel,
     eventModel,
+    {} as BudgetLedgerService,
   );
 
   const items = await service.findAll(
