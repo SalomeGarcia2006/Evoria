@@ -132,6 +132,19 @@ permisos, el perfil ni el desarrollador. Una vez creada la cuenta,
 cambiar estas variables no modifica sus credenciales; esto evita
 restablecimientos accidentales.
 
+### Migraciones de base de datos
+
+Después de traer cambios que modifiquen datos existentes, con MongoDB iniciado
+ejecuta desde la raíz:
+
+```bash
+npm run migrate
+```
+
+El comando aplica únicamente las migraciones pendientes y guarda su registro en
+la colección `migrations`, por lo que se puede ejecutar varias veces sin repetir
+cambios ya aplicados.
+
 ## Autenticación
 
 La API expone `POST /api/auth/login`. Recibe correo y contraseña, y al

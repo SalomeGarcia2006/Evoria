@@ -2,11 +2,14 @@ import {
   IsEnum,
   IsISO8601,
   IsMongoId,
+  IsNumber,
   IsOptional,
   IsString,
   MaxLength,
+  Min,
   MinLength,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 import { EVENT_STATUSES, type EventStatus } from '../events.constants';
 
 export class UpdateEventDto {
@@ -38,6 +41,12 @@ export class UpdateEventDto {
   @IsString()
   @MaxLength(80)
   type?: string | null;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  baseBudget?: number;
 
   @IsOptional()
   @IsEnum(EVENT_STATUSES)

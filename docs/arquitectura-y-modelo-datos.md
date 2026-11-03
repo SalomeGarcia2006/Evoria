@@ -66,7 +66,6 @@ erDiagram
 
   EVENTOS ||--o{ CRONOGRAMAS : organiza
   EVENTOS ||--o{ EVENTO_RECURSOS : utiliza
-  EVENTOS ||--o| PRESUPUESTOS : tiene
   RECURSOS ||--o{ EVENTO_RECURSOS : se_asigna
   EVENTOS o|--o{ ALERTAS : puede_generar
   EVENTOS o|--o{ MOVIMIENTOS_INVENTARIO : origina
@@ -116,6 +115,7 @@ erDiagram
     datetime fecha_fin
     string ubicacion
     string tipo
+    decimal presupuesto_base
     string estado
     ObjectId responsable_id FK
     datetime creado_en
@@ -146,17 +146,6 @@ erDiagram
     string estado
     datetime fecha_asignacion
     datetime fecha_devolucion
-  }
-
-  PRESUPUESTOS {
-    ObjectId id PK
-    ObjectId tenant_id FK
-    ObjectId evento_id FK
-    decimal subtotal_recursos
-    decimal costos_adicionales
-    decimal total
-    datetime creado_en
-    datetime actualizado_en
   }
 
   CRONOGRAMAS {
@@ -210,10 +199,19 @@ erDiagram
 
 ## Decisiones del modelo
 
-### Presupuesto
+### Presupuesto base
 
-Cada evento puede tener un único presupuesto. `presupuestos.evento_id` debe ser
-único para evitar que un evento tenga presupuestos duplicados.
+Cada evento registra el presupuesto inicial proporcionado por el cliente en
+`presupuesto_base`. Es obligatorio al crear el evento y puede actualizarse si
+el cliente modifica el monto disponible.
+
+Los eventos históricos que aún no tengan este campo se interpretan como `0`;
+ese valor indica que el monto histórico debe revisarse, no que el cliente
+necesariamente asignó cero.
+
+La migración `20261028-add-event-base-budget` completa ese valor en eventos
+existentes al ejecutar `npm run migrate`. Las migraciones aplicadas se guardan
+en la colección `migrations` para no ejecutarlas dos veces.
 
 No se incluye moneda en esta primera versión. Todos los valores monetarios se
 manejarán bajo la moneda definida para el proyecto.
@@ -230,10 +228,10 @@ para las mismas cantidades.
 
 ### Reportes
 
-Los reportes se generan mediante consultas a eventos, recursos, presupuestos,
-alertas y auditorías. No se persisten inicialmente. Solo se añadirá una
-colección de reportes si se requiere conservar exportaciones generadas, sus
-filtros y su archivo.
+Los reportes se generan mediante consultas a eventos, recursos, alertas y
+auditorías. No se persisten inicialmente. Solo se añadirá una colección de
+reportes si se requiere conservar exportaciones generadas, sus filtros y su
+archivo.
 
 ## Reglas de negocio esenciales
 
@@ -293,43 +291,41 @@ Los errores usarán un código HTTP adecuado y una respuesta consistente:
 Los endpoints se implementarán por módulos. Todos, salvo inicio de sesión,
 deben requerir autenticación y validar el permiso requerido.
 
-| Módulo        | Método y ruta                                  | Permiso requerido       | Respuesta esperada                                    |
-| ------------- | ---------------------------------------------- | ----------------------- | ----------------------------------------------------- |
-| Autenticación | `POST /api/auth/login`                         | Público                 | Usuario autenticado y token o cookie de sesión.       |
-| Autenticación | `GET /api/auth/me`                             | Autenticado             | Usuario, perfil y permisos actuales.                  |
-| Permisos      | `GET /api/permissions`                         | `perfiles.ver`          | Catálogo fijo agrupado por módulo.                    |
-| Perfiles      | `GET /api/profiles`                            | `perfiles.ver`          | Perfiles y permisos de la empresa activa.             |
-| Perfiles      | `GET /api/profiles/:id`                        | `perfiles.ver`          | Detalle de un perfil y sus permisos.                  |
-| Perfiles      | `POST /api/profiles`                           | `perfiles.crear`        | Perfil creado con permisos del catálogo.              |
-| Perfiles      | `PATCH /api/profiles/:id`                      | `perfiles.editar`       | Perfil y permisos actualizados.                       |
-| Perfiles      | `DELETE /api/profiles/:id`                     | `perfiles.desactivar`   | Perfil personalizado desactivado.                     |
-| Usuarios      | `GET /api/users`                               | `usuarios.ver`          | Lista paginada de usuarios.                           |
-| Usuarios      | `POST /api/users`                              | `usuarios.crear`        | Usuario creado sin exponer `password_hash`.           |
-| Usuarios      | `GET /api/users/profiles`                      | `usuarios.crear`        | Perfiles activos disponibles para asignar.            |
-| Usuarios      | `GET /api/users/:id`                           | `usuarios.ver`          | Usuario de la empresa activa.                         |
-| Usuarios      | `PATCH /api/users/:id`                         | `usuarios.editar`       | Perfil o estado de membresía actualizado.             |
-| Usuarios      | `DELETE /api/users/:id`                        | `usuarios.desactivar`   | Membresía del usuario desactivada.                    |
-| Eventos       | `GET /api/events`                              | `eventos.ver`           | Lista filtrable y paginada de eventos permitidos.     |
-| Eventos       | `POST /api/events`                             | `eventos.crear`         | Evento creado.                                        |
-| Eventos       | `GET /api/events/:id`                          | `eventos.ver`           | Detalle del evento, presupuesto y recursos asignados. |
-| Eventos       | `PATCH /api/events/:id`                        | `eventos.editar`        | Evento actualizado.                                   |
-| Eventos       | `DELETE /api/events/:id`                       | `eventos.eliminar`      | Evento cancelado o archivado.                         |
-| Recursos      | `GET /api/resources`                           | `recursos.ver`          | Recursos y disponibilidad actual.                     |
-| Recursos      | `POST /api/resources`                          | `recursos.crear`        | Recurso creado.                                       |
-| Recursos      | `PATCH /api/resources/:id`                     | `recursos.editar`       | Recurso actualizado.                                  |
-| Recursos      | `DELETE /api/resources/:id`                    | `recursos.eliminar`     | Recurso desactivado.                                  |
-| Asignaciones  | `POST /api/events/:id/resources`               | `asignaciones.crear`    | Recurso asignado y existencias actualizadas.          |
-| Asignaciones  | `DELETE /api/events/:id/resources/:resourceId` | `asignaciones.eliminar` | Asignación liberada y existencias actualizadas.       |
-| Presupuesto   | `GET /api/events/:id/budget`                   | `presupuestos.ver`      | Presupuesto del evento.                               |
-| Presupuesto   | `PUT /api/events/:id/budget`                   | `presupuestos.editar`   | Presupuesto actualizado.                              |
-| Cronograma    | `GET /api/events/:id/schedules`                | `cronogramas.ver`       | Actividades del evento.                               |
-| Cronograma    | `POST /api/events/:id/schedules`               | `cronogramas.crear`     | Actividad creada.                                     |
-| Cronograma    | `PATCH /api/schedules/:id`                     | `cronogramas.editar`    | Actividad actualizada.                                |
-| Cronograma    | `DELETE /api/schedules/:id`                    | `cronogramas.eliminar`  | Actividad cancelada.                                  |
-| Alertas       | `GET /api/alerts`                              | `alertas.ver`           | Alertas filtrables por estado y severidad.            |
-| Alertas       | `PATCH /api/alerts/:id`                        | `alertas.editar`        | Alerta resuelta o actualizada.                        |
-| Auditoría     | `GET /api/audit-logs`                          | `auditoria.ver`         | Registro paginado de acciones.                        |
-| Dashboard     | `GET /api/dashboard/summary`                   | `dashboard.ver`         | Métricas calculadas según los permisos.               |
+| Módulo        | Método y ruta                                  | Permiso requerido       | Respuesta esperada                                |
+| ------------- | ---------------------------------------------- | ----------------------- | ------------------------------------------------- |
+| Autenticación | `POST /api/auth/login`                         | Público                 | Usuario autenticado y token o cookie de sesión.   |
+| Autenticación | `GET /api/auth/me`                             | Autenticado             | Usuario, perfil y permisos actuales.              |
+| Permisos      | `GET /api/permissions`                         | `perfiles.ver`          | Catálogo fijo agrupado por módulo.                |
+| Perfiles      | `GET /api/profiles`                            | `perfiles.ver`          | Perfiles y permisos de la empresa activa.         |
+| Perfiles      | `GET /api/profiles/:id`                        | `perfiles.ver`          | Detalle de un perfil y sus permisos.              |
+| Perfiles      | `POST /api/profiles`                           | `perfiles.crear`        | Perfil creado con permisos del catálogo.          |
+| Perfiles      | `PATCH /api/profiles/:id`                      | `perfiles.editar`       | Perfil y permisos actualizados.                   |
+| Perfiles      | `DELETE /api/profiles/:id`                     | `perfiles.desactivar`   | Perfil personalizado desactivado.                 |
+| Usuarios      | `GET /api/users`                               | `usuarios.ver`          | Lista paginada de usuarios.                       |
+| Usuarios      | `POST /api/users`                              | `usuarios.crear`        | Usuario creado sin exponer `password_hash`.       |
+| Usuarios      | `GET /api/users/profiles`                      | `usuarios.crear`        | Perfiles activos disponibles para asignar.        |
+| Usuarios      | `GET /api/users/:id`                           | `usuarios.ver`          | Usuario de la empresa activa.                     |
+| Usuarios      | `PATCH /api/users/:id`                         | `usuarios.editar`       | Perfil o estado de membresía actualizado.         |
+| Usuarios      | `DELETE /api/users/:id`                        | `usuarios.desactivar`   | Membresía del usuario desactivada.                |
+| Eventos       | `GET /api/events`                              | `eventos.ver`           | Lista filtrable y paginada de eventos permitidos. |
+| Eventos       | `POST /api/events`                             | `eventos.crear`         | Evento creado.                                    |
+| Eventos       | `GET /api/events/:id`                          | `eventos.ver`           | Detalle del evento, presupuesto base y recursos.  |
+| Eventos       | `PATCH /api/events/:id`                        | `eventos.editar`        | Evento actualizado.                               |
+| Eventos       | `DELETE /api/events/:id`                       | `eventos.eliminar`      | Evento cancelado o archivado.                     |
+| Recursos      | `GET /api/resources`                           | `recursos.ver`          | Recursos y disponibilidad actual.                 |
+| Recursos      | `POST /api/resources`                          | `recursos.crear`        | Recurso creado.                                   |
+| Recursos      | `PATCH /api/resources/:id`                     | `recursos.editar`       | Recurso actualizado.                              |
+| Recursos      | `DELETE /api/resources/:id`                    | `recursos.eliminar`     | Recurso desactivado.                              |
+| Asignaciones  | `POST /api/events/:id/resources`               | `asignaciones.crear`    | Recurso asignado y existencias actualizadas.      |
+| Asignaciones  | `DELETE /api/events/:id/resources/:resourceId` | `asignaciones.eliminar` | Asignación liberada y existencias actualizadas.   |
+| Cronograma    | `GET /api/events/:id/schedules`                | `cronogramas.ver`       | Actividades del evento.                           |
+| Cronograma    | `POST /api/events/:id/schedules`               | `cronogramas.crear`     | Actividad creada.                                 |
+| Cronograma    | `PATCH /api/schedules/:id`                     | `cronogramas.editar`    | Actividad actualizada.                            |
+| Cronograma    | `DELETE /api/schedules/:id`                    | `cronogramas.eliminar`  | Actividad cancelada.                              |
+| Alertas       | `GET /api/alerts`                              | `alertas.ver`           | Alertas filtrables por estado y severidad.        |
+| Alertas       | `PATCH /api/alerts/:id`                        | `alertas.editar`        | Alerta resuelta o actualizada.                    |
+| Auditoría     | `GET /api/audit-logs`                          | `auditoria.ver`         | Registro paginado de acciones.                    |
+| Dashboard     | `GET /api/dashboard/summary`                   | `dashboard.ver`         | Métricas calculadas según los permisos.           |
 
 ## Orden de implementación
 
@@ -337,7 +333,7 @@ deben requerir autenticación y validar el permiso requerido.
 2. Gestión protegida de usuarios, perfiles y permisos.
 3. Eventos y recursos, con DTOs, validaciones y autorización.
 4. Asignación de recursos y movimientos de inventario transaccionales.
-5. Presupuestos, dashboard, cronogramas, alertas y auditoría.
+5. Dashboard, cronogramas, alertas y auditoría.
 6. Reportes, exportaciones y pruebas automatizadas de los flujos anteriores.
    TENANTS {
    ObjectId id PK
