@@ -2,6 +2,7 @@ export type NavigationItem = {
   label: string;
   href: string;
   permission: string;
+  alternativePermission?: string;
 };
 
 export const navigationItems: NavigationItem[] = [
@@ -11,7 +12,9 @@ export const navigationItems: NavigationItem[] = [
     label: 'Recursos',
     href: '/recursos/asignaciones',
     permission: 'asignaciones.ver',
+    alternativePermission: 'servicios_proveedor.ver',
   },
+  { label: 'Proveedores', href: '/proveedores', permission: 'proveedores.ver' },
   { label: 'Inventario', href: '/inventario', permission: 'inventario.ver' },
   {
     label: 'Presupuestos',
@@ -51,7 +54,11 @@ export function permissionForPathname(pathname: string): string | null {
 
 export function defaultRouteFor(permissions: string[]): string {
   return (
-    navigationItems.find((item) => permissions.includes(item.permission))
-      ?.href ?? '/'
+    navigationItems.find(
+      (item) =>
+        permissions.includes(item.permission) ||
+        (!!item.alternativePermission &&
+          permissions.includes(item.alternativePermission)),
+    )?.href ?? '/'
   );
 }
