@@ -8,14 +8,19 @@ import { Button } from '../../../components/ui/Button';
 import { ErrorMessage } from '../../../components/ui/ErrorMessage';
 import { LoadingState } from '../../../components/ui/LoadingState';
 import { getAllEvents, type EventItem } from '../../../services/events.service';
+import { useAuth } from '../../../hooks/useAuth';
+import { ProviderServices } from '../../../components/providers/ProviderServices';
 
 export default function AsignacionesPage() {
+  const { can } = useAuth();
+  const canSeeEvents = can('eventos.ver');
   const [events, setEvents] = useState<EventItem[]>([]);
   const [selectedId, setSelectedId] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
+    if (!canSeeEvents) return;
     let active = true;
     getAllEvents()
       .then((items) => {
@@ -38,20 +43,27 @@ export default function AsignacionesPage() {
     return () => {
       active = false;
     };
-  }, [attempt]);
+  }, [attempt, canSeeEvents]);
   const selected = events.find((event) => event.id === selectedId);
   return (
     <AppShell title="Asignación de recursos">
       <div className="grid gap-6">
-        <Link
-          className="text-sm font-semibold text-teal underline"
-          href="/inventario"
-        >
-          ← Ver inventario
-        </Link>
-        <h2 className="text-3xl font-bold">Asignar recursos a eventos</h2>
+        {can('inventario.ver') && (
+          <Link
+            className="text-sm font-semibold text-teal underline"
+            href="/inventario"
+          >
+            ← Ver inventario
+          </Link>
+        )}
+        <h1 className="text-3xl font-bold">Asignaciones para eventos</h1>
         <Card>
-          {loading ? (
+          {!canSeeEvents ? (
+            <p role="status">
+              Necesitas el permiso de consulta de eventos para seleccionar un
+              evento y consultar sus asignaciones.
+            </p>
+          ) : loading ? (
             <LoadingState label="Cargando eventos…" />
           ) : error ? (
             <>
@@ -75,6 +87,7 @@ export default function AsignacionesPage() {
             <label className="grid gap-2 text-sm font-semibold">
               Evento
               <select
+                aria-label="Evento"
                 className="rounded-lg border border-sky-blue bg-white p-3"
                 value={selectedId}
                 onChange={(event) => setSelectedId(event.target.value)}
@@ -89,14 +102,31 @@ export default function AsignacionesPage() {
             </label>
           )}
         </Card>
-        {selected ? (
-          <EventResources
-            editable
-            key={selected.id}
-            eventId={selected.id}
-            cancelled={selected.status === 'cancelado'}
-          />
+        {selected && canSeeEvents && can('asignaciones.ver') ? (
+          <section aria-label="Reservas de inventario">
+            <h2 className="mb-3 text-2xl font-bold">Reservas de inventario</h2>
+            <EventResources
+              editable
+              key={selected.id}
+              eventId={selected.id}
+              cancelled={selected.status === 'cancelado'}
+            />
+          </section>
         ) : null}
+        {selected && canSeeEvents && can('servicios_proveedor.ver') && (
+          <ProviderServices key={selected.id} event={selected} />
+        )}
+        {!selected && can('servicios_proveedor.ver') && (
+          <Card>
+            <h2 className="text-2xl font-bold">Servicios de proveedores</h2>
+            <p className="my-3 text-teal">
+              Selecciona un evento para consultar sus acuerdos de servicios.
+            </p>
+            {can('servicios_proveedor.crear') && can('proveedores.ver') && (
+              <Button disabled>Asignar servicio de proveedor</Button>
+            )}
+          </Card>
+        )}
       </div>
     </AppShell>
   );
