@@ -172,6 +172,7 @@ const event = expectStatus(
       name: 'Evento de prueba',
       startAt: '2026-12-05T15:00:00.000Z',
       endAt: '2026-12-06T02:00:00.000Z',
+      baseBudget: 9000000,
     },
     ownerCookie,
   ),
@@ -179,10 +180,38 @@ const event = expectStatus(
   'crear evento',
 );
 const budgetPath = `/events/${event.id}/budget`;
+const initialBudget = expectStatus(
+  await request('GET', budgetPath, undefined, ownerCookie),
+  200,
+  'presupuesto iniciado al crear el evento',
+);
+assert.equal(initialBudget.initialized, true);
+assert.equal(initialBudget.baseAmountCop, 9000000);
 expectStatus(
-  await request('POST', budgetPath, { baseAmountCop: 9000000 }, ownerCookie),
-  201,
-  'iniciar presupuesto del evento',
+  await request(
+    'PATCH',
+    `/events/${event.id}`,
+    { baseBudget: 10000000 },
+    ownerCookie,
+  ),
+  200,
+  'actualizar presupuesto base del evento',
+);
+const updatedBudget = expectStatus(
+  await request('GET', budgetPath, undefined, ownerCookie),
+  200,
+  'presupuesto sincronizado con el evento',
+);
+assert.equal(updatedBudget.baseAmountCop, 10000000);
+expectStatus(
+  await request(
+    'PATCH',
+    `/events/${event.id}`,
+    { baseBudget: 9000000 },
+    ownerCookie,
+  ),
+  200,
+  'restaurar presupuesto base del evento',
 );
 
 const inventory = expectStatus(
@@ -390,6 +419,16 @@ const budgetBefore = expectStatus(
 );
 assert.equal(budgetBefore.providerSpentCop, 8200000);
 assert.equal(budgetBefore.remainingCop, 800000);
+expectStatus(
+  await request(
+    'PATCH',
+    `/events/${event.id}`,
+    { baseBudget: 8000000 },
+    ownerCookie,
+  ),
+  409,
+  'no reducir presupuesto por debajo del gasto',
+);
 const increaseRequest = expectStatus(
   await request(
     'POST',

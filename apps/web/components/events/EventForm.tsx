@@ -59,6 +59,7 @@ export function EventForm({
     endTime: '18:00',
     location: '',
     type: '',
+    baseBudget: '',
   });
   const [error, setError] = useState<string | null>(null);
   const [validationAlert, setValidationAlert] = useState<string | null>(null);
@@ -83,11 +84,20 @@ export function EventForm({
       !form.endTime && 'Hora de finalización',
       !form.location.trim() && 'Ubicación',
       !form.type && 'Tipo de evento',
+      form.baseBudget === '' && 'Presupuesto base',
     ].filter(Boolean);
 
     if (missingFields.length > 0) {
       setValidationAlert(
         `Completa los siguientes campos obligatorios: ${missingFields.join(', ')}.`,
+      );
+      return;
+    }
+
+    const baseBudget = Number(form.baseBudget);
+    if (!Number.isSafeInteger(baseBudget) || baseBudget < 0) {
+      setValidationAlert(
+        'El presupuesto base debe ser un monto entero en COP.',
       );
       return;
     }
@@ -123,6 +133,7 @@ export function EventForm({
       endAt,
       location: form.location.trim() || undefined,
       type: form.type.trim() || undefined,
+      baseBudget,
     };
 
     setIsSubmitting(true);
@@ -254,6 +265,22 @@ export function EventForm({
                 </option>
               ))}
             </select>
+          </label>
+          <label className="grid gap-2">
+            <span className="text-sm font-semibold">
+              Presupuesto base (COP)
+            </span>
+            <input
+              className="rounded-lg border border-sky-blue px-3 py-2 outline-none focus:border-teal focus:ring-2 focus:ring-sky-blue"
+              min="0"
+              onChange={(event) =>
+                updateField('baseBudget', event.target.value)
+              }
+              required
+              step="1"
+              type="number"
+              value={form.baseBudget}
+            />
           </label>
         </div>
         <div className="flex flex-wrap gap-3 border-t border-sky-blue pt-5">

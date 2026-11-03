@@ -2,7 +2,7 @@ import {
   IsEnum,
   IsISO8601,
   IsMongoId,
-  IsNumber,
+  IsInt,
   IsOptional,
   IsString,
   MaxLength,
@@ -44,7 +44,7 @@ export class UpdateEventDto {
 
   @IsOptional()
   @Type(() => Number)
-  @IsNumber({ maxDecimalPlaces: 2 })
+  @IsInt()
   @Min(0)
   baseBudget?: number;
 
