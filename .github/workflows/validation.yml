@@ -2,6 +2,8 @@ name: Validación
 
 on:
   push:
+    branches:
+      - main
   pull_request:
     branches:
       - main
@@ -9,6 +11,8 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
+  statuses: write
 
 env:
   MONGO_ROOT_USERNAME: evoria_ci
@@ -16,8 +20,66 @@ env:
   MONGO_DATABASE: evoria_ci
 
 jobs:
+  up-to-date:
+    name: Rama actualizada con main
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Marcar PRs actualizados o pendientes
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const isPullRequest = context.eventName === 'pull_request';
+
+            if (!isPullRequest && context.ref !== 'refs/heads/main') return;
+
+            const baseSha = isPullRequest
+              ? context.payload.pull_request.base.sha
+              : context.sha;
+            const pullRequests = isPullRequest
+              ? [context.payload.pull_request]
+              : await github.paginate(github.rest.pulls.list, {
+                  owner,
+                  repo,
+                  state: 'open',
+                  base: 'main',
+                  per_page: 100,
+                });
+            let currentPullRequestIsOutdated = false;
+
+            for (const pullRequest of pullRequests) {
+              const comparison = await github.rest.repos.compareCommits({
+                owner,
+                repo,
+                base: baseSha,
+                head: pullRequest.head.sha,
+              });
+              const isUpToDate = comparison.data.behind_by === 0;
+
+              await github.rest.repos.createCommitStatus({
+                owner,
+                repo,
+                sha: pullRequest.head.sha,
+                state: isUpToDate ? 'success' : 'failure',
+                context: 'Rama actualizada con main',
+                description: isUpToDate
+                  ? 'La rama contiene los cambios actuales de main.'
+                  : 'Actualiza la rama con main antes de fusionarla.',
+              });
+
+              if (isPullRequest && !isUpToDate) {
+                currentPullRequestIsOutdated = true;
+              }
+            }
+
+            if (currentPullRequestIsOutdated) {
+              core.setFailed('La rama no está actualizada con main.');
+            }
+
   quality:
     name: Calidad y compilación
+    needs: up-to-date
     runs-on: ubuntu-latest
 
     steps:
