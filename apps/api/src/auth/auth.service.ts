@@ -7,6 +7,7 @@ import type { Model, Types } from 'mongoose';
 import { Membership } from '../memberships/schemas/membership.schema';
 import { Permission } from '../permissions/schemas/permission.schema';
 import { Profile } from '../profiles/schemas/profile.schema';
+import { DEVELOPER_PROFILE_NAME } from '../profiles/profiles.constants';
 import { Tenant } from '../tenants/schemas/tenant.schema';
 import { PasswordService } from '../users/password.service';
 import { User } from '../users/schemas/user.schema';
@@ -212,6 +213,7 @@ export class AuthService {
 
       return {
         scope: 'platform',
+        isDeveloper: profile.name === DEVELOPER_PROFILE_NAME,
         user: {
           id: user._id.toString(),
           name: user.name,
@@ -238,7 +240,7 @@ export class AuthService {
       );
     }
 
-    const [tenant, profile] = await Promise.all([
+    const [tenant, profile, developerProfile] = await Promise.all([
       this.tenantModel
         .findOne({ _id: membership.tenantId, status: 'activo' })
         .lean(),
@@ -250,6 +252,15 @@ export class AuthService {
           status: 'activo',
         })
         .lean(),
+      user.platformProfileId
+        ? this.profileModel.exists({
+            _id: user.platformProfileId,
+            name: DEVELOPER_PROFILE_NAME,
+            scope: 'platform',
+            tenantId: null,
+            status: 'activo',
+          })
+        : Promise.resolve(null),
     ]);
 
     if (!tenant || !profile) {
@@ -263,6 +274,7 @@ export class AuthService {
 
     return {
       scope: 'tenant',
+      isDeveloper: !!developerProfile,
       user: {
         id: user._id.toString(),
         name: user.name,

@@ -12,6 +12,7 @@ const iconByRoute: Record<string, string> = {
   '/eventos': 'eventos.svg',
   '/recursos/asignaciones': 'recursos.svg',
   '/inventario': 'inventario.svg',
+  '/proveedores': 'empresas.svg',
   '/presupuestos': 'presupuesto.svg',
   '/cronograma': 'cronograma.svg',
   '/alertas': 'alerta.svg',
@@ -38,8 +39,10 @@ export function Sidebar() {
     }
   }
 
-  const visibleItems = navigationItems.filter(({ permission }) =>
-    can(permission),
+  const visibleItems = navigationItems.filter(
+    ({ permission, alternativePermission }) =>
+      can(permission) ||
+      (!!alternativePermission && can(alternativePermission)),
   );
 
   return (

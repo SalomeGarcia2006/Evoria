@@ -16,6 +16,7 @@ export const config = {
     '/eventos/:path*',
     '/recursos/:path*',
     '/inventario/:path*',
+    '/proveedores/:path*',
     '/presupuestos/:path*',
     '/cronograma/:path*',
     '/alertas/:path*',

@@ -4,28 +4,9 @@ import type { ApiResponse, AuthSession, LoginRequest } from '@evoria/contracts';
 
 export type LoginPayload = LoginRequest;
 
-const DEVELOPER_EMAIL = 'administrador@evoria.com';
-
 function toAuthUser(session: AuthSession): AuthUser {
-  // UI hint only: the API authorizes every join/leave request independently.
-  // Tenant sessions expose the Administrator profile, not the global profile.
-  // shortcut: only the seeded administrator gets the visual hint, replace when AuthSession exposes developer status.
-  const storageKey = `evoria:developer:${session.user.id}`;
-  let isDeveloper =
-    session.user.email.toLowerCase() === DEVELOPER_EMAIL ||
-    (session.scope === 'platform' && session.profile.name === 'Desarrollador');
-  try {
-    if (session.scope === 'platform') {
-      if (isDeveloper) sessionStorage.setItem(storageKey, 'true');
-      else sessionStorage.removeItem(storageKey);
-    } else {
-      isDeveloper ||= sessionStorage.getItem(storageKey) === 'true';
-    }
-  } catch {
-    // Storage may be unavailable; the provider also preserves this hint on join.
-  }
   return {
-    isDeveloper,
+    isDeveloper: session.isDeveloper === true,
     id: session.user.id,
     name: session.user.name,
     email: session.user.email,
