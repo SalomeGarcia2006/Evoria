@@ -13,7 +13,13 @@ export function PermissionGuard({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { can, isLoading, user } = useAuth();
   const requiredPermission = permissionForPathname(pathname);
-  const hasAccess = !requiredPermission || can(requiredPermission);
+  const isAssignments =
+    pathname === '/recursos/asignaciones' ||
+    pathname.startsWith('/recursos/asignaciones/');
+  const hasAccess =
+    !requiredPermission ||
+    can(requiredPermission) ||
+    (isAssignments && can('servicios_proveedor.ver'));
 
   useEffect(() => {
     if (!isLoading && user && !hasAccess) {
