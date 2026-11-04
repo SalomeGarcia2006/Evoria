@@ -1,11 +1,12 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   createEvent,
   type CreateEventPayload,
 } from '../../services/events.service';
+import { getUsers, type CompanyUser } from '../../services/users.service';
 import { Button } from '../ui/Button';
 import { ErrorMessage } from '../ui/ErrorMessage';
 
@@ -60,7 +61,10 @@ export function EventForm({
     location: '',
     type: '',
     baseBudget: '',
+    responsibleUserId: '',
   });
+  const [users, setUsers] = useState<CompanyUser[]>([]);
+  const [usersError, setUsersError] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [validationAlert, setValidationAlert] = useState<string | null>(null);
   const [successAlert, setSuccessAlert] = useState(false);
@@ -69,6 +73,14 @@ export function EventForm({
   function updateField(field: keyof typeof form, value: string): void {
     setForm((currentForm) => ({ ...currentForm, [field]: value }));
   }
+
+  useEffect(() => {
+    void getUsers()
+      .then((items) =>
+        setUsers(items.filter((user) => user.status === 'activo')),
+      )
+      .catch(() => setUsersError(true));
+  }, []);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -85,6 +97,7 @@ export function EventForm({
       !form.location.trim() && 'Ubicación',
       !form.type && 'Tipo de evento',
       form.baseBudget === '' && 'Presupuesto base',
+      !form.responsibleUserId && 'Persona responsable',
     ].filter(Boolean);
 
     if (missingFields.length > 0) {
@@ -134,6 +147,7 @@ export function EventForm({
       location: form.location.trim() || undefined,
       type: form.type.trim() || undefined,
       baseBudget,
+      responsibleUserId: form.responsibleUserId,
     };
 
     setIsSubmitting(true);
@@ -281,6 +295,32 @@ export function EventForm({
               type="number"
               value={form.baseBudget}
             />
+          </label>
+          <label className="grid gap-2">
+            <span className="text-sm font-semibold">Persona responsable</span>
+            <select
+              className="rounded-lg border border-sky-blue bg-white px-3 py-2 outline-none focus:border-teal focus:ring-2 focus:ring-sky-blue"
+              disabled={usersError}
+              onChange={(event) =>
+                updateField('responsibleUserId', event.target.value)
+              }
+              required
+              value={form.responsibleUserId}
+            >
+              <option disabled value="">
+                Selecciona una persona
+              </option>
+              {users.map((user) => (
+                <option key={user.id} value={user.id}>
+                  {user.name} · {user.profile.name}
+                </option>
+              ))}
+            </select>
+            {usersError ? (
+              <span className="text-sm text-red-700">
+                No fue posible cargar las personas disponibles.
+              </span>
+            ) : null}
           </label>
         </div>
         <div className="flex flex-wrap gap-3 border-t border-sky-blue pt-5">
