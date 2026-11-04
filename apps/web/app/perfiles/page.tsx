@@ -9,13 +9,6 @@ import { DataTable } from '../../components/ui/DataTable';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { PermissionGate } from '../../components/auth/PermissionGate';
 import {
-  ACTIONS,
-  createPermissions,
-  MODULES,
-  type Profile,
-  type Permissions as ProfilePermissions,
-} from '../../services/profile.service';
-import {
   createProfile as createApiProfile,
   getPermissionModules,
   getProfiles,
@@ -23,78 +16,22 @@ import {
   type PermissionModule,
 } from '../../services/profiles-api.service';
 
-function uiModuleKey(name: (typeof MODULES)[number]) {
-  const moduleKeys = [
-    'eventos',
-    'recursos',
-    'inventario',
-    'presupuestos',
-    'cronogramas',
-    'alertas',
-    'reportes',
-    'auditoria',
-  ];
-  return moduleKeys[MODULES.indexOf(name)] ?? name.toLowerCase();
-}
-
-function toUiProfile(profile: ApiProfile): Profile {
-  const permissions = createPermissions();
-  for (const permission of profile.permissions) {
-    const moduleName = MODULES.find(
-      (name) => uiModuleKey(name) === permission.moduleKey,
-    );
-    if (!moduleName) continue;
-    const action =
-      permission.action === 'ajustar'
-        ? 'Editar'
-        : permission.action === 'desactivar'
-          ? 'Eliminar'
-          : (
-              {
-                crear: 'Crear',
-                editar: 'Editar',
-                ver: 'Ver',
-                eliminar: 'Eliminar',
-              } as Record<string, (typeof ACTIONS)[number]>
-            )[permission.action];
-    if (action) permissions[moduleName][action] = true;
-  }
-  return {
-    id: profile.id,
-    name: profile.name,
-    status: profile.status === 'activo' ? 'Activo' : 'Inactivo',
-    permissions,
-  };
-}
-
-const moduleDetails: Record<
-  (typeof MODULES)[number],
-  { description: string; icon: string }
-> = {
-  Eventos: { description: 'Gestión de eventos', icon: 'eventos.svg' },
-  Recursos: { description: 'Administración de recursos', icon: 'recursos.svg' },
-  Inventario: { description: 'Control de inventario', icon: 'inventario.svg' },
-  Presupuestos: {
-    description: 'Gestión presupuestal',
-    icon: 'presupuesto.svg',
-  },
-  Cronograma: {
-    description: 'Planificación de actividades',
-    icon: 'cronograma.svg',
-  },
-  Alertas: { description: 'Notificaciones del sistema', icon: 'alerta.svg' },
-  Reportes: { description: 'Generación de reportes', icon: 'reporte.svg' },
-  Auditoría: { description: 'Registro de acciones', icon: 'auditoria.svg' },
-};
-
-const actionDetails: Record<
-  (typeof ACTIONS)[number],
-  { description: string; icon: string }
-> = {
-  Crear: { description: 'Añadir nuevos registros', icon: 'crear.svg' },
-  Editar: { description: 'Modificar registros', icon: 'editar.svg' },
-  Ver: { description: 'Visualizar información', icon: 'ver.svg' },
-  Eliminar: { description: 'Eliminar registros', icon: 'eliminar.svg' },
+const iconByModuleKey: Record<string, string> = {
+  alertas: 'alerta.svg',
+  asignaciones: 'recursos.svg',
+  auditoria: 'auditoria.svg',
+  cronogramas: 'cronograma.svg',
+  dashboard: 'dashboard.svg',
+  empresas: 'empresas.svg',
+  eventos: 'eventos.svg',
+  inventario: 'inventario.svg',
+  perfiles: 'perfil.svg',
+  presupuestos: 'presupuesto.svg',
+  proveedores: 'provedores.svg',
+  recursos: 'recursos.svg',
+  reportes: 'reporte.svg',
+  servicios_proveedor: 'provedores.svg',
+  usuarios: 'usuarios.svg',
 };
 
 function PermissionSwitch({
@@ -122,7 +59,7 @@ function PermissionSwitch({
 }
 
 export default function PerfilesPage() {
-  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [profiles, setProfiles] = useState<ApiProfile[]>([]);
   const [permissionModules, setPermissionModules] = useState<
     PermissionModule[]
   >([]);
@@ -131,13 +68,14 @@ export default function PerfilesPage() {
   const profileDialog = useRef<HTMLDialogElement>(null);
   const [newProfileName, setNewProfileName] = useState('');
   const [moduleSearch, setModuleSearch] = useState('');
-  const [newProfilePermissions, setNewProfilePermissions] =
-    useState<ProfilePermissions>(createPermissions);
+  const [newProfilePermissionKeys, setNewProfilePermissionKeys] = useState<
+    string[]
+  >([]);
 
   useEffect(() => {
     Promise.all([getProfiles(), getPermissionModules()])
       .then(([apiProfiles, modules]) => {
-        setProfiles(apiProfiles.map(toUiProfile));
+        setProfiles(apiProfiles);
         setPermissionModules(modules);
       })
       .catch((loadError: unknown) =>
@@ -152,12 +90,18 @@ export default function PerfilesPage() {
   function openCreateForm() {
     setNewProfileName('');
     setModuleSearch('');
-    setNewProfilePermissions(createPermissions());
+    setNewProfilePermissionKeys(
+      permissionModules.flatMap((module) =>
+        module.permissions
+          .filter((permission) => permission.action === 'ver')
+          .map((permission) => permission.key),
+      ),
+    );
     profileDialog.current?.showModal();
   }
 
-  const visibleModules = MODULES.filter((moduleName) =>
-    moduleName.toLowerCase().includes(moduleSearch.toLowerCase()),
+  const visibleModules = permissionModules.filter((module) =>
+    module.name.toLowerCase().includes(moduleSearch.toLowerCase()),
   );
 
   async function createProfile(event: React.FormEvent<HTMLFormElement>) {
@@ -171,39 +115,17 @@ export default function PerfilesPage() {
     )
       return;
 
-    const permissionKeys = permissionModules.flatMap((module) => {
-      const uiName = MODULES.find((item) => uiModuleKey(item) === module.key);
-      if (!uiName) return [];
-      return module.permissions
-        .filter((permission) => {
-          const action =
-            permission.action === 'ajustar'
-              ? 'Editar'
-              : permission.action === 'desactivar'
-                ? 'Eliminar'
-                : (
-                    {
-                      crear: 'Crear',
-                      editar: 'Editar',
-                      ver: 'Ver',
-                      eliminar: 'Eliminar',
-                    } as Record<string, (typeof ACTIONS)[number]>
-                  )[permission.action];
-          return action ? newProfilePermissions[uiName][action] : false;
-        })
-        .map((permission) => permission.key);
-    });
     setIsSaving(true);
     setError('');
     try {
       const profile = await createApiProfile({
         name,
         description: `Perfil ${name}`,
-        permissionKeys,
+        permissionKeys: newProfilePermissionKeys,
       });
-      setProfiles((current) => [...current, toUiProfile(profile)]);
+      setProfiles((current) => [...current, profile]);
       setNewProfileName('');
-      setNewProfilePermissions(createPermissions());
+      setNewProfilePermissionKeys([]);
       profileDialog.current?.close();
     } catch (saveError) {
       setError(
@@ -310,74 +232,59 @@ export default function PerfilesPage() {
                   </label>
                 </div>
                 <div className="min-h-0 flex-1 overflow-auto">
-                  <div className="min-w-[860px]">
-                    <div className="grid grid-cols-[minmax(18rem,1.8fr)_repeat(4,minmax(7rem,1fr))] bg-beige text-center">
+                  <div className="min-w-[720px]">
+                    <div className="grid grid-cols-[minmax(16rem,1fr)_minmax(32rem,2fr)] bg-beige">
                       <div className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-teal">
                         Módulo
                       </div>
-                      {ACTIONS.map((action) => (
-                        <div className="px-4 py-3" key={action}>
-                          <div className="flex items-center justify-center gap-2 font-semibold">
-                            <span
-                              aria-hidden="true"
-                              className={`size-5 ${action === 'Eliminar' ? 'bg-red-500' : 'bg-navy'}`}
-                              style={{
-                                mask: `url(/icons/${actionDetails[action].icon}) center / contain no-repeat`,
-                                WebkitMask: `url(/icons/${actionDetails[action].icon}) center / contain no-repeat`,
-                              }}
-                            />
-                            {action}
-                          </div>
-                          <p className="text-[10px] font-normal text-teal">
-                            {actionDetails[action].description}
-                          </p>
-                        </div>
-                      ))}
+                      <div className="px-6 py-4 text-xs font-semibold uppercase tracking-wide text-teal">
+                        Permisos
+                      </div>
                     </div>
-                    {visibleModules.map((moduleName, index) => (
+                    {visibleModules.map((module, index) => (
                       <div
-                        className={`grid grid-cols-[minmax(18rem,1.8fr)_repeat(4,minmax(7rem,1fr))] items-center border-t border-sky-blue/60 ${index % 2 === 0 ? 'bg-white' : 'bg-beige/40'}`}
-                        key={moduleName}
+                        className={`grid grid-cols-[minmax(16rem,1fr)_minmax(32rem,2fr)] items-center border-t border-sky-blue/60 ${index % 2 === 0 ? 'bg-white' : 'bg-beige/40'}`}
+                        key={module.key}
                       >
                         <div className="flex items-center gap-4 px-6 py-4">
-                          <span className="grid size-10 place-items-center rounded-lg bg-navy">
+                          <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-navy">
                             <Image
                               alt=""
                               aria-hidden="true"
                               height={22}
-                              src={`/icons/${moduleDetails[moduleName].icon}`}
+                              src={`/icons/${iconByModuleKey[module.key] ?? 'perfil.svg'}`}
                               width={22}
                             />
                           </span>
-                          <div>
-                            <h4 className="font-semibold">{moduleName}</h4>
-                            <p className="text-xs text-teal">
-                              {moduleDetails[moduleName].description}
-                            </p>
-                          </div>
+                          <h4 className="font-semibold">{module.name}</h4>
                         </div>
-                        {ACTIONS.map((action) => (
-                          <div
-                            className="flex justify-center px-4 py-4"
-                            key={action}
-                          >
-                            <PermissionSwitch
-                              checked={
-                                newProfilePermissions[moduleName][action]
-                              }
-                              label={`${action} en ${moduleName}`}
-                              onChange={() =>
-                                setNewProfilePermissions((current) => ({
-                                  ...current,
-                                  [moduleName]: {
-                                    ...current[moduleName],
-                                    [action]: !current[moduleName][action],
-                                  },
-                                }))
-                              }
-                            />
-                          </div>
-                        ))}
+                        <div className="grid grid-cols-4 gap-3 px-6 py-4">
+                          {module.permissions.map((permission) => (
+                            <div
+                              className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-lg border border-sky-blue/60 bg-white/70 px-3 py-2"
+                              key={permission.key}
+                            >
+                              <span className="truncate text-sm font-semibold">
+                                {permission.name}
+                              </span>
+                              <PermissionSwitch
+                                checked={newProfilePermissionKeys.includes(
+                                  permission.key,
+                                )}
+                                label={`${permission.name} en ${module.name}`}
+                                onChange={() =>
+                                  setNewProfilePermissionKeys((current) =>
+                                    current.includes(permission.key)
+                                      ? current.filter(
+                                          (key) => key !== permission.key,
+                                        )
+                                      : [...current, permission.key],
+                                  )
+                                }
+                              />
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     ))}
                     {visibleModules.length === 0 ? (
@@ -420,13 +327,16 @@ export default function PerfilesPage() {
               {
                 key: 'permissions',
                 header: 'Permisos configurados',
-                render: (profile) =>
-                  `${Object.values(profile.permissions).flatMap((modulePermissions) => Object.values(modulePermissions).filter(Boolean)).length} permisos`,
+                render: (profile) => `${profile.permissions.length} permisos`,
               },
               {
                 key: 'status',
                 header: 'Estado',
-                render: (profile) => <StatusBadge status={profile.status} />,
+                render: (profile) => (
+                  <StatusBadge
+                    status={profile.status === 'activo' ? 'Activo' : 'Inactivo'}
+                  />
+                ),
               },
             ]}
             rowKey={(profile) => profile.id}

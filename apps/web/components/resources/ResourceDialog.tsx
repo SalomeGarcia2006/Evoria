@@ -8,7 +8,6 @@ import {
 } from '../../services/recursos.service';
 import { type Recurso, resourceStatusLabels } from '../../types/recurso';
 import { Button } from '../ui/Button';
-import { ErrorMessage } from '../ui/ErrorMessage';
 import { LoadingState } from '../ui/LoadingState';
 import { ResourceForm } from './ResourceForm';
 import { FeedbackMessages, useFeedback } from '../ui/Feedback';
@@ -31,6 +30,7 @@ export function ResourceDialog({
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const feedback = useFeedback();
+  const { notify } = feedback;
   const [attempt, setAttempt] = useState(0);
   const key = `${resourceId}:${attempt}`;
   const [result, setResult] = useState<{
@@ -55,6 +55,7 @@ export function ResourceDialog({
         if (active) setResult({ key, resource: item });
       })
       .catch((loadError: unknown) => {
+        if (active) notify(apiErrorMessage(loadError), 'error');
         if (active)
           setResult({
             key,
@@ -67,7 +68,7 @@ export function ResourceDialog({
     return () => {
       active = false;
     };
-  }, [resourceId, key]);
+  }, [resourceId, key, notify]);
 
   function close() {
     if (!busy) dialog.current?.close();
@@ -157,7 +158,9 @@ export function ResourceDialog({
           <LoadingState label="Cargando recurso…" />
         ) : error ? (
           <>
-            <ErrorMessage message={error} />
+            <p className="rounded-xl bg-red-50 p-4 text-sm text-red-800">
+              {error}
+            </p>
             <Button
               onClick={() => setAttempt((value) => value + 1)}
               type="button"

@@ -38,6 +38,15 @@ export async function getResources(
   );
   return response.data;
 }
+export async function getAllResources(): Promise<RecursosServiceResult> {
+  const result = await getResources({ limit: 100 });
+  const items = [...result.items];
+  for (let page = 2; page <= result.pagination.totalPages; page += 1) {
+    items.push(...(await getResources({ limit: 100, page })).items);
+  }
+  return { ...result, items };
+}
+
 export async function getResource(id: string): Promise<Recurso> {
   const response = await apiRequest<{ data: Recurso }>(
     `/inventory/${encodeURIComponent(id)}`,
