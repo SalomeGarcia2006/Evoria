@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../hooks/useAuth';
 import { ResourceDialog } from './ResourceDialog';
@@ -10,6 +10,7 @@ import { Button } from '../ui/Button';
 import { DataTable } from '../ui/DataTable';
 import { ErrorMessage } from '../ui/ErrorMessage';
 import { LoadingState } from '../ui/LoadingState';
+import { FeedbackMessages, useFeedback } from '../ui/Feedback';
 import { PermissionGate } from '../auth/PermissionGate';
 import { useRecursos } from '../../hooks/useRecursos';
 import { resourceStatusLabels, type ResourceStatus } from '../../types/recurso';
@@ -32,7 +33,8 @@ export function InventoryView({
         ? { kind: 'detail', id: initialResourceId }
         : null,
   );
-  const [notice, setNotice] = useState('');
+  const feedback = useFeedback();
+  const { notify } = feedback;
   function closePanel() {
     setPanel(null);
     if (initialCreate || initialResourceId)
@@ -46,6 +48,9 @@ export function InventoryView({
   });
   const { recursos, pagination, isLoading, error, retry } =
     useRecursos(filters);
+  useEffect(() => {
+    if (error) notify(error, 'error');
+  }, [error, notify]);
   return (
     <AppShell title="Inventario">
       <div className="grid min-w-0 gap-6">
@@ -69,7 +74,7 @@ export function InventoryView({
             <Button
               type="button"
               onClick={() => {
-                setNotice('');
+                feedback.dismiss();
                 setPanel({ kind: 'create' });
               }}
             >
@@ -77,19 +82,13 @@ export function InventoryView({
             </Button>
           </PermissionGate>
         </div>
-        {notice ? (
-          <p
-            role="status"
-            className="rounded-lg bg-emerald-50 p-4 text-sm text-emerald-900"
-          >
-            {notice}
-          </p>
-        ) : null}
+        <FeedbackMessages feedback={feedback} />
         <Card className="min-w-0">
           <form
             className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-4"
             onSubmit={(event) => {
               event.preventDefault();
+              feedback.dismiss();
               const data = new FormData(event.currentTarget);
               setFilters({
                 search: String(data.get('search') ?? '').trim(),
@@ -139,7 +138,14 @@ export function InventoryView({
         ) : error ? (
           <Card className="min-w-0">
             <ErrorMessage message={error} />
-            <Button type="button" variant="secondary" onClick={retry}>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                feedback.dismiss();
+                retry();
+              }}
+            >
               Reintentar
             </Button>
           </Card>
@@ -196,7 +202,7 @@ export function InventoryView({
                         variant="ghost"
                         className="whitespace-nowrap"
                         onClick={() => {
-                          setNotice('');
+                          feedback.dismiss();
                           setPanel({ kind: 'detail', id: resource.id });
                         }}
                       >
@@ -248,7 +254,7 @@ export function InventoryView({
             onClose={closePanel}
             onChanged={(message) => {
               retry();
-              setNotice(message ?? '');
+              if (message) notify(message);
             }}
           />
         ) : null}

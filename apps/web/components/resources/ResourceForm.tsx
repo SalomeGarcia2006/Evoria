@@ -7,7 +7,8 @@ import {
   type ResourceStatus,
 } from '../../types/recurso';
 import { Button } from '../ui/Button';
-import { ErrorMessage } from '../ui/ErrorMessage';
+import { FeedbackMessages, useFeedback } from '../ui/Feedback';
+import { apiErrorMessage } from '../../services/api';
 
 export function ResourceForm({
   resource,
@@ -21,7 +22,7 @@ export function ResourceForm({
   onSavingChange?: (isSaving: boolean) => void;
 }) {
   const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState('');
+  const feedback = useFeedback();
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (isSaving) return;
@@ -31,19 +32,24 @@ export function ResourceForm({
     const unitCost = Number(data.get('unitCost'));
     const totalQuantity = Number(data.get('totalQuantity'));
     if (
+      !String(data.get('unitCost') ?? '').trim() ||
+      !String(data.get('totalQuantity') ?? '').trim() ||
       name.length < 2 ||
       type.length < 2 ||
       !Number.isFinite(unitCost) ||
       unitCost < 0 ||
       !Number.isInteger(totalQuantity) ||
-      totalQuantity < 0
+      totalQuantity < (resource?.reservedQuantity ?? 0)
     ) {
-      setError('Revisa el nombre, el tipo, el costo y la cantidad total.');
+      feedback.guide(
+        `Completa el nombre y el tipo con al menos dos caracteres. Indica un costo no negativo y una cantidad total entera de al menos ${resource?.reservedQuantity ?? 0} unidades para cubrir las reservas existentes.`,
+        'Revisa los datos del recurso',
+      );
       return;
     }
     setIsSaving(true);
     onSavingChange?.(true);
-    setError('');
+    feedback.dismiss();
     try {
       onSaved(
         await saveResource(
@@ -59,11 +65,7 @@ export function ResourceForm({
         ),
       );
     } catch (error) {
-      setError(
-        error instanceof Error
-          ? error.message
-          : 'No fue posible guardar el recurso.',
-      );
+      feedback.notify(apiErrorMessage(error), 'error');
     } finally {
       setIsSaving(false);
       onSavingChange?.(false);
@@ -72,8 +74,8 @@ export function ResourceForm({
   const inputClass =
     'min-w-0 rounded-lg border border-sky-blue bg-white px-3 py-2 font-normal';
   return (
-    <form onSubmit={submit} className="grid min-w-0 gap-5">
-      {error ? <ErrorMessage message={error} /> : null}
+    <form noValidate onSubmit={submit} className="grid min-w-0 gap-5">
+      <FeedbackMessages feedback={feedback} />
       <fieldset
         disabled={isSaving}
         className="grid min-w-0 gap-5 sm:grid-cols-2"

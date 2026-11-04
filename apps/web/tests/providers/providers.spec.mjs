@@ -404,6 +404,10 @@ test('servicios: validación de monto y fin, edición y cancelación con histori
   await dialog.getByLabel('Valor total acordado (COP)').fill('0.5');
   await dialog.getByLabel('Hora de fin (opcional)').fill('18:00');
   await dialog.getByRole('button', { name: 'Guardar servicio' }).click();
+  await page
+    .getByRole('alertdialog')
+    .getByRole('button', { name: 'Entendido' })
+    .click();
   await expect(
     dialog.getByText('Ingresa un entero positivo en COP.'),
   ).toBeVisible();
@@ -413,11 +417,19 @@ test('servicios: validación de monto y fin, edición y cancelación con histori
   expect(writes(state)).toHaveLength(0);
   await dialog.getByLabel('Fecha de fin (opcional)').fill('2026-12-04');
   await dialog.getByRole('button', { name: 'Guardar servicio' }).click();
+  await page
+    .getByRole('alertdialog')
+    .getByRole('button', { name: 'Entendido' })
+    .click();
   await expect(
     dialog.getByText('El fin no puede ser anterior al inicio.'),
   ).toBeVisible();
   await dialog.getByLabel('Fecha de fin (opcional)').fill('2026-12-05');
   await dialog.getByRole('button', { name: 'Guardar servicio' }).click();
+  await page
+    .getByRole('alertdialog')
+    .getByRole('button', { name: 'Entendido' })
+    .click();
   await expect(
     dialog.getByText('El fin no puede ser anterior al inicio.'),
   ).toBeVisible();
@@ -446,6 +458,7 @@ test('servicios: validación de monto y fin, edición y cancelación con histori
     .getByRole('dialog')
     .getByRole('button', { name: 'Confirmar' })
     .click();
+  await page.getByLabel('Incluir historial de cancelados').uncheck();
   await expect(
     page.getByText(
       'No hay servicios de proveedores confirmados para este evento.',
@@ -518,9 +531,7 @@ test('evento cancelado: consulta y cancelación disponibles, creación y edició
     .getByRole('button', { name: 'Confirmar' })
     .click();
   await expect(
-    page.getByText(
-      'No hay servicios de proveedores confirmados para este evento.',
-    ),
+    page.getByRole('table').getByText('Cancelado', { exact: true }),
   ).toBeVisible();
 });
 

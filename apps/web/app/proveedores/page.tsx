@@ -5,6 +5,7 @@ import {
   type Provider,
   type ProviderCategory,
   type ProviderList,
+  type ProviderStatus,
 } from '@evoria/contracts';
 import { AppShell } from '../../components/layout/AppShell';
 import { Card } from '../../components/ui/Card';
@@ -20,13 +21,19 @@ import {
   deactivateProvider,
 } from '../../services/providers.service';
 import { useAuth } from '../../hooks/useAuth';
+import { apiErrorMessage } from '../../services/api';
 
 export default function ProveedoresPage() {
+  const { user } = useAuth();
+  return <ProvidersContent key={`${user?.tenant?.id}:${user?.id}`} />;
+}
+function ProvidersContent() {
   const { can } = useAuth();
   const allowed = can('proveedores.ver');
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState<ProviderCategory | ''>('');
   const [page, setPage] = useState(1);
+  const [status, setStatus] = useState<ProviderStatus | ''>('');
   const [revision, setRevision] = useState(0);
   const [result, setResult] = useState<{
     key: string;
@@ -36,12 +43,18 @@ export default function ProveedoresPage() {
   const [panel, setPanel] = useState<Provider | 'create' | null>(null);
   const [deactivating, setDeactivating] = useState<Provider | null>(null);
   const [notice, setNotice] = useState('');
-  const key = JSON.stringify([search, category, page, revision]);
+  const key = JSON.stringify([search, category, status, page, revision]);
   useEffect(() => {
     if (!allowed) return;
     let active = true;
     const timer = setTimeout(() => {
-      getProviders({ search, category: category || undefined, page, limit: 10 })
+      getProviders({
+        search,
+        category: category || undefined,
+        status: status || undefined,
+        page,
+        limit: 10,
+      })
         .then((data) => {
           if (active) setResult({ key, data });
         })
@@ -49,10 +62,7 @@ export default function ProveedoresPage() {
           if (active)
             setResult({
               key,
-              error:
-                error instanceof Error
-                  ? error.message
-                  : 'No fue posible cargar los proveedores.',
+              error: apiErrorMessage(error),
             });
         });
     }, 250);
@@ -60,7 +70,7 @@ export default function ProveedoresPage() {
       active = false;
       clearTimeout(timer);
     };
-  }, [allowed, search, category, page, key]);
+  }, [allowed, search, category, status, page, key]);
   const data = result?.key === key ? result.data : undefined;
   const error = result?.key === key ? result.error : undefined;
   function saved(message: string) {
@@ -89,7 +99,7 @@ export default function ProveedoresPage() {
           </p>
         )}
         <Card className="min-w-0">
-          <div className="mb-5 grid gap-4 sm:grid-cols-2">
+          <div className="mb-5 grid gap-4 sm:grid-cols-3">
             <label className="grid gap-2 text-sm font-semibold">
               Buscar por nombre o contacto
               <input
@@ -119,6 +129,21 @@ export default function ProveedoresPage() {
                     {categoryLabels[value]}
                   </option>
                 ))}
+              </select>
+            </label>
+            <label className="grid gap-2 text-sm font-semibold">
+              Estado
+              <select
+                className={inputClass}
+                value={status}
+                onChange={(event) => {
+                  setStatus(event.target.value as ProviderStatus | '');
+                  setPage(1);
+                }}
+              >
+                <option value="">Todos los estados</option>
+                <option value="activo">Activo</option>
+                <option value="inactivo">Inactivo</option>
               </select>
             </label>
           </div>

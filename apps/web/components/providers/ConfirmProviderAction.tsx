@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Button } from '../ui/Button';
 import { ErrorMessage } from '../ui/ErrorMessage';
 import { ProviderDialogShell } from './ProviderDialogShell';
+import { apiErrorMessage } from '../../services/api';
 
 export function ConfirmProviderAction({
   title,
@@ -27,11 +28,7 @@ export function ConfirmProviderAction({
       await action();
       onSaved();
     } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : 'No fue posible completar la operación.',
-      );
+      setError(apiErrorMessage(err));
     } finally {
       setBusy(false);
     }

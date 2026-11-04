@@ -20,6 +20,7 @@ export const navigationItems: NavigationItem[] = [
     label: 'Presupuestos',
     href: '/presupuestos',
     permission: 'presupuestos.ver',
+    alternativePermission: 'presupuestos.aprobar',
   },
   {
     label: 'Cronograma',

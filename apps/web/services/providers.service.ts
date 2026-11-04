@@ -19,6 +19,7 @@ async function request<T>(
   const response = await apiRequest<ApiResponse<T>>(path, {
     method,
     credentials: 'include',
+    cache: 'no-store',
     ...(body === undefined
       ? {}
       : {
