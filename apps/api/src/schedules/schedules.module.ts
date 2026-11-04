@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { AuditsModule } from '../audits/audits.module';
 import { Event, EventSchema } from '../events/schemas/event.schema';
 import {
   Membership,
@@ -11,6 +12,7 @@ import { SchedulesService } from './schedules.service';
 
 @Module({
   imports: [
+    AuditsModule,
     MongooseModule.forFeature([
       { name: Schedule.name, schema: ScheduleSchema },
       { name: Event.name, schema: EventSchema },

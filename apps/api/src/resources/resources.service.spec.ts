@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Types, type Model } from 'mongoose';
 import type { AuthenticatedUser } from '../auth/auth.types';
+import { AuditsService } from '../audits/audits.service';
 import { BudgetLedgerService } from '../budgets/budget-ledger.service';
 import { Event } from '../events/schemas/event.schema';
 import { InventoryItem } from '../inventory/schemas/inventory-item.schema';
@@ -99,6 +100,7 @@ function fixture(
       releases += 1;
     },
   } as unknown as BudgetLedgerService;
+  const auditEntries: Array<{ action: string }> = [];
   const service = new ResourcesService(
     assignmentModel,
     inventoryModel,
@@ -106,6 +108,9 @@ function fixture(
       findOne: async () => ({ status: 'confirmado' }),
     } as unknown as Model<Event>,
     ledger,
+    {
+      record: async (entry: { action: string }) => auditEntries.push(entry),
+    } as unknown as AuditsService,
   );
   return {
     service,
@@ -114,6 +119,7 @@ function fixture(
     get releases() {
       return releases;
     },
+    auditEntries,
   };
 }
 
@@ -126,6 +132,7 @@ test('devolver inventario libera una vez el costo registrado al asignarlo', asyn
   assert.equal(state.item.availableQuantity, 15);
   assert.equal(state.item.reservedQuantity, 0);
   assert.equal(state.releases, 1);
+  assert.equal(state.auditEntries[0].action, 'devolver');
   await assert.rejects(
     () => state.service.release(eventId, itemId, user),
     NotFoundException,

@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import { validateSync } from 'class-validator';
 import type { Model } from 'mongoose';
 import type { AuthenticatedUser } from '../auth/auth.types';
+import { AuditsService } from '../audits/audits.service';
 import { CreateProviderDto } from './dto/create-provider.dto';
 import { FindProvidersDto } from './dto/find-providers.dto';
 import { ProvidersService } from './providers.service';
@@ -14,6 +15,7 @@ const user = {
   scope: 'tenant',
   tenantId: '507f1f77bcf86cd799439012',
 } as AuthenticatedUser;
+const audits = { record: async () => undefined } as unknown as AuditsService;
 
 test('el directorio filtra por empresa, categoría, estado y contacto', async () => {
   let findFilter: Record<string, unknown> = {};
@@ -32,7 +34,7 @@ test('el directorio filtra por empresa, categoría, estado y contacto', async ()
       return Promise.resolve(0);
     },
   } as unknown as Model<Provider>;
-  const service = new ProvidersService(model);
+  const service = new ProvidersService(model, audits);
   const query = Object.assign(new FindProvidersDto(), {
     category: 'espacios',
     status: 'activo',
@@ -58,9 +60,12 @@ test('crear proveedor exige contacto y categorías válidas', async () => {
     phone: '   ',
   });
   assert.equal(validateSync(dto).length, 0);
-  const service = new ProvidersService({
-    create: () => assert.fail('No debe guardar'),
-  } as unknown as Model<Provider>);
+  const service = new ProvidersService(
+    {
+      create: () => assert.fail('No debe guardar'),
+    } as unknown as Model<Provider>,
+    audits,
+  );
   await assert.rejects(() => service.create(dto, user), /teléfono o un correo/);
   const invalid = Object.assign(new CreateProviderDto(), {
     name: 'Hacienda El Sol',

@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import { validateSync } from 'class-validator';
 import { Types, type Model } from 'mongoose';
 import type { AuthenticatedUser } from '../auth/auth.types';
+import { AuditsService } from '../audits/audits.service';
 import { BudgetLedgerService } from '../budgets/budget-ledger.service';
 import { Event } from '../events/schemas/event.schema';
 import { Provider } from '../providers/schemas/provider.schema';
@@ -57,6 +58,7 @@ function setup(eventStatus = 'confirmado', providerStatus = 'activo') {
     reserveProviderCost: async () => undefined,
     releaseProviderCost: async () => undefined,
   } as unknown as BudgetLedgerService;
+  const auditEntries: Array<{ action: string }> = [];
   return {
     created,
     service: new ProviderServicesService(
@@ -64,7 +66,11 @@ function setup(eventStatus = 'confirmado', providerStatus = 'activo') {
       providerModel,
       eventModel,
       ledger,
+      {
+        record: async (entry: { action: string }) => auditEntries.push(entry),
+      } as unknown as AuditsService,
     ),
+    auditEntries,
   };
 }
 
@@ -78,7 +84,7 @@ function request(): CreateProviderServiceDto {
 }
 
 test('permite dos acuerdos independientes del mismo proveedor y empresa', async () => {
-  const { service, created } = setup();
+  const { service, created, auditEntries } = setup();
   const first = await service.create(eventId.toString(), request(), user);
   const second = await service.create(
     eventId.toString(),
@@ -95,6 +101,8 @@ test('permite dos acuerdos independientes del mismo proveedor y empresa', async 
   assert.ok(created.every((item) => item.tenantId === user.tenantId));
   assert.equal(second.providerId, first.providerId);
   assert.equal(first.agreedAmountCop, 3200000);
+  assert.equal(auditEntries.length, 2);
+  assert.equal(auditEntries[0].action, 'crear');
 });
 
 test('impide nuevas asignaciones con evento cancelado o proveedor inactivo', async () => {
@@ -188,6 +196,7 @@ test('consulta el historial de un evento cancelado con proveedor inactivo', asyn
     providerModel,
     eventModel,
     {} as BudgetLedgerService,
+    {} as AuditsService,
   );
 
   const items = await service.findAll(

@@ -2,6 +2,7 @@ import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { Types, type Model } from 'mongoose';
+import { AuditsService } from '../audits/audits.service';
 import { Event } from '../events/schemas/event.schema';
 import { InventoryItem } from '../inventory/schemas/inventory-item.schema';
 import { EventProviderService } from '../provider-services/schemas/event-provider-service.schema';
@@ -61,6 +62,7 @@ test('iniciar un presupuesto antiguo solo cuenta las reservas activas', async ()
     } as unknown as Model<EventProviderService>,
     {} as Model<Provider>,
     {} as BudgetLedgerService,
+    {} as AuditsService,
   );
 
   const result = await service.initializeForEvent(

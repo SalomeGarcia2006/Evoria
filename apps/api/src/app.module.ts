@@ -5,6 +5,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { AuditsModule } from './audits/audits.module';
 import { AuthModule } from './auth/auth.module';
 import { BudgetsModule } from './budgets/budgets.module';
 import { EventsModule } from './events/events.module';
@@ -56,6 +57,7 @@ function getMongoUri(configService: ConfigService): string {
         },
       ],
     }),
+    AuditsModule,
     AuthModule,
     BudgetsModule,
     EventsModule,

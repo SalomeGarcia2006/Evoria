@@ -6,6 +6,7 @@ import { plainToInstance } from 'class-transformer';
 import { validateSync } from 'class-validator';
 import { Types, type Model } from 'mongoose';
 import type { AuthenticatedUser } from '../auth/auth.types';
+import { AuditsService } from '../audits/audits.service';
 import { BudgetsService } from '../budgets/budgets.service';
 import { Membership } from '../memberships/schemas/membership.schema';
 import { CreateEventDto } from './dto/create-event.dto';
@@ -18,6 +19,7 @@ const user = {
   scope: 'tenant',
   tenantId,
 } as AuthenticatedUser;
+const audits = { record: async () => undefined } as unknown as AuditsService;
 
 function eventDto(baseBudget: number) {
   return plainToInstance(CreateEventDto, {
@@ -70,6 +72,7 @@ test('crear un evento inicia su presupuesto con el mismo monto', async () => {
     eventModel,
     {} as Model<Membership>,
     budgets,
+    audits,
   );
 
   const result = await service.create(eventDto(9000000), user);
@@ -103,6 +106,7 @@ test('si falla la inicialización, se retira el evento creado', async () => {
     eventModel,
     {} as Model<Membership>,
     budgets,
+    audits,
   );
 
   await assert.rejects(() => service.create(eventDto(9000000), user));
@@ -127,6 +131,7 @@ test('editar un evento no permite cambiar el presupuesto base sin autorización'
     eventModel,
     {} as Model<Membership>,
     {} as BudgetsService,
+    audits,
   );
 
   for (const baseBudget of [10000000, 100]) {
@@ -160,6 +165,7 @@ test('un nombre inválido no guarda el evento ni cambia su presupuesto', async (
     { findOne: async () => event } as unknown as Model<Event>,
     {} as Model<Membership>,
     {} as BudgetsService,
+    audits,
   );
 
   await assert.rejects(
@@ -191,6 +197,7 @@ test('un fallo al guardar el evento no deja cambios en el presupuesto', async ()
     { findOne: async () => event } as unknown as Model<Event>,
     {} as Model<Membership>,
     {} as BudgetsService,
+    audits,
   );
 
   await assert.rejects(() =>

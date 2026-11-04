@@ -8,6 +8,7 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { isValidObjectId, type Model } from 'mongoose';
 import type { AuthenticatedUser } from '../auth/auth.types';
+import { AuditsService } from '../audits/audits.service';
 import {
   Membership,
   type MembershipDocument,
@@ -30,6 +31,7 @@ export class UsersService {
     private readonly membershipModel: Model<Membership>,
     @InjectModel(Profile.name) private readonly profileModel: Model<Profile>,
     private readonly passwordService: PasswordService,
+    private readonly auditsService: AuditsService,
   ) {}
 
   async create(createUserDto: CreateUserDto, currentUser: AuthenticatedUser) {
@@ -42,6 +44,7 @@ export class UsersService {
     }
 
     let user: UserDocument | undefined;
+    let membership: MembershipDocument | undefined;
 
     try {
       user = await this.userModel.create({
@@ -49,13 +52,11 @@ export class UsersService {
         email,
         passwordHash: this.passwordService.hash(createUserDto.password),
       });
-      const membership = await this.membershipModel.create({
+      membership = await this.membershipModel.create({
         userId: user._id,
         tenantId,
         profileId: profile._id,
       });
-
-      return this.toResponse(membership, user, profile);
     } catch (error) {
       if (user) {
         await this.userModel.deleteOne({ _id: user._id });
@@ -67,6 +68,22 @@ export class UsersService {
 
       throw error;
     }
+
+    if (!user || !membership) {
+      throw new Error('No se pudo crear el usuario.');
+    }
+
+    await this.auditsService.record({
+      tenantId,
+      actor: currentUser,
+      module: 'usuarios',
+      action: 'crear',
+      entity: 'usuario',
+      entityId: user._id,
+      description: `Creó el usuario ${user.name}.`,
+    });
+
+    return this.toResponse(membership, user, profile);
   }
 
   async findAll(query: FindUsersDto, currentUser: AuthenticatedUser) {
@@ -184,6 +201,19 @@ export class UsersService {
 
     const user = await this.userModel.findById(membership.userId);
     if (!user) throw new NotFoundException('El usuario no existe.');
+
+    await this.auditsService.record({
+      tenantId,
+      actor: currentUser,
+      module: 'usuarios',
+      action: updateUserDto.status === 'inactivo' ? 'desactivar' : 'editar',
+      entity: 'usuario',
+      entityId: user._id,
+      description:
+        updateUserDto.status === 'inactivo'
+          ? `Desactivó al usuario ${user.name}.`
+          : `Actualizó el usuario ${user.name}.`,
+    });
 
     return this.toResponse(membership, user, profile);
   }
