@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { BudgetsModule } from '../budgets/budgets.module';
 import { Event, EventSchema } from '../events/schemas/event.schema';
 import { Provider, ProviderSchema } from '../providers/schemas/provider.schema';
 import { ProviderServicesController } from './provider-services.controller';
@@ -11,6 +12,7 @@ import {
 
 @Module({
   imports: [
+    BudgetsModule,
     MongooseModule.forFeature([
       { name: EventProviderService.name, schema: EventProviderServiceSchema },
       { name: Provider.name, schema: ProviderSchema },

@@ -8,6 +8,7 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { isValidObjectId, type Model, type Types } from 'mongoose';
 import { Membership } from '../memberships/schemas/membership.schema';
+import { BudgetsService } from '../budgets/budgets.service';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { CreateEventDto } from './dto/create-event.dto';
 import { FindEventsDto } from './dto/find-events.dto';
@@ -20,12 +21,16 @@ export class EventsService {
     @InjectModel(Event.name) private readonly eventModel: Model<Event>,
     @InjectModel(Membership.name)
     private readonly membershipModel: Model<Membership>,
+    private readonly budgetsService: BudgetsService,
   ) {}
 
   async create(createEventDto: CreateEventDto, user: AuthenticatedUser) {
     const tenantId = this.getTenantId(user);
     await this.validateResponsible(createEventDto.responsibleUserId, tenantId);
     this.validateDates(createEventDto.startAt, createEventDto.endAt);
+    if (createEventDto.status === 'cancelado') {
+      throw new BadRequestException('No puedes crear un evento cancelado.');
+    }
 
     const event = await this.eventModel.create({
       tenantId,
@@ -40,6 +45,18 @@ export class EventsService {
       status: createEventDto.status,
       responsibleUserId: createEventDto.responsibleUserId ?? null,
     });
+
+    try {
+      await this.budgetsService.initializeForEvent(
+        event._id.toString(),
+        tenantId,
+        createEventDto.baseBudget,
+        user.id,
+      );
+    } catch (error) {
+      await event.deleteOne();
+      throw error;
+    }
 
     return this.toResponse(event);
   }
@@ -115,6 +132,12 @@ export class EventsService {
       event.type = this.trimOptional(updateEventDto.type);
     }
     if (updateEventDto.baseBudget !== undefined) {
+      await this.budgetsService.updateBaseForEvent(
+        id,
+        tenantId,
+        updateEventDto.baseBudget,
+        user.id,
+      );
       event.baseBudget = updateEventDto.baseBudget;
     }
     if (updateEventDto.startAt)

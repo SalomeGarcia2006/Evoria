@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { MembershipsModule } from '../memberships/memberships.module';
+import { BudgetsModule } from '../budgets/budgets.module';
 import { EventsController } from './events.controller';
 import { EventsService } from './events.service';
 import { Event, EventSchema } from './schemas/event.schema';
@@ -9,6 +10,7 @@ import { Event, EventSchema } from './schemas/event.schema';
   imports: [
     MongooseModule.forFeature([{ name: Event.name, schema: EventSchema }]),
     MembershipsModule,
+    BudgetsModule,
   ],
   controllers: [EventsController],
   providers: [EventsService],

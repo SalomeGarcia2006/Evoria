@@ -8,6 +8,7 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { isValidObjectId, type Model, type Types } from 'mongoose';
 import type { AuthenticatedUser } from '../auth/auth.types';
+import { BudgetLedgerService } from '../budgets/budget-ledger.service';
 import { Event } from '../events/schemas/event.schema';
 import {
   InventoryItem,
@@ -27,6 +28,7 @@ export class ResourcesService {
     @InjectModel(InventoryItem.name)
     private readonly inventoryModel: Model<InventoryItem>,
     @InjectModel(Event.name) private readonly eventModel: Model<Event>,
+    private readonly budgetLedger: BudgetLedgerService,
   ) {}
 
   async assign(
@@ -49,6 +51,22 @@ export class ResourcesService {
       tenantId,
     );
 
+    const costAmountCop = Math.round(inventoryItem.unitCost * dto.quantity);
+    try {
+      await this.budgetLedger.reserveInventoryCost(
+        tenantId,
+        eventId,
+        costAmountCop,
+      );
+    } catch (error) {
+      await this.restoreInventory(
+        inventoryItem._id.toString(),
+        dto.quantity,
+        tenantId,
+      );
+      throw error;
+    }
+
     try {
       const assignment = await this.assignmentModel.findOneAndUpdate(
         {
@@ -67,7 +85,7 @@ export class ResourcesService {
             status: 'asignado',
             returnedAt: null,
           },
-          $inc: { quantity: dto.quantity },
+          $inc: { quantity: dto.quantity, costAmountCop },
         },
         { new: true, upsert: true, setDefaultsOnInsert: true },
       );
@@ -78,6 +96,11 @@ export class ResourcesService {
         inventoryItem._id.toString(),
         dto.quantity,
         tenantId,
+      );
+      await this.budgetLedger.releaseInventoryCost(
+        tenantId,
+        eventId,
+        costAmountCop,
       );
       throw error;
     }
@@ -244,6 +267,7 @@ export class ResourcesService {
       eventId: assignment.eventId.toString(),
       inventoryItemId: assignment.inventoryItemId.toString(),
       quantity: assignment.quantity,
+      costAmountCop: assignment.costAmountCop ?? 0,
       status: assignment.status,
       assignedAt: assignment.assignedAt,
       returnedAt: assignment.returnedAt,

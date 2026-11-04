@@ -1,5 +1,5 @@
 import {
-  IsNumber,
+  IsInt,
   IsEnum,
   IsISO8601,
   IsMongoId,
@@ -40,7 +40,7 @@ export class CreateEventDto {
   type?: string;
 
   @Type(() => Number)
-  @IsNumber({ maxDecimalPlaces: 2 })
+  @IsInt()
   @Min(0)
   baseBudget!: number;
 

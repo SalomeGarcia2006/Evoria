@@ -147,7 +147,8 @@ export default function PresupuestosPage() {
               rows={budgets}
             />
             <p className="border-t border-sky-blue px-6 py-3 text-xs text-teal">
-              Datos de ejemplo. La API de presupuestos aún no está implementada.
+              Datos de ejemplo. Esta pantalla aún no consulta la API de
+              presupuestos.
             </p>
           </Card>
           <Card>

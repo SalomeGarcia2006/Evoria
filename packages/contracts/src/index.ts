@@ -6,6 +6,21 @@ export interface HealthResponse {
 export type { ApiResponse } from './api';
 export type { AuthScope, AuthSession, LoginRequest } from './auth';
 export type {
+  BudgetAmounts,
+  BudgetEventSummary,
+  BudgetInventoryLine,
+  BudgetOverview,
+  BudgetProviderLine,
+  BudgetRequest,
+  BudgetRequestStatus,
+  BudgetRequestType,
+  CreateBudgetRequest,
+  EventBudgetDetail,
+  InitializeEventBudgetRequest,
+  RejectBudgetRequest,
+} from './budgets';
+export { BUDGET_REQUEST_STATUSES, BUDGET_REQUEST_TYPES } from './budgets';
+export type {
   CreateProviderRequest,
   Provider,
   ProviderCategory,
