@@ -13,6 +13,7 @@ import { Button } from '../ui/Button';
 import { ErrorMessage } from '../ui/ErrorMessage';
 import { ProviderDialogShell } from './ProviderDialogShell';
 import { categoryLabels, Field, inputClass } from './fields';
+import { apiErrorMessage, apiFieldErrors } from '../../services/api';
 
 export function ProviderFormDialog({
   provider,
@@ -67,10 +68,16 @@ export function ProviderFormDialog({
       else await createProvider(body);
       onSaved();
     } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : 'No fue posible guardar el proveedor.',
+      setError(apiErrorMessage(err));
+      setErrors(
+        apiFieldErrors(err, {
+          name: /\bname\b|nombre/i,
+          categories: /categoryKeys|categor/i,
+          phone: /phone|teléfono/i,
+          email: /email|correo/i,
+          contactName: /contactName/i,
+          location: /location|ubicaci/i,
+        }),
       );
     } finally {
       setBusy(false);

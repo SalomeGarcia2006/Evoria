@@ -18,6 +18,8 @@ import { ErrorMessage } from '../ui/ErrorMessage';
 import { LoadingState } from '../ui/LoadingState';
 import { ProviderDialogShell } from './ProviderDialogShell';
 import { categoryLabels, inputClass, Field } from './fields';
+import { apiErrorMessage, apiFieldErrors } from '../../services/api';
+import { FeedbackMessages, useFeedback } from '../ui/Feedback';
 
 function eventDay(value: string) {
   return new Intl.DateTimeFormat('en-CA', {
@@ -62,7 +64,7 @@ export function ProviderServiceDialog({
   }>();
   const [selectedProvider, setSelectedProvider] = useState(service?.provider);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
+  const feedback = useFeedback();
   const [errors, setErrors] = useState<Record<string, string>>({});
   const key = JSON.stringify([search, category, page, attempt]);
   useEffect(() => {
@@ -133,9 +135,15 @@ export function ProviderServiceDialog({
     )
       next.amount = 'Ingresa un entero positivo en COP.';
     setErrors(next);
-    if (Object.keys(next).length) return;
+    if (Object.keys(next).length) {
+      feedback.guide(
+        Object.values(next).join('\n'),
+        'Revisa los datos del servicio',
+      );
+      return;
+    }
     setBusy(true);
-    setError('');
+    feedback.dismiss();
     const body = {
       serviceName: values.serviceName.trim(),
       description: values.description.trim() || null,
@@ -160,10 +168,17 @@ export function ProviderServiceDialog({
         });
       onSaved();
     } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : 'No fue posible guardar el servicio.',
+      feedback.notify(apiErrorMessage(err), 'error');
+      setErrors(
+        apiFieldErrors(err, {
+          providerId: /providerId|proveedor/i,
+          serviceName: /serviceName|nombre del servicio/i,
+          startDate: /startDate|fecha.*inicio|fecha.*prestaci/i,
+          endDate: /endDate|fecha.*fin/i,
+          startTime: /startTime/i,
+          endTime: /endTime|hora.*fin/i,
+          amount: /agreedAmountCop|costo|saldo|presupuesto disponible/i,
+        }),
       );
     } finally {
       setBusy(false);
@@ -180,7 +195,7 @@ export function ProviderServiceDialog({
       onClose={onClose}
     >
       <form onSubmit={submit} noValidate className="grid gap-5">
-        {error && <ErrorMessage message={error} />}
+        <FeedbackMessages feedback={feedback} />
         <fieldset disabled={busy} className="grid min-w-0 gap-4">
           {canSelect ? (
             <div className="grid gap-3 rounded-xl border border-sky-blue p-4">
@@ -389,6 +404,10 @@ export function ProviderServiceDialog({
           <p className="text-sm text-teal">
             Registra el acuerdo confirmado con el proveedor. Evoria no consulta
             disponibilidad ni modifica el inventario.
+          </p>
+          <p className="text-sm text-teal">
+            El valor confirmado se registra como gasto del presupuesto. Al
+            editarlo, se ajusta el gasto y se valida el saldo disponible.
           </p>
         </fieldset>
         <div className="flex flex-wrap justify-end gap-3">

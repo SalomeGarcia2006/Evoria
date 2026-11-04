@@ -1,5 +1,9 @@
+'use client';
 import { AppShell } from '../../components/layout/AppShell';
 import { Card } from '../../components/ui/Card';
+import { Button } from '../../components/ui/Button';
+import { FeedbackMessages, useFeedback } from '../../components/ui/Feedback';
+import { useAuth } from '../../hooks/useAuth';
 
 const reportIdeas = [
   {
@@ -20,9 +24,12 @@ const reportIdeas = [
 ];
 
 export default function ReportesPage() {
+  const feedback = useFeedback();
+  const { can } = useAuth();
   return (
     <AppShell title="Reportes">
       <div className="grid gap-6">
+        <FeedbackMessages feedback={feedback} />
         <div>
           <p className="text-sm font-semibold uppercase tracking-[.16em] text-teal">
             Información
@@ -42,6 +49,30 @@ export default function ReportesPage() {
               <p className="mt-2 text-sm leading-6 text-teal">
                 {report.description}
               </p>
+              <Button
+                className="mt-4 self-start"
+                variant="secondary"
+                onClick={() => {
+                  const moduleName =
+                    report.number === '01'
+                      ? 'Eventos'
+                      : report.number === '02'
+                        ? 'Recursos'
+                        : 'Presupuestos';
+                  const permission =
+                    report.number === '01'
+                      ? 'eventos.ver'
+                      : report.number === '02'
+                        ? 'inventario.ver'
+                        : 'presupuestos.ver';
+                  feedback.guide(
+                    `Este reporte aún no se puede generar ni descargar. ${can(permission) ? `Mientras tanto, consulta la información actual desde ${moduleName} en la navegación.` : `Para consultar esa información necesitas el permiso ${permission}. Solicita acceso al administrador de tu empresa.`}`,
+                    report.title,
+                  );
+                }}
+              >
+                Cómo consultar esta información
+              </Button>
             </Card>
           ))}
         </div>
