@@ -20,10 +20,14 @@ export function EventResources({
   eventId,
   cancelled = false,
   editable = false,
+  budgetReady = true,
+  onChanged,
 }: {
   eventId: string;
   cancelled?: boolean;
   editable?: boolean;
+  budgetReady?: boolean;
+  onChanged?: () => void;
 }) {
   const { can } = useAuth();
   const canView = can('asignaciones.ver');
@@ -32,6 +36,7 @@ export function EventResources({
     canView &&
     can('asignaciones.crear') &&
     can('inventario.ver') &&
+    budgetReady &&
     !cancelled;
   const [assignments, setAssignments] = useState<EventResourceAssignment[]>([]);
   const [inventory, setInventory] = useState<Recurso[]>([]);
@@ -117,6 +122,7 @@ export function EventResources({
     setNotice('');
     try {
       await assignEventResource(eventId, selected.id, amount);
+      onChanged?.();
       setSelectedId('');
       setQuantity('1');
       setLoading(true);
@@ -152,6 +158,7 @@ export function EventResources({
     setNotice('');
     try {
       await releaseEventResource(eventId, item.inventoryItemId);
+      onChanged?.();
       setLoading(true);
       setRevision((value) => value + 1);
       setNotice(
@@ -183,6 +190,12 @@ export function EventResources({
           pero no asignar más unidades.
         </p>
       ) : null}
+      {editable && !cancelled && !budgetReady && (
+        <p className="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
+          Para reservar unidades, primero consulta e inicia el presupuesto del
+          evento.
+        </p>
+      )}
       {notice ? (
         <p role="status" className="mt-4 rounded-lg bg-beige p-3 text-sm">
           {notice}

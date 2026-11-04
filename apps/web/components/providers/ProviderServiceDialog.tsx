@@ -18,6 +18,7 @@ import { ErrorMessage } from '../ui/ErrorMessage';
 import { LoadingState } from '../ui/LoadingState';
 import { ProviderDialogShell } from './ProviderDialogShell';
 import { categoryLabels, inputClass, Field } from './fields';
+import { apiErrorMessage, apiFieldErrors } from '../../services/api';
 
 function eventDay(value: string) {
   return new Intl.DateTimeFormat('en-CA', {
@@ -160,10 +161,17 @@ export function ProviderServiceDialog({
         });
       onSaved();
     } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : 'No fue posible guardar el servicio.',
+      setError(apiErrorMessage(err));
+      setErrors(
+        apiFieldErrors(err, {
+          providerId: /providerId|proveedor/i,
+          serviceName: /serviceName|nombre del servicio/i,
+          startDate: /startDate|fecha.*inicio|fecha.*prestaci/i,
+          endDate: /endDate|fecha.*fin/i,
+          startTime: /startTime/i,
+          endTime: /endTime|hora.*fin/i,
+          amount: /agreedAmountCop|costo|saldo|presupuesto disponible/i,
+        }),
       );
     } finally {
       setBusy(false);
@@ -389,6 +397,10 @@ export function ProviderServiceDialog({
           <p className="text-sm text-teal">
             Registra el acuerdo confirmado con el proveedor. Evoria no consulta
             disponibilidad ni modifica el inventario.
+          </p>
+          <p className="text-sm text-teal">
+            El valor confirmado se registra como gasto del presupuesto. Al
+            editarlo, se ajusta el gasto y se valida el saldo disponible.
           </p>
         </fieldset>
         <div className="flex flex-wrap justify-end gap-3">

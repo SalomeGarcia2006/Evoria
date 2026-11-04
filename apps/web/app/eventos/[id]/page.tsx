@@ -10,6 +10,7 @@ import { ErrorMessage } from '../../../components/ui/ErrorMessage';
 import { LoadingState } from '../../../components/ui/LoadingState';
 import { useAuth } from '../../../hooks/useAuth';
 import { EventResources } from '../../../components/resources/EventResources';
+import { BudgetPanel } from '../../../components/budgets/BudgetPanel';
 import {
   cancelEvent,
   getEvent,
@@ -124,6 +125,20 @@ export default function EventoDetailPage() {
                 <p className="text-sm text-teal">Tipo</p>
                 <p className="mt-1 font-semibold">{event.type || 'Sin tipo'}</p>
               </div>
+              <div>
+                <p className="text-sm text-teal">Presupuesto base del evento</p>
+                <p className="mt-1 font-semibold">
+                  {new Intl.NumberFormat('es-CO', {
+                    style: 'currency',
+                    currency: 'COP',
+                    maximumFractionDigits: 0,
+                  }).format(event.baseBudget)}
+                </p>
+                <p className="mt-2 text-xs text-teal">
+                  Las ampliaciones aprobadas se consultan por separado en el
+                  presupuesto.
+                </p>
+              </div>
             </div>
             {can('eventos.eliminar') && event.status !== 'cancelado' ? (
               <div className="mt-6 border-t border-sky-blue pt-5">
@@ -141,6 +156,23 @@ export default function EventoDetailPage() {
             <h2 className="text-xl font-bold">Evento no encontrado</h2>
           </Card>
         ) : null}
+        {event && !isLoading && can('presupuestos.ver') && (
+          <BudgetPanel
+            key={`budget:${event.id}`}
+            eventId={event.id}
+            onChanged={() => {
+              void getEvent(event.id)
+                .then(setEvent)
+                .catch((error: unknown) =>
+                  setError(
+                    error instanceof Error
+                      ? error.message
+                      : 'No se pudo actualizar el evento.',
+                  ),
+                );
+            }}
+          />
+        )}
         {event && !isLoading && can('asignaciones.ver') ? (
           <EventResources
             key={event.id}

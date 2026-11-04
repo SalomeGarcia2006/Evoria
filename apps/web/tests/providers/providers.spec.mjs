@@ -446,6 +446,7 @@ test('servicios: validación de monto y fin, edición y cancelación con histori
     .getByRole('dialog')
     .getByRole('button', { name: 'Confirmar' })
     .click();
+  await page.getByLabel('Incluir historial de cancelados').uncheck();
   await expect(
     page.getByText(
       'No hay servicios de proveedores confirmados para este evento.',
@@ -518,9 +519,7 @@ test('evento cancelado: consulta y cancelación disponibles, creación y edició
     .getByRole('button', { name: 'Confirmar' })
     .click();
   await expect(
-    page.getByText(
-      'No hay servicios de proveedores confirmados para este evento.',
-    ),
+    page.getByRole('table').getByText('Cancelado', { exact: true }),
   ).toBeVisible();
 });
 

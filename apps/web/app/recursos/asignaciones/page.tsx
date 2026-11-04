@@ -10,8 +10,14 @@ import { LoadingState } from '../../../components/ui/LoadingState';
 import { getAllEvents, type EventItem } from '../../../services/events.service';
 import { useAuth } from '../../../hooks/useAuth';
 import { ProviderServices } from '../../../components/providers/ProviderServices';
+import { BudgetPanel } from '../../../components/budgets/BudgetPanel';
+import { getEventBudget } from '../../../services/presupuestos.service';
 
 export default function AsignacionesPage() {
+  const { user } = useAuth();
+  return <AssignmentsContent key={`${user?.tenant?.id}:${user?.id}`} />;
+}
+function AssignmentsContent() {
   const { can } = useAuth();
   const canSeeEvents = can('eventos.ver');
   const [events, setEvents] = useState<EventItem[]>([]);
@@ -19,6 +25,34 @@ export default function AsignacionesPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [attempt, setAttempt] = useState(0);
+  const [budgetRevision, setBudgetRevision] = useState(0);
+  const [budgetStatus, setBudgetStatus] = useState<{
+    key: string;
+    initialized: boolean;
+  }>();
+  const budgetKey = `${selectedId}:${budgetRevision}`;
+  const canViewBudget = can('presupuestos.ver');
+  useEffect(() => {
+    if (!selectedId || !canViewBudget) return;
+    let active = true;
+    getEventBudget(selectedId)
+      .then((budget) => {
+        if (active)
+          setBudgetStatus({ key: budgetKey, initialized: budget.initialized });
+      })
+      .catch(() => {
+        if (active) setBudgetStatus({ key: budgetKey, initialized: false });
+      });
+    return () => {
+      active = false;
+    };
+  }, [selectedId, canViewBudget, budgetKey]);
+  const budgetReady =
+    !canViewBudget ||
+    (budgetStatus?.key === budgetKey && budgetStatus.initialized);
+  function budgetChanged() {
+    setBudgetRevision((value) => value + 1);
+  }
   useEffect(() => {
     if (!canSeeEvents) return;
     let active = true;
@@ -102,6 +136,22 @@ export default function AsignacionesPage() {
             </label>
           )}
         </Card>
+        {selected && canViewBudget && (
+          <BudgetPanel
+            key={`budget:${selected.id}`}
+            eventId={selected.id}
+            revision={budgetRevision}
+            onChanged={budgetChanged}
+            compact
+          />
+        )}
+        {selected && !canViewBudget && (
+          <p className="text-sm text-teal">
+            Las asignaciones requieren un presupuesto iniciado y saldo
+            suficiente. Solicita a una persona con acceso a Presupuestos que
+            revise el saldo si no puedes completar la operación.
+          </p>
+        )}
         {selected && canSeeEvents && can('asignaciones.ver') ? (
           <section aria-label="Reservas de inventario">
             <h2 className="mb-3 text-2xl font-bold">Reservas de inventario</h2>
@@ -110,11 +160,18 @@ export default function AsignacionesPage() {
               key={selected.id}
               eventId={selected.id}
               cancelled={selected.status === 'cancelado'}
+              budgetReady={budgetReady}
+              onChanged={budgetChanged}
             />
           </section>
         ) : null}
         {selected && canSeeEvents && can('servicios_proveedor.ver') && (
-          <ProviderServices key={selected.id} event={selected} />
+          <ProviderServices
+            key={selected.id}
+            event={selected}
+            budgetReady={budgetReady}
+            onChanged={budgetChanged}
+          />
         )}
         {!selected && can('servicios_proveedor.ver') && (
           <Card>

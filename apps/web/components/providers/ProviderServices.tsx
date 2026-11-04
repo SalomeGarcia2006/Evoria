@@ -17,15 +17,24 @@ import { LoadingState } from '../ui/LoadingState';
 import { ErrorMessage } from '../ui/ErrorMessage';
 import { ProviderServiceDialog } from './ProviderServiceDialog';
 import { ConfirmProviderAction } from './ConfirmProviderAction';
+import { apiErrorMessage } from '../../services/api';
 
 const cop = new Intl.NumberFormat('es-CO', {
   style: 'currency',
   currency: 'COP',
   maximumFractionDigits: 0,
 });
-export function ProviderServices({ event }: { event: EventItem }) {
+export function ProviderServices({
+  event,
+  budgetReady = true,
+  onChanged,
+}: {
+  event: EventItem;
+  budgetReady?: boolean;
+  onChanged?: () => void;
+}) {
   const { can } = useAuth();
-  const [history, setHistory] = useState(false);
+  const [history, setHistory] = useState(true);
   const [revision, setRevision] = useState(0);
   const [result, setResult] = useState<{
     key: string;
@@ -50,10 +59,7 @@ export function ProviderServices({ event }: { event: EventItem }) {
         if (active)
           setResult({
             key,
-            error:
-              err instanceof Error
-                ? err.message
-                : 'No fue posible cargar los servicios.',
+            error: apiErrorMessage(err),
           });
       });
     return () => {
@@ -68,6 +74,7 @@ export function ProviderServices({ event }: { event: EventItem }) {
     setCancelling(null);
     setNotice(message);
     setRevision((value) => value + 1);
+    onChanged?.();
   }
   return (
     <section
@@ -84,7 +91,10 @@ export function ProviderServices({ event }: { event: EventItem }) {
               </p>
             </div>
             {can('servicios_proveedor.crear') && can('proveedores.ver') && (
-              <Button disabled={cancelled} onClick={() => setPanel('create')}>
+              <Button
+                disabled={cancelled || !budgetReady}
+                onClick={() => setPanel('create')}
+              >
                 Asignar servicio de proveedor
               </Button>
             )}
@@ -95,6 +105,17 @@ export function ProviderServices({ event }: { event: EventItem }) {
               no crear ni editar.
             </p>
           )}
+          {!cancelled && !budgetReady && (
+            <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
+              No puedes crear ni editar acuerdos hasta consultar e iniciar el
+              presupuesto del evento. Revisa el resumen financiero de esta
+              pantalla.
+            </p>
+          )}
+          <p className="text-sm text-teal">
+            Un acuerdo confirmado cuenta como gasto del presupuesto. Al
+            cancelarlo, deja de contar y se conserva en el historial.
+          </p>
           {notice && (
             <p role="status" className="rounded-lg bg-sky-blue p-3">
               {notice}
@@ -197,14 +218,16 @@ export function ProviderServices({ event }: { event: EventItem }) {
                   render: (item) =>
                     item.status === 'confirmado' ? (
                       <div className="flex gap-2">
-                        {can('servicios_proveedor.editar') && !cancelled && (
-                          <Button
-                            variant="ghost"
-                            onClick={() => setPanel(item)}
-                          >
-                            Editar servicio
-                          </Button>
-                        )}
+                        {can('servicios_proveedor.editar') &&
+                          !cancelled &&
+                          budgetReady && (
+                            <Button
+                              variant="ghost"
+                              onClick={() => setPanel(item)}
+                            >
+                              Editar servicio
+                            </Button>
+                          )}
                         {can('servicios_proveedor.cancelar') && (
                           <Button
                             variant="ghost"
@@ -232,7 +255,7 @@ export function ProviderServices({ event }: { event: EventItem }) {
           {cancelling && (
             <ConfirmProviderAction
               title="Cancelar servicio de proveedor"
-              description={`¿Cancelar ${cancelling.serviceName}? El acuerdo permanecerá en el historial.`}
+              description={`¿Cancelar ${cancelling.serviceName}? Su valor dejará de contar como gasto del presupuesto. El acuerdo permanecerá en el historial.`}
               action={() => cancelProviderService(event.id, cancelling.id)}
               onClose={() => setCancelling(null)}
               onSaved={() =>
