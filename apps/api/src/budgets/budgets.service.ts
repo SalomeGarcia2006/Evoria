@@ -301,65 +301,6 @@ export class BudgetsService {
     }
   }
 
-  async updateBaseForEvent(
-    eventId: string,
-    tenantId: string,
-    baseAmountCop: number,
-    updatedBy: string,
-  ) {
-    if (!Number.isSafeInteger(baseAmountCop) || baseAmountCop < 0) {
-      throw new BadRequestException(
-        'El presupuesto inicial debe ser un entero de COP no negativo.',
-      );
-    }
-    const event = await this.findEvent(eventId, tenantId);
-    if (event.status === 'cancelado') {
-      throw new ConflictException('No puedes editar un evento cancelado.');
-    }
-    const budget = await this.budgetModel.findOneAndUpdate(
-      {
-        tenantId,
-        eventId,
-        $expr: {
-          $gte: [
-            { $add: [baseAmountCop, '$approvedIncreaseCop'] },
-            {
-              $add: [
-                '$inventorySpentCop',
-                '$providerSpentCop',
-                '$extraSpentCop',
-              ],
-            },
-          ],
-        },
-      },
-      { $set: { baseAmountCop } },
-      { new: true },
-    );
-    if (!budget) {
-      if (!(await this.budgetModel.exists({ tenantId, eventId }))) {
-        return this.initializeForEvent(
-          eventId,
-          tenantId,
-          baseAmountCop,
-          updatedBy,
-        );
-      }
-      throw new ConflictException(
-        'El presupuesto base no puede ser menor que el gasto registrado.',
-      );
-    }
-    await this.eventModel.updateOne(
-      { _id: eventId, tenantId },
-      { $set: { baseBudget: baseAmountCop } },
-    );
-    return {
-      eventId,
-      initialized: true,
-      ...this.amounts(budget),
-    };
-  }
-
   async submitRequest(
     eventId: string,
     dto: CreateBudgetRequestDto,

@@ -6,7 +6,7 @@ El presupuesto se guarda por evento. El líder que autoriza cambios es el usuari
 
 `POST /api/events` exige `baseBudget` como entero no negativo en COP e inicia automáticamente el presupuesto con ese monto. El método de inicialización solo permite una vez cada evento, verifica la empresa y reconstruye el costo de asignaciones existentes para eventos anteriores. El endpoint `POST /api/events/:eventId/budget` permite iniciar presupuestos de eventos creados antes de esta integración y sincroniza `Event.baseBudget` con el monto registrado.
 
-`PATCH /api/events/:id` puede cambiar `baseBudget`; el saldo se valida de forma atómica en el presupuesto antes de guardar el nuevo monto. El total asignado, incluido cualquier aumento aprobado, nunca puede quedar por debajo de los gastos registrados.
+`PATCH /api/events/:id` no cambia el presupuesto base de un evento ya creado: si recibe un `baseBudget` diferente, responde `409` sin guardar el evento ni modificar el presupuesto. Se admite el mismo valor por compatibilidad con formularios que lo envían al editar otros campos. Las ampliaciones se solicitan y aprueban mediante el flujo de autorizaciones; el monto base original permanece en el historial. El presupuesto de eventos anteriores sin inicializar se establece mediante `POST /api/events/:eventId/budget`.
 
 Mientras un evento no tenga presupuesto inicial, las nuevas asignaciones de inventario y servicios de proveedores se rechazan con `409`. `GET /api/events/:eventId/budget` devuelve `initialized: false` y `baseAmountCop: null` para que la interfaz indique que falta completar la creación del presupuesto.
 
