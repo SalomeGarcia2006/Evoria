@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
@@ -11,21 +11,28 @@ import {
 import { apiErrorMessage } from '../../services/api';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
-import { DataTable } from '../ui/DataTable';
 import { ErrorMessage } from '../ui/ErrorMessage';
 import { LoadingState } from '../ui/LoadingState';
 import { FeedbackMessages, useFeedback } from '../ui/Feedback';
 import { BudgetAmountsView, cop, requestLabels } from './BudgetAmountsView';
 import { BudgetActionDialog, type BudgetAction } from './BudgetActionDialog';
+import {
+  BudgetHistoryDialog,
+  type BudgetHistorySection,
+} from './BudgetHistoryDialog';
 
 export function BudgetPanel({
   eventId,
   revision = 0,
   onChanged,
+  onLoaded,
+  onBusyChange,
 }: {
   eventId: string;
   revision?: number;
   onChanged?: () => void;
+  onLoaded?: (budget: EventBudgetDetail) => void;
+  onBusyChange?: (busy: boolean) => void;
 }) {
   const { user, can } = useAuth();
   const allowed = can('presupuestos.ver');
@@ -46,6 +53,11 @@ export function BudgetPanel({
   const [preparing, setPreparing] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const history = useRef<HTMLElement>(null);
+  const [historyDetail, setHistoryDetail] =
+    useState<BudgetHistorySection | null>(null);
+  useEffect(() => {
+    onBusyChange?.(preparing);
+  }, [preparing, onBusyChange]);
   useEffect(() => {
     if (!allowed || !user) return;
     let active = true;
@@ -53,6 +65,7 @@ export function BudgetPanel({
       .then((data) => {
         if (active) {
           setResult({ owner: user, key, data });
+          onLoaded?.(data);
         }
       })
       .catch((error: unknown) => {
@@ -89,7 +102,7 @@ export function BudgetPanel({
     return () => {
       active = false;
     };
-  }, [allowed, canApprove, eventId, key, user, notify]);
+  }, [allowed, canApprove, eventId, key, user, notify, onLoaded]);
   const current = result?.owner === user ? result : undefined;
   const budget = current?.data;
   const loading = current?.key !== key;
@@ -307,31 +320,37 @@ export function BudgetPanel({
                 <p className="mt-2 text-sm text-teal">
                   Gastos registrados en el presupuesto del evento.
                 </p>
-                <dl className="mt-5 divide-y divide-sky-blue">
+                <div className="mt-5 divide-y divide-sky-blue">
                   {(
                     [
                       [
                         'Inventario asignado',
                         budget.inventorySpentCop,
                         'recursos.svg',
+                        'inventory',
                       ],
                       [
                         'Servicios de proveedores confirmados',
                         budget.providerSpentCop,
                         'empresas.svg',
+                        'providers',
                       ],
                       [
                         'Costos adicionales aprobados',
                         budget.extraSpentCop,
                         'presupuesto.svg',
+                        'extras',
                       ],
                     ] as const
-                  ).map(([label, amount, icon]) => (
-                    <div
-                      className="flex flex-wrap items-center justify-between gap-3 py-4"
+                  ).map(([label, amount, icon, section]) => (
+                    <button
+                      type="button"
+                      aria-haspopup="dialog"
+                      onClick={() => setHistoryDetail(section)}
+                      className="group grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-xl px-3 py-4 text-left transition-colors duration-200 hover:bg-sky-blue/30 focus-visible:bg-sky-blue/30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal"
                       key={label}
                     >
-                      <dt className="flex min-w-0 items-center gap-3 text-sm">
+                      <span className="flex min-w-0 items-center gap-3 text-sm">
                         <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-sky-blue/40">
                           <Image
                             alt=""
@@ -341,16 +360,32 @@ export function BudgetPanel({
                             height={22}
                           />
                         </span>
-                        <span>{label}</span>
-                      </dt>
-                      <dd className="font-semibold">{cop(amount)}</dd>
-                    </div>
+                        <span className="break-words">{label}</span>
+                      </span>
+                      <span className="flex items-center gap-2 font-semibold">
+                        {cop(amount)}
+                        <svg
+                          aria-hidden="true"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          className="size-5 shrink-0 text-teal transition duration-200 group-hover:translate-x-0.5 group-hover:text-navy group-focus-visible:translate-x-0.5 group-focus-visible:text-navy motion-reduce:transform-none motion-reduce:transition-none"
+                        >
+                          <path
+                            d="m9 5 7 7-7 7"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      </span>
+                    </button>
                   ))}
                   <div className="flex flex-wrap justify-between gap-3 rounded-xl bg-sky-blue/40 p-4">
-                    <dt className="font-bold">Total gastado</dt>
-                    <dd className="font-bold">{cop(budget.spentCop)}</dd>
+                    <span className="font-bold">Total gastado</span>
+                    <span className="font-bold">{cop(budget.spentCop)}</span>
                   </div>
-                </dl>
+                </div>
                 <p className="mt-4 text-xs leading-5 text-teal">
                   Al devolver inventario, sus unidades vuelven a estar
                   disponibles y su costo se libera del presupuesto del evento.
@@ -487,100 +522,16 @@ export function BudgetPanel({
                 </Card>
               </section>
             </div>
-            <div className="grid min-w-0 gap-5 xl:grid-cols-2">
-              <Card className="min-w-0">
-                <details>
-                  <summary className="cursor-pointer font-bold">
-                    Detalle de inventario histórico
-                  </summary>
-                  <div className="mt-4">
-                    {!budget.inventoryLines.length ? (
-                      <p className="text-sm text-teal">
-                        No hay asignaciones registradas.
-                      </p>
-                    ) : (
-                      <DataTable
-                        rows={budget.inventoryLines}
-                        rowKey={(row) => row.id}
-                        columns={[
-                          {
-                            key: 'name',
-                            header: 'Recurso',
-                            render: (row) => row.name,
-                          },
-                          {
-                            key: 'quantity',
-                            header: 'Unidades',
-                            render: (row) => row.quantity,
-                          },
-                          {
-                            key: 'cost',
-                            header: 'Costo histórico',
-                            render: (row) => cop(row.costAmountCop),
-                          },
-                          {
-                            key: 'status',
-                            header: 'Estado',
-                            render: (row) => row.status,
-                          },
-                        ]}
-                      />
-                    )}
-                  </div>
-                </details>
-              </Card>
-              <Card className="min-w-0">
-                <details>
-                  <summary className="cursor-pointer font-bold">
-                    Detalle de servicios de proveedores
-                  </summary>
-                  <div className="mt-4">
-                    {!budget.providerLines.length ? (
-                      <p className="text-sm text-teal">
-                        No hay acuerdos registrados.
-                      </p>
-                    ) : (
-                      <DataTable
-                        rows={budget.providerLines}
-                        rowKey={(row) => row.id}
-                        columns={[
-                          {
-                            key: 'provider',
-                            header: 'Proveedor',
-                            render: (row) => row.providerName,
-                          },
-                          {
-                            key: 'name',
-                            header: 'Servicio',
-                            render: (row) => row.serviceName,
-                          },
-                          {
-                            key: 'date',
-                            header: 'Fecha acordada',
-                            render: (row) => row.startDate,
-                          },
-                          {
-                            key: 'amount',
-                            header: 'Valor',
-                            render: (row) => cop(row.agreedAmountCop),
-                          },
-                          {
-                            key: 'status',
-                            header: 'Estado',
-                            render: (row) =>
-                              row.status === 'cancelado'
-                                ? 'Cancelado · no cuenta como gasto'
-                                : 'Confirmado',
-                          },
-                        ]}
-                      />
-                    )}
-                  </div>
-                </details>
-              </Card>
-            </div>
           </>
         ))}
+      {historyDetail && budget && (
+        <BudgetHistoryDialog
+          key={`${eventId}:${historyDetail}`}
+          section={historyDetail}
+          budget={budget}
+          onClose={() => setHistoryDetail(null)}
+        />
+      )}
       {action && budget && (
         <BudgetActionDialog
           action={action}

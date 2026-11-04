@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import type { BudgetEventSummary } from '@evoria/contracts';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '../../hooks/useAuth';
+import { isActiveEvent } from '../../services/events.service';
 import {
   getAllBudgets,
   getBudgetAuthorizations,
@@ -13,11 +14,10 @@ import { apiErrorMessage } from '../../services/api';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { LoadingState } from '../ui/LoadingState';
-import { BudgetPanel } from './BudgetPanel';
+import { BudgetEventDialog } from './BudgetEventDialog';
 import { cop, requestLabels } from './BudgetAmountsView';
 import { FeedbackMessages, useFeedback } from '../ui/Feedback';
 
-const activeStatuses = new Set(['borrador', 'planificado', 'en_progreso']);
 const statusLabels: Record<string, string> = {
   borrador: 'Borrador',
   planificado: 'Planificado',
@@ -60,7 +60,7 @@ function BudgetsWorkspaceContent() {
         if (!active) return;
         const events = new Map(
           data.items
-            .filter((item) => activeStatuses.has(item.eventStatus))
+            .filter((item) => isActiveEvent(item.eventStatus))
             .map((item) => [item.eventId, item]),
         );
         setResult({ revision, items: [...events.values()] });
@@ -104,8 +104,16 @@ function BudgetsWorkspaceContent() {
   function open(id = '') {
     router.push(
       id ? `/presupuestos?eventId=${encodeURIComponent(id)}` : '/presupuestos',
-      { scroll: true },
+      { scroll: false },
     );
+  }
+  function closeBudget() {
+    const query = new URLSearchParams(params.toString());
+    query.delete('eventId');
+    query.delete('history');
+    router.replace(`/presupuestos${query.size ? `?${query}` : ''}`, {
+      scroll: false,
+    });
   }
   function openAuthorizations() {
     const query = new URLSearchParams({ view: 'authorizations' });
@@ -128,11 +136,9 @@ function BudgetsWorkspaceContent() {
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
-          {(!eventId || view === 'authorizations') && (
-            <Button variant="secondary" onClick={refresh}>
-              Actualizar
-            </Button>
-          )}
+          <Button variant="secondary" onClick={refresh}>
+            Actualizar
+          </Button>
           {approve && view !== 'authorizations' && (
             <Button variant="secondary" onClick={openAuthorizations}>
               Autorizaciones pendientes
@@ -143,7 +149,6 @@ function BudgetsWorkspaceContent() {
       </header>
 
       {view === 'overview' &&
-        !eventId &&
         (allowed ? (
           <section aria-label="Eventos activos" className="grid gap-5">
             <div>
@@ -170,14 +175,16 @@ function BudgetsWorkspaceContent() {
                 </p>
               </Card>
             ) : (
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
                 {events.map((event) => (
                   <button
                     type="button"
                     key={event.eventId}
                     aria-label={`Ver presupuesto de ${event.eventName}`}
+                    aria-haspopup="dialog"
+                    aria-expanded={eventId === event.eventId}
                     onClick={() => open(event.eventId)}
-                    className="flex min-w-0 flex-col items-start rounded-2xl border border-sky-blue bg-white p-6 text-left shadow-sm transition hover:border-teal hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal"
+                    className="flex h-full min-w-0 flex-col items-start rounded-2xl border border-sky-blue bg-white p-4 text-left shadow-sm transition hover:border-teal hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal"
                   >
                     <div className="flex w-full items-center justify-between gap-3">
                       <span className="rounded-full bg-teal/10 px-3 py-1 text-xs font-semibold text-teal">
@@ -187,15 +194,18 @@ function BudgetsWorkspaceContent() {
                         {statusLabels[event.eventStatus]}
                       </span>
                     </div>
-                    <h3 className="mt-5 break-words text-xl font-bold">
+                    <h3
+                      title={event.eventName}
+                      className="mt-3 line-clamp-2 break-words text-base font-bold"
+                    >
                       {event.eventName}
                     </h3>
-                    <p className="mt-2 text-sm text-teal">
+                    <p className="mt-1.5 text-xs text-teal">
                       {event.initialized
-                        ? 'Consulta el saldo, los gastos y las solicitudes.'
-                        : 'Presupuesto inicial pendiente de registrar.'}
+                        ? 'Saldo, gastos y solicitudes'
+                        : 'Presupuesto inicial pendiente'}
                     </p>
-                    <span className="mt-6 font-semibold text-teal">
+                    <span className="mt-3 text-sm font-semibold text-teal">
                       Ver presupuesto →
                     </span>
                   </button>
@@ -207,20 +217,14 @@ function BudgetsWorkspaceContent() {
           <p>No tienes permiso para consultar presupuestos.</p>
         ))}
 
-      {view === 'overview' && eventId && allowed && (
-        <section aria-label="Detalle del presupuesto" className="grid gap-5">
-          <div>
-            <Button variant="ghost" onClick={() => open()}>
-              ← Volver a eventos activos
-            </Button>
-          </div>
-          <BudgetPanel
-            key={eventId}
-            eventId={eventId}
-            revision={revision}
-            onChanged={refresh}
-          />
-        </section>
+      {eventId && allowed && (
+        <BudgetEventDialog
+          key={eventId}
+          eventId={eventId}
+          revision={revision}
+          onChanged={refresh}
+          onClose={closeBudget}
+        />
       )}
       {view === 'overview' && eventId && !allowed && (
         <Card>

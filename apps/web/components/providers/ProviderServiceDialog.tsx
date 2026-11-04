@@ -20,6 +20,7 @@ import { ProviderDialogShell } from './ProviderDialogShell';
 import { categoryLabels, inputClass, Field } from './fields';
 import { apiErrorMessage, apiFieldErrors } from '../../services/api';
 import { FeedbackMessages, useFeedback } from '../ui/Feedback';
+import { ServiceValidationDialog } from './ServiceValidationDialog';
 
 function eventDay(value: string) {
   return new Intl.DateTimeFormat('en-CA', {
@@ -55,7 +56,6 @@ export function ProviderServiceDialog({
   });
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState<ProviderCategory | ''>('');
-  const [page, setPage] = useState(1);
   const [attempt, setAttempt] = useState(0);
   const [providers, setProviders] = useState<{
     key: string;
@@ -66,7 +66,8 @@ export function ProviderServiceDialog({
   const [busy, setBusy] = useState(false);
   const feedback = useFeedback();
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const key = JSON.stringify([search, category, page, attempt]);
+  const [validationAlert, setValidationAlert] = useState<string | null>(null);
+  const key = JSON.stringify([search, category, attempt]);
   useEffect(() => {
     if (!canSelect) return;
     let active = true;
@@ -75,9 +76,24 @@ export function ProviderServiceDialog({
         search,
         category: category || undefined,
         status: 'activo',
-        page,
-        limit: 20,
+        page: 1,
+        limit: 100,
       })
+        .then(async (data) => {
+          const items = [...data.items];
+          for (let page = 2; page <= data.pagination.totalPages; page += 1) {
+            if (!active) return data;
+            const next = await getProviders({
+              search,
+              category: category || undefined,
+              status: 'activo',
+              page,
+              limit: 100,
+            });
+            items.push(...next.items);
+          }
+          return { ...data, items };
+        })
         .then((data) => {
           if (active) setProviders({ key, data });
         })
@@ -96,7 +112,7 @@ export function ProviderServiceDialog({
       active = false;
       clearTimeout(timer);
     };
-  }, [canSelect, key, search, category, page]);
+  }, [canSelect, key, search, category]);
   const providerData = providers?.key === key ? providers.data : undefined;
   const providerError = providers?.key === key ? providers.error : undefined;
   const eventStart = eventDay(event.startAt);
@@ -116,8 +132,9 @@ export function ProviderServiceDialog({
       next.serviceName = 'Escribe un nombre de al menos dos caracteres.';
     if (!values.startDate)
       next.startDate = 'Indica la fecha acordada de prestación.';
-    if (values.endTime && !values.endDate)
-      next.endDate = 'Indica una fecha de fin para la hora de fin.';
+    if (!values.startTime) next.startTime = 'Indica la hora de inicio.';
+    if (!values.endDate) next.endDate = 'Indica la fecha de fin.';
+    if (!values.endTime) next.endTime = 'Indica la hora de fin.';
     if (values.endDate && values.endDate < values.startDate)
       next.endDate = 'El fin no puede ser anterior al inicio.';
     if (
@@ -136,11 +153,7 @@ export function ProviderServiceDialog({
       next.amount = 'Ingresa un entero positivo en COP.';
     setErrors(next);
     if (Object.keys(next).length) {
-      feedback.guide(
-        Object.values(next).join('\n'),
-        'Revisa los datos del servicio',
-        'error',
-      );
+      setValidationAlert(Object.values(next).join('\n'));
       return;
     }
     setBusy(true);
@@ -149,9 +162,9 @@ export function ProviderServiceDialog({
       serviceName: values.serviceName.trim(),
       description: values.description.trim() || null,
       startDate: values.startDate,
-      startTime: values.startTime || null,
-      endDate: values.endDate || null,
-      endTime: values.endTime || null,
+      startTime: values.startTime,
+      endDate: values.endDate,
+      endTime: values.endTime,
       agreedAmountCop: amount,
     };
     try {
@@ -197,6 +210,12 @@ export function ProviderServiceDialog({
     >
       <form onSubmit={submit} noValidate className="grid gap-5">
         <FeedbackMessages feedback={feedback} />
+        {validationAlert && (
+          <ServiceValidationDialog
+            message={validationAlert}
+            onClose={() => setValidationAlert(null)}
+          />
+        )}
         <fieldset disabled={busy} className="grid min-w-0 gap-4">
           {canSelect ? (
             <div className="grid gap-3 rounded-xl border border-sky-blue p-4">
@@ -207,7 +226,6 @@ export function ProviderServiceDialog({
                   maxLength={120}
                   onChange={(e) => {
                     setSearch(e.target.value);
-                    setPage(1);
                   }}
                 />
                 <label className="grid gap-2 text-sm font-semibold">
@@ -218,7 +236,6 @@ export function ProviderServiceDialog({
                     value={category}
                     onChange={(e) => {
                       setCategory(e.target.value as ProviderCategory | '');
-                      setPage(1);
                     }}
                   >
                     <option value="">Todas las categorías</option>
@@ -298,28 +315,6 @@ export function ProviderServiceDialog({
                       No hay proveedores activos que coincidan con los filtros.
                     </p>
                   )}
-                  <div className="flex flex-wrap items-center gap-3">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      disabled={page === 1}
-                      onClick={() => setPage(page - 1)}
-                    >
-                      Proveedores anteriores
-                    </Button>
-                    <span className="text-sm">
-                      Página {page} de{' '}
-                      {Math.max(1, providerData.pagination.totalPages)}
-                    </span>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      disabled={page >= providerData.pagination.totalPages}
-                      onClick={() => setPage(page + 1)}
-                    >
-                      Más proveedores
-                    </Button>
-                  </div>
                 </>
               )}
             </div>
@@ -360,17 +355,17 @@ export function ProviderServiceDialog({
                 },
                 {
                   key: 'startTime',
-                  label: 'Hora de inicio (opcional)',
+                  label: 'Hora de inicio',
                   type: 'time',
                 },
                 {
                   key: 'endDate',
-                  label: 'Fecha de fin (opcional)',
+                  label: 'Fecha de fin',
                   type: 'date',
                 },
                 {
                   key: 'endTime',
-                  label: 'Hora de fin (opcional)',
+                  label: 'Hora de fin',
                   type: 'time',
                 },
               ] as const
@@ -379,7 +374,7 @@ export function ProviderServiceDialog({
                 key={field.key}
                 label={field.label}
                 type={field.type}
-                required={field.key === 'startDate'}
+                required
                 error={errors[field.key]}
                 value={values[field.key]}
                 onChange={(e) =>
