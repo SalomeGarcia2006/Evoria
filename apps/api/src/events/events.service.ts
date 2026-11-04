@@ -10,6 +10,7 @@ import { isValidObjectId, type Model, type Types } from 'mongoose';
 import { Membership } from '../memberships/schemas/membership.schema';
 import { BudgetsService } from '../budgets/budgets.service';
 import type { AuthenticatedUser } from '../auth/auth.types';
+import { AuditsService } from '../audits/audits.service';
 import { CreateEventDto } from './dto/create-event.dto';
 import { FindEventsDto } from './dto/find-events.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
@@ -22,6 +23,7 @@ export class EventsService {
     @InjectModel(Membership.name)
     private readonly membershipModel: Model<Membership>,
     private readonly budgetsService: BudgetsService,
+    private readonly auditsService: AuditsService,
   ) {}
 
   async create(createEventDto: CreateEventDto, user: AuthenticatedUser) {
@@ -57,6 +59,16 @@ export class EventsService {
       await event.deleteOne();
       throw error;
     }
+
+    await this.auditsService.record({
+      tenantId,
+      actor: user,
+      module: 'eventos',
+      action: 'crear',
+      entity: 'evento',
+      entityId: event._id,
+      description: `Creó el evento ${event.name}.`,
+    });
 
     return this.toResponse(event);
   }
@@ -152,13 +164,33 @@ export class EventsService {
     if (updateEventDto.status) event.status = updateEventDto.status;
 
     await event.save();
+    await this.auditsService.record({
+      tenantId,
+      actor: user,
+      module: 'eventos',
+      action: 'editar',
+      entity: 'evento',
+      entityId: event._id,
+      description: `Actualizó el evento ${event.name}.`,
+    });
     return this.toResponse(event);
   }
 
   async cancel(id: string, user: AuthenticatedUser) {
-    const event = await this.findEvent(id, this.getTenantId(user));
+    const tenantId = this.getTenantId(user);
+    const event = await this.findEvent(id, tenantId);
     event.status = 'cancelado';
     await event.save();
+
+    await this.auditsService.record({
+      tenantId,
+      actor: user,
+      module: 'eventos',
+      action: 'cancelar',
+      entity: 'evento',
+      entityId: event._id,
+      description: `Canceló el evento ${event.name}.`,
+    });
 
     return this.toResponse(event);
   }
