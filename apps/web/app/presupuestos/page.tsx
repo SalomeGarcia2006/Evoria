@@ -1,48 +1,17 @@
-'use client';
+﻿'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
+import type { BudgetOverview } from '@evoria/contracts';
 import { AppShell } from '../../components/layout/AppShell';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { DataTable } from '../../components/ui/DataTable';
-import { StatusBadge } from '../../components/ui/StatusBadge';
-import type { Presupuesto } from '../../types/presupuesto';
+import { ErrorMessage } from '../../components/ui/ErrorMessage';
+import { LoadingState } from '../../components/ui/LoadingState';
+import { useAuth } from '../../hooks/useAuth';
+import { getAllBudgets } from '../../services/presupuestos.service';
 
-type BudgetRow = Presupuesto & {
-  eventName: string;
-  spent: number;
-  status: string;
-};
-const initialBudgets: BudgetRow[] = [
-  {
-    id: 'p-01',
-    eventId: 'e-01',
-    eventName: 'Encuentro de innovación',
-    total: 4200000,
-    spent: 3280000,
-    currency: 'COP',
-    status: 'En curso',
-  },
-  {
-    id: 'p-02',
-    eventId: 'e-02',
-    eventName: 'Feria de emprendimiento',
-    total: 3800000,
-    spent: 2490000,
-    currency: 'COP',
-    status: 'En curso',
-  },
-  {
-    id: 'p-03',
-    eventId: 'e-03',
-    eventName: 'Jornada de bienestar',
-    total: 2500000,
-    spent: 1150000,
-    currency: 'COP',
-    status: 'Borrador',
-  },
-];
-const formatMoney = (value: number) =>
+const money = (value: number) =>
   new Intl.NumberFormat('es-CO', {
     style: 'currency',
     currency: 'COP',
@@ -50,166 +19,167 @@ const formatMoney = (value: number) =>
   }).format(value);
 
 export default function PresupuestosPage() {
-  const [budgets] = useState(initialBudgets);
+  const { user, can } = useAuth();
+  const allowed = can('presupuestos.ver');
+  const [state, setState] = useState<{
+    owner: typeof user;
+    data?: BudgetOverview;
+    error?: string;
+  } | null>(null);
+  const [revision, setRevision] = useState(0);
   const [resourcesCost, setResourcesCost] = useState('');
   const [otherCost, setOtherCost] = useState('');
-  const [calculated, setCalculated] = useState(false);
-  const subtotal = Number(resourcesCost) || 0;
-  const extras = Number(otherCost) || 0;
-  const totals = useMemo(
-    () =>
-      budgets.reduce(
-        (result, budget) => ({
-          allocated: result.allocated + (budget.total ?? 0),
-          spent: result.spent + budget.spent,
-        }),
-        { allocated: 0, spent: 0 },
-      ),
-    [budgets],
-  );
-
+  useEffect(() => {
+    if (!user || !allowed) return;
+    let active = true;
+    getAllBudgets()
+      .then((data) => {
+        if (active) setState({ owner: user, data });
+      })
+      .catch((error: unknown) => {
+        if (active)
+          setState({
+            owner: user,
+            error:
+              error instanceof Error
+                ? error.message
+                : 'No se pudieron cargar los presupuestos.',
+          });
+      });
+    return () => {
+      active = false;
+    };
+  }, [user, allowed, revision]);
+  const current = state?.owner === user ? state : null;
+  const data = current?.data;
   return (
     <AppShell title="Presupuestos">
       <div className="grid gap-6">
-        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+        <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[.16em] text-teal">
-              Planeación financiera
-            </p>
-            <h2 className="mt-2 text-3xl font-bold">Presupuestos de eventos</h2>
-            <p className="mt-1 text-teal">
-              Organiza costos y consulta la ejecución de cada evento.
+            <h2 className="text-3xl font-bold">Presupuestos de eventos</h2>
+            <p className="mt-2 text-teal">
+              Consulta la ejecución financiera de tu empresa.
             </p>
           </div>
-          <span className="w-fit rounded-full bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-800">
-            Demostración · datos locales
-          </span>
-        </div>
-        <section className="grid gap-4 sm:grid-cols-3">
-          {[
-            [
-              'Presupuesto asignado',
-              formatMoney(totals.allocated),
-              'En eventos de ejemplo',
-            ],
-            [
-              'Ejecutado',
-              formatMoney(totals.spent),
-              `${Math.round((totals.spent / totals.allocated) * 100)}% del presupuesto`,
-            ],
-            [
-              'Disponible',
-              formatMoney(totals.allocated - totals.spent),
-              'Saldo estimado',
-            ],
-          ].map(([label, value, hint]) => (
-            <Card key={label}>
-              <p className="text-sm text-teal">{label}</p>
-              <p className="mt-3 text-2xl font-bold">{value}</p>
-              <p className="mt-1 text-xs text-teal">{hint}</p>
-            </Card>
-          ))}
-        </section>
-        <section className="grid gap-6 xl:grid-cols-[1.2fr_.8fr]">
-          <Card className="p-0">
-            <div className="border-b border-sky-blue px-6 py-5">
-              <h3 className="font-bold">Resumen por evento</h3>
-              <p className="mt-1 text-sm text-teal">
-                Presupuesto asignado y ejecución estimada
-              </p>
-            </div>
-            <DataTable
-              columns={[
-                {
-                  key: 'event',
-                  header: 'Evento',
-                  render: (budget) => (
-                    <span className="font-semibold">{budget.eventName}</span>
-                  ),
-                },
-                {
-                  key: 'total',
-                  header: 'Asignado',
-                  render: (budget) => formatMoney(budget.total ?? 0),
-                },
-                {
-                  key: 'spent',
-                  header: 'Ejecutado',
-                  render: (budget) => formatMoney(budget.spent),
-                },
-                {
-                  key: 'status',
-                  header: 'Estado',
-                  render: (budget) => <StatusBadge status={budget.status} />,
-                },
-              ]}
-              rowKey={(budget) => budget.id}
-              rows={budgets}
-            />
-            <p className="border-t border-sky-blue px-6 py-3 text-xs text-teal">
-              Datos de ejemplo. Esta pantalla aún no consulta la API de
-              presupuestos.
-            </p>
-          </Card>
-          <Card>
-            <div>
-              <h3 className="text-lg font-bold">Calculadora de presupuesto</h3>
-              <p className="mt-1 text-sm text-teal">
-                Estima costos antes de asignar un presupuesto.
-              </p>
-            </div>
-            <form
-              className="mt-5 grid gap-4"
-              onSubmit={(event) => {
-                event.preventDefault();
-                setCalculated(true);
+          {allowed && (
+            <Button
+              onClick={() => {
+                setState(null);
+                setRevision((value) => value + 1);
               }}
             >
-              <label className="grid gap-2 text-sm font-semibold">
-                Costos de recursos
-                <input
-                  className="rounded-lg border border-sky-blue px-3 py-2 font-normal"
-                  min="0"
-                  onChange={(event) => setResourcesCost(event.target.value)}
-                  placeholder="0"
-                  type="number"
-                  value={resourcesCost}
-                />
-              </label>
-              <label className="grid gap-2 text-sm font-semibold">
-                Costos adicionales
-                <input
-                  className="rounded-lg border border-sky-blue px-3 py-2 font-normal"
-                  min="0"
-                  onChange={(event) => setOtherCost(event.target.value)}
-                  placeholder="0"
-                  type="number"
-                  value={otherCost}
-                />
-              </label>
-              <div className="rounded-xl bg-beige p-4">
-                <div className="flex justify-between text-sm text-teal">
-                  <span>Subtotal de recursos</span>
-                  <span>{formatMoney(subtotal)}</span>
-                </div>
-                <div className="mt-2 flex justify-between text-sm text-teal">
-                  <span>Costos adicionales</span>
-                  <span>{formatMoney(extras)}</span>
-                </div>
-                <div className="mt-3 flex justify-between border-t border-sky-blue pt-3 font-bold">
-                  <span>Total estimado</span>
-                  <span>{formatMoney(subtotal + extras)}</span>
-                </div>
-              </div>
-              <Button type="submit">
-                {calculated ? 'Cálculo actualizado' : 'Calcular total'}
-              </Button>
-              <p className="text-xs text-teal">
-                El cálculo ocurre en tu navegador y no guarda datos.
+              Actualizar
+            </Button>
+          )}
+        </div>
+        {!allowed ? (
+          <p>No tienes permiso para consultar presupuestos.</p>
+        ) : !current ? (
+          <LoadingState label="Cargando presupuestos..." />
+        ) : current.error ? (
+          <ErrorMessage message={current.error} />
+        ) : null}
+        {allowed && data && (
+          <>
+            <section className="grid gap-4 sm:grid-cols-3">
+              {[
+                ['Presupuesto asignado', data.totals.allocatedCop],
+                ['Ejecutado', data.totals.spentCop],
+                ['Disponible', data.totals.remainingCop],
+              ].map(([label, value]) => (
+                <Card key={label}>
+                  <p className="text-sm text-teal">{label}</p>
+                  <p className="mt-3 text-2xl font-bold">
+                    {money(Number(value))}
+                  </p>
+                  <p className="mt-2 text-xs text-teal">
+                    Eventos no cancelados
+                  </p>
+                </Card>
+              ))}
+            </section>
+            <Card>
+              <h3 className="mb-4 font-bold">Resumen por evento</h3>
+              <DataTable
+                columns={[
+                  {
+                    key: 'event',
+                    header: 'Evento',
+                    render: (row) => row.eventName,
+                  },
+                  {
+                    key: 'allocated',
+                    header: 'Asignado',
+                    render: (row) =>
+                      row.initialized
+                        ? money(row.allocatedCop)
+                        : 'Sin presupuesto inicial',
+                  },
+                  {
+                    key: 'spent',
+                    header: 'Ejecutado',
+                    render: (row) =>
+                      row.initialized ? money(row.spentCop) : '—',
+                  },
+                  {
+                    key: 'remaining',
+                    header: 'Disponible',
+                    render: (row) =>
+                      row.initialized ? money(row.remainingCop) : '—',
+                  },
+                  {
+                    key: 'status',
+                    header: 'Estado',
+                    render: (row) => row.eventStatus.replaceAll('_', ' '),
+                  },
+                ]}
+                rows={data.items}
+                rowKey={(row) => row.eventId}
+              />
+              {data.items.length === 0 && (
+                <p className="mt-4 text-sm text-teal">
+                  No hay eventos registrados.
+                </p>
+              )}
+            </Card>
+            <Card>
+              <h3 className="font-bold">Calculadora de presupuesto</h3>
+              <p className="mt-2 text-sm text-teal">
+                Estima costos. Este cálculo no guarda datos.
               </p>
-            </form>
-          </Card>
-        </section>
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                <label className="grid gap-2">
+                  Costos de recursos
+                  <input
+                    className="rounded-lg border border-sky-blue p-3"
+                    type="number"
+                    min="0"
+                    value={resourcesCost}
+                    onChange={(event) => setResourcesCost(event.target.value)}
+                  />
+                </label>
+                <label className="grid gap-2">
+                  Costos adicionales
+                  <input
+                    className="rounded-lg border border-sky-blue p-3"
+                    type="number"
+                    min="0"
+                    value={otherCost}
+                    onChange={(event) => setOtherCost(event.target.value)}
+                  />
+                </label>
+              </div>
+              <p className="mt-4 font-bold">
+                Total estimado:{' '}
+                {money(
+                  Math.max(0, Number(resourcesCost) || 0) +
+                    Math.max(0, Number(otherCost) || 0),
+                )}
+              </p>
+            </Card>
+          </>
+        )}
       </div>
     </AppShell>
   );
