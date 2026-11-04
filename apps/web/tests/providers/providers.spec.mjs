@@ -1,4 +1,5 @@
 ﻿import { test, expect } from '@playwright/test';
+import { acknowledgeFeedback } from './feedback.helpers.mjs';
 
 const permissions = [
   'eventos.ver',
@@ -364,13 +365,14 @@ test('servicios: varios acuerdos del mismo proveedor, fechas sin UTC y refresco 
   });
   state.failSave = true;
   await dialog.getByRole('button', { name: 'Guardar servicio' }).click();
-  await expect(dialog.getByRole('alert')).toContainText('Error de prueba');
+  await acknowledgeFeedback(page, 'Error de prueba');
   await expect(dialog.getByLabel('Nombre del servicio')).toHaveValue(
     'Montaje del salón',
   );
   state.failSave = false;
   await dialog.getByRole('button', { name: 'Guardar servicio' }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
+  await acknowledgeFeedback(page);
   await expect(
     page.getByText('Montaje del salón', { exact: true }),
   ).toBeVisible();
@@ -439,6 +441,7 @@ test('servicios: validación de monto y fin, edición y cancelación con histori
   await dialog.getByLabel('Nombre del servicio').fill('Cena y atención');
   await dialog.getByLabel('Valor total acordado (COP)').fill('3300000');
   await dialog.getByRole('button', { name: 'Guardar servicio' }).click();
+  await acknowledgeFeedback(page, 'Servicio guardado correctamente');
   await expect(
     page.getByText('Cena y atención', { exact: true }),
   ).toBeVisible();
@@ -458,6 +461,7 @@ test('servicios: validación de monto y fin, edición y cancelación con histori
     .getByRole('dialog')
     .getByRole('button', { name: 'Confirmar' })
     .click();
+  await acknowledgeFeedback(page);
   await page.getByLabel('Incluir historial de cancelados').uncheck();
   await expect(
     page.getByText(
@@ -492,6 +496,7 @@ test('proveedor inactivo: conserva historial y edición, no aparece para nuevos 
   );
   await dialog.getByLabel('Nombre del servicio').fill('Cena histórica');
   await dialog.getByRole('button', { name: 'Guardar servicio' }).click();
+  await acknowledgeFeedback(page, 'Servicio guardado correctamente');
   await expect(page.getByText('Cena histórica', { exact: true })).toBeVisible();
   expect(writes(state)[0].body).not.toHaveProperty('providerId');
   await page
@@ -530,6 +535,7 @@ test('evento cancelado: consulta y cancelación disponibles, creación y edició
     .getByRole('dialog')
     .getByRole('button', { name: 'Confirmar' })
     .click();
+  await acknowledgeFeedback(page);
   await expect(
     page.getByRole('table').getByText('Cancelado', { exact: true }),
   ).toBeVisible();
@@ -574,6 +580,7 @@ test('permisos: servicios sin inventario; edición sin permiso para consultar pr
   ).toBeVisible();
   await page.getByLabel('Nombre del servicio').fill('Cambio autorizado');
   await page.getByRole('button', { name: 'Guardar servicio' }).click();
+  await acknowledgeFeedback(page, 'Servicio guardado correctamente');
   await expect(
     page.getByText('Cambio autorizado', { exact: true }),
   ).toBeVisible();
@@ -643,6 +650,7 @@ test('servicios: carga fallida se recupera y guardado en curso bloquea cierre', 
     page.getByRole('alert').filter({ hasText: 'Error de prueba' }),
   ).toContainText('Error de prueba');
   state.failServices = false;
+  await acknowledgeFeedback(page, 'Error de prueba');
   await page.getByRole('button', { name: 'Reintentar servicios' }).click();
   await expect(page.getByText('Cena principal', { exact: true })).toBeVisible();
   const dialog = await newService(page);
@@ -656,6 +664,7 @@ test('servicios: carga fallida se recupera y guardado en curso bloquea cierre', 
   await expect.poll(() => !!state.release).toBe(true);
   state.release();
   await expect(page.getByRole('dialog')).toHaveCount(0);
+  await acknowledgeFeedback(page, 'Servicio guardado correctamente');
   expect(state.errors).toEqual([]);
 });
 

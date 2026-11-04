@@ -11,12 +11,14 @@ export function ConfirmProviderAction({
   action,
   onClose,
   onSaved,
+  onError,
 }: {
   title: string;
   description: string;
   action: () => Promise<unknown>;
   onClose: () => void;
   onSaved: () => void;
+  onError?: (error: unknown) => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -28,7 +30,8 @@ export function ConfirmProviderAction({
       await action();
       onSaved();
     } catch (err) {
-      setError(apiErrorMessage(err));
+      if (onError) onError(err);
+      else setError(apiErrorMessage(err));
     } finally {
       setBusy(false);
     }
