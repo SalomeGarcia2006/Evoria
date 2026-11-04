@@ -187,7 +187,9 @@ erDiagram
   AUDITORIAS {
     ObjectId id PK
     ObjectId tenant_id FK
-    ObjectId usuario_id FK
+    ObjectId usuario_actor_id FK
+    string nombre_actor
+    string modulo
     string accion
     string entidad
     ObjectId entidad_id
@@ -232,6 +234,16 @@ Los reportes se generan mediante consultas a eventos, recursos, alertas y
 auditorías. No se persisten inicialmente. Solo se añadirá una colección de
 reportes si se requiere conservar exportaciones generadas, sus filtros y su
 archivo.
+
+### Auditoría
+
+`audit_logs` conserva las acciones administrativas de la empresa activa. Cada
+registro identifica a quien realizó la acción, el módulo, la entidad afectada y
+una descripción segura; no almacena contraseñas, tokens ni valores sensibles.
+Se consulta con `GET /api/audit-logs` y permite filtrar por usuario, módulo,
+acción y rango de fechas. Actualmente registra cambios en usuarios, perfiles,
+eventos, cronogramas, inventario, proveedores, asignaciones, servicios de
+proveedor y presupuestos.
 
 ## Reglas de negocio esenciales
 
