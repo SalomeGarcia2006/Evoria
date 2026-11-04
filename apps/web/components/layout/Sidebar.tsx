@@ -12,7 +12,7 @@ const iconByRoute: Record<string, string> = {
   '/eventos': 'eventos.svg',
   '/recursos/asignaciones': 'recursos.svg',
   '/inventario': 'inventario.svg',
-  '/proveedores': 'empresas.svg',
+  '/proveedores': 'provedores.svg',
   '/presupuestos': 'presupuesto.svg',
   '/cronograma': 'cronograma.svg',
   '/alertas': 'alerta.svg',

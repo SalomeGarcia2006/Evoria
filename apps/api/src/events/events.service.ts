@@ -112,6 +112,22 @@ export class EventsService {
     const endAt = updateEventDto.endAt ?? event.endAt.toISOString();
     this.validateDates(startAt, endAt);
 
+    const name = updateEventDto.name?.trim();
+    if (name !== undefined && (name.length < 2 || name.length > 120)) {
+      throw new BadRequestException(
+        'El nombre del evento debe tener entre 2 y 120 caracteres.',
+      );
+    }
+
+    if (
+      updateEventDto.baseBudget !== undefined &&
+      updateEventDto.baseBudget !== event.baseBudget
+    ) {
+      throw new ConflictException(
+        'El presupuesto base no se puede editar directamente. Solicita una ampliación desde Presupuestos.',
+      );
+    }
+
     if (updateEventDto.responsibleUserId !== undefined) {
       await this.validateResponsible(
         updateEventDto.responsibleUserId,
@@ -120,8 +136,7 @@ export class EventsService {
       event.set('responsibleUserId', updateEventDto.responsibleUserId ?? null);
     }
 
-    if (updateEventDto.name !== undefined)
-      event.name = updateEventDto.name.trim();
+    if (name !== undefined) event.name = name;
     if (updateEventDto.description !== undefined) {
       event.description = this.trimOptional(updateEventDto.description);
     }
@@ -130,15 +145,6 @@ export class EventsService {
     }
     if (updateEventDto.type !== undefined) {
       event.type = this.trimOptional(updateEventDto.type);
-    }
-    if (updateEventDto.baseBudget !== undefined) {
-      await this.budgetsService.updateBaseForEvent(
-        id,
-        tenantId,
-        updateEventDto.baseBudget,
-        user.id,
-      );
-      event.baseBudget = updateEventDto.baseBudget;
     }
     if (updateEventDto.startAt)
       event.startAt = new Date(updateEventDto.startAt);

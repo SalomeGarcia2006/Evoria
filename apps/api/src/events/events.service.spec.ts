@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { BadRequestException, ConflictException } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { validateSync } from 'class-validator';
 import { Types, type Model } from 'mongoose';
@@ -108,34 +109,96 @@ test('si falla la inicialización, se retira el evento creado', async () => {
   assert.equal(deleted, true);
 });
 
-test('un cambio de base rechazado no guarda el evento', async () => {
-  let saved = false;
+test('editar un evento no permite cambiar el presupuesto base sin autorización', async () => {
+  let saves = 0;
   const event = {
     status: 'borrador',
     baseBudget: 9000000,
     startAt: new Date('2026-12-05T15:00:00.000Z'),
     endAt: new Date('2026-12-06T02:00:00.000Z'),
     save: async () => {
-      saved = true;
+      saves += 1;
     },
   };
   const eventModel = {
     findOne: async () => event,
   } as unknown as Model<Event>;
-  const budgets = {
-    updateBaseForEvent: async () => {
-      throw new Error('El gasto supera el nuevo presupuesto');
-    },
-  } as unknown as BudgetsService;
   const service = new EventsService(
     eventModel,
     {} as Model<Membership>,
-    budgets,
+    {} as BudgetsService,
+  );
+
+  for (const baseBudget of [10000000, 100]) {
+    await assert.rejects(
+      () =>
+        service.update(
+          new Types.ObjectId().toString(),
+          { baseBudget, name: 'Nombre nuevo' },
+          user,
+        ),
+      ConflictException,
+    );
+  }
+  assert.equal(event.baseBudget, 9000000);
+  assert.equal(saves, 0);
+});
+
+test('un nombre inválido no guarda el evento ni cambia su presupuesto', async () => {
+  let saves = 0;
+  const event = {
+    status: 'borrador',
+    baseBudget: 9000000,
+    name: 'Nombre original',
+    startAt: new Date('2026-12-05T15:00:00.000Z'),
+    endAt: new Date('2026-12-06T02:00:00.000Z'),
+    save: async () => {
+      saves += 1;
+    },
+  };
+  const service = new EventsService(
+    { findOne: async () => event } as unknown as Model<Event>,
+    {} as Model<Membership>,
+    {} as BudgetsService,
+  );
+
+  await assert.rejects(
+    () =>
+      service.update(
+        new Types.ObjectId().toString(),
+        { name: '  ', baseBudget: 10000000 },
+        user,
+      ),
+    BadRequestException,
+  );
+  assert.equal(event.name, 'Nombre original');
+  assert.equal(event.baseBudget, 9000000);
+  assert.equal(saves, 0);
+});
+
+test('un fallo al guardar el evento no deja cambios en el presupuesto', async () => {
+  const event = {
+    status: 'borrador',
+    baseBudget: 9000000,
+    name: 'Nombre original',
+    startAt: new Date('2026-12-05T15:00:00.000Z'),
+    endAt: new Date('2026-12-06T02:00:00.000Z'),
+    save: async () => {
+      throw new Error('Falló el guardado');
+    },
+  };
+  const service = new EventsService(
+    { findOne: async () => event } as unknown as Model<Event>,
+    {} as Model<Membership>,
+    {} as BudgetsService,
   );
 
   await assert.rejects(() =>
-    service.update(new Types.ObjectId().toString(), { baseBudget: 100 }, user),
+    service.update(
+      new Types.ObjectId().toString(),
+      { name: 'Nombre nuevo', baseBudget: 9000000 },
+      user,
+    ),
   );
   assert.equal(event.baseBudget, 9000000);
-  assert.equal(saved, false);
 });

@@ -35,6 +35,7 @@ export interface CreateEventPayload {
   type?: string;
   baseBudget: number;
   status?: EventStatus;
+  responsibleUserId?: string;
 }
 
 interface ApiResponse<T> {
