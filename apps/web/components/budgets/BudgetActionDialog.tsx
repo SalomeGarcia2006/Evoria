@@ -8,7 +8,7 @@ import type {
 import { ProviderDialogShell } from '../providers/ProviderDialogShell';
 import { Field, inputClass } from '../providers/fields';
 import { Button } from '../ui/Button';
-import { ErrorMessage } from '../ui/ErrorMessage';
+import { FeedbackMessages, useFeedback } from '../ui/Feedback';
 import { apiErrorMessage } from '../../services/api';
 import {
   initializeBudget,
@@ -40,7 +40,7 @@ export function BudgetActionDialog({
   const [reason, setReason] = useState('');
   const [type, setType] = useState<BudgetRequestType>('ampliacion');
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [error, setError] = useState('');
+  const feedback = useFeedback();
   const [busy, setBusy] = useState(false);
   const decision = action.kind === 'approve' || action.kind === 'reject';
   const staleDecision =
@@ -80,9 +80,15 @@ export function BudgetActionDialog({
     )
       next.reason = 'Escribe un motivo de al menos diez caracteres.';
     setErrors(next);
-    if (Object.keys(next).length) return;
+    if (Object.keys(next).length) {
+      feedback.guide(
+        Object.values(next).join('\n'),
+        'Revisa los datos de la solicitud',
+      );
+      return;
+    }
     setBusy(true);
-    setError('');
+    feedback.dismiss();
     try {
       if (action.kind === 'initialize')
         await initializeBudget(budget.eventId, value);
@@ -110,7 +116,7 @@ export function BudgetActionDialog({
               : 'Solicitud rechazada. El saldo no cambia.',
       );
     } catch (error) {
-      setError(apiErrorMessage(error));
+      feedback.notify(apiErrorMessage(error), 'error');
       onConflict();
     } finally {
       setBusy(false);
@@ -120,7 +126,7 @@ export function BudgetActionDialog({
     <ProviderDialogShell title={title} busy={busy} onClose={onClose}>
       <form noValidate onSubmit={submit} className="grid gap-5">
         <p className="font-semibold">{budget.eventName}</p>
-        {error && <ErrorMessage message={error} />}
+        <FeedbackMessages feedback={feedback} />
         {blocked && (
           <p
             role="status"

@@ -18,12 +18,15 @@ import { Field } from '../providers/fields';
 import { BudgetPanel } from './BudgetPanel';
 import { cop, requestLabels } from './BudgetAmountsView';
 import { BudgetEstimator } from './BudgetEstimator';
+import { FeedbackMessages, useFeedback } from '../ui/Feedback';
 
 export function BudgetsWorkspace() {
   const { user } = useAuth();
   return <BudgetsWorkspaceContent key={`${user?.tenant?.id}:${user?.id}`} />;
 }
 function BudgetsWorkspaceContent() {
+  const feedback = useFeedback();
+  const { notify } = feedback;
   const { user, can } = useAuth();
   const router = useRouter();
   const params = useSearchParams();
@@ -56,14 +59,17 @@ function BudgetsWorkspaceContent() {
           if (active) setResult({ key, data });
         })
         .catch((error: unknown) => {
-          if (active) setResult({ key, error: apiErrorMessage(error) });
+          if (active) {
+            setResult({ key, error: apiErrorMessage(error) });
+            notify(apiErrorMessage(error), 'error');
+          }
         });
     }, 250);
     return () => {
       active = false;
       clearTimeout(timer);
     };
-  }, [user, allowed, page, search, key]);
+  }, [user, allowed, page, search, key, notify]);
   useEffect(() => {
     if (!user || !approve) return;
     let active = true;
@@ -72,16 +78,20 @@ function BudgetsWorkspaceContent() {
         if (active) setInbox({ revision, items });
       })
       .catch((error: unknown) => {
-        if (active) setInbox({ revision, error: apiErrorMessage(error) });
+        if (active) {
+          setInbox({ revision, error: apiErrorMessage(error) });
+          notify(apiErrorMessage(error), 'error');
+        }
       });
     return () => {
       active = false;
     };
-  }, [user, approve, revision]);
+  }, [user, approve, revision, notify]);
   const data = result?.key === key ? result.data : undefined;
   const error = result?.key === key ? result.error : undefined;
   const pending = inbox?.revision === revision ? inbox : undefined;
   function refresh() {
+    feedback.dismiss();
     setRevision((value) => value + 1);
   }
   function open(id: string) {
@@ -91,6 +101,7 @@ function BudgetsWorkspaceContent() {
   }
   return (
     <div className="grid min-w-0 gap-6">
+      <FeedbackMessages feedback={feedback} />
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold">Presupuestos de eventos</h1>

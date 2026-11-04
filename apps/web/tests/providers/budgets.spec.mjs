@@ -347,6 +347,10 @@ test('rechazo exige motivo; conflicto conserva texto y permite reintentar', asyn
   await page.getByRole('button', { name: 'Rechazar', exact: true }).click();
   const dialog = page.getByRole('dialog');
   await dialog.getByRole('button', { name: 'Confirmar rechazo' }).click();
+  await page
+    .getByRole('alertdialog')
+    .getByRole('button', { name: 'Entendido' })
+    .click();
   await expect(
     dialog.getByText('Escribe un motivo de al menos diez caracteres.'),
   ).toBeVisible();
@@ -526,6 +530,10 @@ test('solicitud valida COP y motivo, conserva formulario ante 403 y oculta autoa
   await dialog.getByLabel('Monto solicitado (COP)').fill('2.5');
   await dialog.getByLabel('Motivo', { exact: true }).fill('corto');
   await dialog.getByRole('button', { name: 'Enviar solicitud' }).click();
+  await page
+    .getByRole('alertdialog')
+    .getByRole('button', { name: 'Entendido' })
+    .click();
   await expect(
     dialog.getByText('Ingresa un entero positivo en COP.'),
   ).toBeVisible();

@@ -12,12 +12,14 @@ import { useAuth } from '../../../hooks/useAuth';
 import { ProviderServices } from '../../../components/providers/ProviderServices';
 import { BudgetPanel } from '../../../components/budgets/BudgetPanel';
 import { getEventBudget } from '../../../services/presupuestos.service';
+import { FeedbackMessages, useFeedback } from '../../../components/ui/Feedback';
 
 export default function AsignacionesPage() {
   const { user } = useAuth();
   return <AssignmentsContent key={`${user?.tenant?.id}:${user?.id}`} />;
 }
 function AssignmentsContent() {
+  const feedback = useFeedback();
   const { can } = useAuth();
   const canSeeEvents = can('eventos.ver');
   const [events, setEvents] = useState<EventItem[]>([]);
@@ -82,6 +84,7 @@ function AssignmentsContent() {
   return (
     <AppShell title="Asignación de recursos">
       <div className="grid gap-6">
+        <FeedbackMessages feedback={feedback} />
         {can('inventario.ver') && (
           <Link
             className="text-sm font-semibold text-teal underline"
@@ -136,6 +139,29 @@ function AssignmentsContent() {
             </label>
           )}
         </Card>
+        <div>
+          <Button
+            variant="ghost"
+            onClick={() =>
+              feedback.guide(
+                !canSeeEvents
+                  ? 'Necesitas permiso de consulta de eventos. Solicítalo al administrador de tu empresa para elegir un evento.'
+                  : !events.length
+                    ? 'Primero debe existir un evento en tu empresa. Solicita su creación o créalo desde Eventos si tienes el permiso correspondiente.'
+                    : !selected
+                      ? 'Selecciona un evento en el campo Evento. Después podrás consultar sus reservas y servicios. Para asignar, el evento debe estar activo y tener presupuesto iniciado y saldo suficiente.'
+                      : selected.status === 'cancelado'
+                        ? 'El evento está cancelado. Puedes consultar el historial, liberar unidades y cancelar acuerdos existentes; no crear nuevas asignaciones ni editar servicios.'
+                        : !budgetReady
+                          ? 'Consulta el presupuesto del evento. Si está sin iniciar, una persona con presupuestos.editar debe registrar el monto inicial. Si la consulta falló, usa Actualizar presupuesto.'
+                          : 'Selecciona un recurso y sus unidades para reservar inventario, o usa Asignar servicio de proveedor para registrar un acuerdo. Cada gasto debe caber en el presupuesto disponible.',
+                'Qué necesitas para asignar',
+              )
+            }
+          >
+            Qué necesito para asignar
+          </Button>
+        </div>
         {selected && canViewBudget && (
           <BudgetPanel
             key={`budget:${selected.id}`}

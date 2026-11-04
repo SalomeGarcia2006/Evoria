@@ -13,6 +13,7 @@ import { Button } from '../ui/Button';
 import { DataTable } from '../ui/DataTable';
 import { ErrorMessage } from '../ui/ErrorMessage';
 import { LoadingState } from '../ui/LoadingState';
+import { FeedbackMessages, useFeedback } from '../ui/Feedback';
 import { BudgetAmountsView, cop, requestLabels } from './BudgetAmountsView';
 import { BudgetActionDialog, type BudgetAction } from './BudgetActionDialog';
 
@@ -41,7 +42,8 @@ export function BudgetPanel({
   const [eligible, setEligible] = useState<string[]>([]);
   const [approvalError, setApprovalError] = useState('');
   const [action, setAction] = useState<BudgetAction | null>(null);
-  const [notice, setNotice] = useState('');
+  const feedback = useFeedback();
+  const { notify } = feedback;
   const [preparing, setPreparing] = useState(false);
   useEffect(() => {
     if (!allowed || !user) return;
@@ -51,6 +53,7 @@ export function BudgetPanel({
         if (active) setResult({ owner: user, key, data });
       })
       .catch((error: unknown) => {
+        if (active) notify(apiErrorMessage(error), 'error');
         if (active)
           setResult((previous) => ({
             owner: user,
@@ -83,12 +86,13 @@ export function BudgetPanel({
     return () => {
       active = false;
     };
-  }, [allowed, canApprove, eventId, key, user]);
+  }, [allowed, canApprove, eventId, key, user, notify]);
   const current = result?.owner === user ? result : undefined;
   const budget = current?.data;
   const loading = current?.key !== key;
   const unavailable = loading || !!current?.error;
   function refresh() {
+    feedback.dismiss();
     setAttempt((value) => value + 1);
     onChanged?.();
   }
@@ -101,7 +105,7 @@ export function BudgetPanel({
         (item) => item.id === request.id && item.status === 'pendiente',
       );
       if (!pending || fresh.eventStatus === 'cancelado') {
-        setNotice(
+        feedback.guide(
           'La solicitud ya fue decidida o el evento está cancelado. Consulta el historial actualizado.',
         );
         refresh();
@@ -109,7 +113,7 @@ export function BudgetPanel({
       }
       setAction({ kind, request: pending });
     } catch (error) {
-      setNotice(apiErrorMessage(error));
+      notify(apiErrorMessage(error), 'error');
     } finally {
       setPreparing(false);
     }
@@ -130,12 +134,12 @@ export function BudgetPanel({
           Actualizar presupuesto
         </Button>
       </div>
-      {notice && (
-        <p role="status" className="my-4 rounded-lg bg-sky-blue p-3">
-          {notice}
+      <FeedbackMessages feedback={feedback} />
+      {current?.error && (
+        <p className="rounded-xl bg-red-50 p-4 text-sm text-red-800">
+          {current.error}
         </p>
       )}
-      {current?.error && <ErrorMessage message={current.error} />}
       {current?.error && budget && (
         <p className="my-3 text-sm text-amber-900">
           Se muestran los últimos datos consultados. Actualiza el presupuesto
@@ -394,7 +398,7 @@ export function BudgetPanel({
           onConflict={refresh}
           onSaved={(message) => {
             setAction(null);
-            setNotice(message);
+            notify(message);
             refresh();
           }}
         />

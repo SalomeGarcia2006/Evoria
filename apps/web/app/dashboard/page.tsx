@@ -10,6 +10,7 @@ import { LoadingState } from '../../components/ui/LoadingState';
 import { useAuth } from '../../hooks/useAuth';
 import { getDashboard } from '../../services/dashboard.service';
 import { EVENT_STATUSES } from '../../services/events.service';
+import { FeedbackMessages, useFeedback } from '../../components/ui/Feedback';
 
 const money = (value: number) =>
   new Intl.NumberFormat('es-CO', {
@@ -26,6 +27,8 @@ const labels = {
 };
 
 export default function DashboardPage() {
+  const feedback = useFeedback();
+  const { notify } = feedback;
   const { user, can } = useAuth();
   const [state, setState] = useState<{
     owner: typeof user;
@@ -36,12 +39,26 @@ export default function DashboardPage() {
     if (!user) return;
     let active = true;
     getDashboard(can).then((data) => {
-      if (active) setState({ owner: user, data });
+      if (active) {
+        setState({ owner: user, data });
+        if (data.errors.length)
+          notify(
+            `No se pudo completar el resumen. ${data.errors.join('\n')} Puedes reintentar con Actualizar.`,
+            'error',
+          );
+        else if (revision > 0)
+          notify(
+            data.events || data.inventory || data.budgets
+              ? 'Resumen de la empresa actualizado correctamente.'
+              : 'Solicita permisos de consulta para ver los datos de tu empresa.',
+            data.events || data.inventory || data.budgets ? 'success' : 'info',
+          );
+      }
     });
     return () => {
       active = false;
     };
-  }, [user, can, revision]);
+  }, [user, can, revision, notify]);
   const data = state?.owner === user ? state?.data : null;
   const now = new Date();
   const upcoming =
@@ -95,6 +112,7 @@ export default function DashboardPage() {
   return (
     <AppShell title="Dashboard">
       <div className="grid gap-6">
+        <FeedbackMessages feedback={feedback} />
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <p className="text-sm text-teal">
@@ -108,12 +126,29 @@ export default function DashboardPage() {
             </p>
           </div>
           <Button
+            disabled={!data}
             onClick={() => {
+              feedback.dismiss();
               setState(null);
               setRevision((value) => value + 1);
             }}
           >
             Actualizar
+          </Button>
+        </div>
+        <div>
+          <Button
+            variant="ghost"
+            onClick={() =>
+              feedback.guide(
+                !user?.tenant
+                  ? 'Selecciona una empresa desde el selector de empresa para consultar su operación.'
+                  : 'El resumen usa los eventos, recursos y presupuestos registrados en tu empresa. Si no ves un módulo, solicita su permiso de consulta. Si no hay registros, crea los datos desde el módulo correspondiente. Usa Actualizar para consultar los cambios recientes.',
+                'Cómo completar el resumen',
+              )
+            }
+          >
+            Cómo completar el resumen
           </Button>
         </div>
         {!data && <LoadingState label="Cargando resumen de la empresa..." />}

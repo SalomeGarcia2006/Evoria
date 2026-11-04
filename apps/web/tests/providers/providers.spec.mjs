@@ -404,6 +404,10 @@ test('servicios: validación de monto y fin, edición y cancelación con histori
   await dialog.getByLabel('Valor total acordado (COP)').fill('0.5');
   await dialog.getByLabel('Hora de fin (opcional)').fill('18:00');
   await dialog.getByRole('button', { name: 'Guardar servicio' }).click();
+  await page
+    .getByRole('alertdialog')
+    .getByRole('button', { name: 'Entendido' })
+    .click();
   await expect(
     dialog.getByText('Ingresa un entero positivo en COP.'),
   ).toBeVisible();
@@ -413,11 +417,19 @@ test('servicios: validación de monto y fin, edición y cancelación con histori
   expect(writes(state)).toHaveLength(0);
   await dialog.getByLabel('Fecha de fin (opcional)').fill('2026-12-04');
   await dialog.getByRole('button', { name: 'Guardar servicio' }).click();
+  await page
+    .getByRole('alertdialog')
+    .getByRole('button', { name: 'Entendido' })
+    .click();
   await expect(
     dialog.getByText('El fin no puede ser anterior al inicio.'),
   ).toBeVisible();
   await dialog.getByLabel('Fecha de fin (opcional)').fill('2026-12-05');
   await dialog.getByRole('button', { name: 'Guardar servicio' }).click();
+  await page
+    .getByRole('alertdialog')
+    .getByRole('button', { name: 'Entendido' })
+    .click();
   await expect(
     dialog.getByText('El fin no puede ser anterior al inicio.'),
   ).toBeVisible();

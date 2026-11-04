@@ -18,6 +18,7 @@ import { ErrorMessage } from '../ui/ErrorMessage';
 import { ProviderServiceDialog } from './ProviderServiceDialog';
 import { ConfirmProviderAction } from './ConfirmProviderAction';
 import { apiErrorMessage } from '../../services/api';
+import { FeedbackMessages, useFeedback } from '../ui/Feedback';
 
 const cop = new Intl.NumberFormat('es-CO', {
   style: 'currency',
@@ -47,7 +48,7 @@ export function ProviderServices({
   const [cancelling, setCancelling] = useState<EventProviderService | null>(
     null,
   );
-  const [notice, setNotice] = useState('');
+  const feedback = useFeedback();
   const key = `${event.id}:${history}:${revision}`;
   useEffect(() => {
     let active = true;
@@ -72,7 +73,7 @@ export function ProviderServices({
   function saved(message: string) {
     setPanel(null);
     setCancelling(null);
-    setNotice(message);
+    feedback.notify(message);
     setRevision((value) => value + 1);
     onChanged?.();
   }
@@ -82,6 +83,7 @@ export function ProviderServices({
       className="min-w-0 border-l-4 border-teal pl-3"
     >
       <Card className="min-w-0">
+        <FeedbackMessages feedback={feedback} />
         <div className="grid gap-5">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
@@ -116,11 +118,6 @@ export function ProviderServices({
             Un acuerdo confirmado cuenta como gasto del presupuesto. Al
             cancelarlo, deja de contar y se conserva en el historial.
           </p>
-          {notice && (
-            <p role="status" className="rounded-lg bg-sky-blue p-3">
-              {notice}
-            </p>
-          )}
           <label className="flex items-center gap-2 text-sm">
             <input
               type="checkbox"

@@ -11,6 +11,8 @@ import { Button } from '../ui/Button';
 import { ErrorMessage } from '../ui/ErrorMessage';
 import { LoadingState } from '../ui/LoadingState';
 import { ResourceForm } from './ResourceForm';
+import { FeedbackMessages, useFeedback } from '../ui/Feedback';
+import { apiErrorMessage } from '../../services/api';
 
 export function ResourceDialog({
   resourceId,
@@ -28,8 +30,7 @@ export function ResourceDialog({
   const [editing, setEditing] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [notice, setNotice] = useState('');
-  const [actionError, setActionError] = useState('');
+  const feedback = useFeedback();
   const [attempt, setAttempt] = useState(0);
   const key = `${resourceId}:${attempt}`;
   const [result, setResult] = useState<{
@@ -80,26 +81,22 @@ export function ResourceDialog({
     }
     setResult({ key, resource: item });
     setEditing(false);
-    setNotice('Recurso actualizado correctamente.');
+    feedback.notify('Recurso actualizado correctamente.');
     onChanged();
   }
 
   async function deactivate() {
     if (!resource || !canAdjust || busy) return;
     setBusy(true);
-    setActionError('');
+    feedback.dismiss();
     try {
       const item = await deactivateResource(resource.id);
       setResult({ key, resource: item });
       setConfirming(false);
-      setNotice('Recurso desactivado correctamente.');
+      feedback.notify('Recurso desactivado correctamente.');
       onChanged();
     } catch (deactivateError) {
-      setActionError(
-        deactivateError instanceof Error
-          ? deactivateError.message
-          : 'No fue posible desactivar el recurso.',
-      );
+      feedback.notify(apiErrorMessage(deactivateError), 'error');
     } finally {
       setBusy(false);
     }
@@ -155,6 +152,7 @@ export function ResourceDialog({
         </Button>
       </div>
       <div className="grid min-w-0 gap-5 p-6">
+        <FeedbackMessages feedback={feedback} />
         {loading ? (
           <LoadingState label="Cargando recurso…" />
         ) : error ? (
@@ -176,15 +174,6 @@ export function ResourceDialog({
           />
         ) : resource ? (
           <>
-            {notice ? (
-              <p
-                role="status"
-                className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-900"
-              >
-                {notice}
-              </p>
-            ) : null}
-            {actionError ? <ErrorMessage message={actionError} /> : null}
             {editing && canAdjust ? (
               <ResourceForm
                 resource={resource}
@@ -258,8 +247,7 @@ export function ResourceDialog({
                         type="button"
                         onClick={() => {
                           setEditing(true);
-                          setActionError('');
-                          setNotice('');
+                          feedback.dismiss();
                         }}
                       >
                         Editar recurso
@@ -269,8 +257,7 @@ export function ResourceDialog({
                         type="button"
                         onClick={() => {
                           setConfirming(true);
-                          setActionError('');
-                          setNotice('');
+                          feedback.dismiss();
                         }}
                       >
                         Desactivar recurso

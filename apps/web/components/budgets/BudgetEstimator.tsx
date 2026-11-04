@@ -3,11 +3,15 @@ import { useState } from 'react';
 import { Card } from '../ui/Card';
 import { Field } from '../providers/fields';
 import { cop } from './BudgetAmountsView';
+import { FeedbackMessages, useFeedback } from '../ui/Feedback';
+import { Button } from '../ui/Button';
 export function BudgetEstimator() {
+  const feedback = useFeedback();
   const [resources, setResources] = useState('');
   const [extra, setExtra] = useState('');
   return (
     <Card>
+      <FeedbackMessages feedback={feedback} />
       <details>
         <summary className="cursor-pointer font-bold">
           Calculadora de presupuesto
@@ -39,6 +43,28 @@ export function BudgetEstimator() {
               Math.max(0, Number(extra) || 0),
           )}
         </p>
+        <Button
+          className="mt-4"
+          onClick={() => {
+            if (
+              (!resources.trim() && !extra.trim()) ||
+              [resources, extra].some(
+                (value) => !Number.isFinite(Number(value)) || Number(value) < 0,
+              )
+            ) {
+              feedback.guide(
+                'Indica al menos un costo y usa montos no negativos para calcular la estimación.',
+                'Revisa los costos',
+              );
+              return;
+            }
+            feedback.notify(
+              'Estimación calculada. Este cálculo no guarda datos ni modifica el presupuesto.',
+            );
+          }}
+        >
+          Calcular estimación
+        </Button>
       </details>
     </Card>
   );
