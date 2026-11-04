@@ -162,6 +162,22 @@ export class ResourcesService {
       throw new NotFoundException('El recurso no está asignado a este evento.');
     }
 
+    let hasBudget: boolean;
+    try {
+      hasBudget = await this.budgetLedger.hasBudget(tenantId, eventId);
+      if (hasBudget && assignment.costAmountCop == null) {
+        throw new ConflictException(
+          'La asignación no tiene un costo registrado para ajustar el presupuesto.',
+        );
+      }
+    } catch (error) {
+      await this.assignmentModel.updateOne(
+        { _id: assignment._id, tenantId, eventId, status: 'devuelto' },
+        { $set: { status: 'asignado', returnedAt: null } },
+      );
+      throw error;
+    }
+
     const inventoryItem = await this.inventoryModel.findOneAndUpdate(
       {
         _id: inventoryItemId,
@@ -178,12 +194,47 @@ export class ResourcesService {
     );
     if (!inventoryItem) {
       await this.assignmentModel.updateOne(
-        { _id: assignment._id, status: 'devuelto' },
+        { _id: assignment._id, tenantId, eventId, status: 'devuelto' },
         { $set: { status: 'asignado', returnedAt: null } },
       );
       throw new ConflictException(
         'No se pudo liberar la reserva de inventario.',
       );
+    }
+
+    if (hasBudget) {
+      try {
+        await this.budgetLedger.releaseInventoryCost(
+          tenantId,
+          eventId,
+          assignment.costAmountCop!,
+        );
+      } catch (error) {
+        const restoredReservation = await this.inventoryModel.findOneAndUpdate(
+          {
+            _id: inventoryItemId,
+            tenantId,
+            availableQuantity: { $gte: assignment.quantity },
+          },
+          {
+            $inc: {
+              availableQuantity: -assignment.quantity,
+              reservedQuantity: assignment.quantity,
+            },
+          },
+          { new: true },
+        );
+        if (!restoredReservation) {
+          throw new ConflictException(
+            'No se pudo revertir la devolución; revisa el inventario y el presupuesto del evento.',
+          );
+        }
+        await this.assignmentModel.updateOne(
+          { _id: assignment._id, tenantId, eventId, status: 'devuelto' },
+          { $set: { status: 'asignado', returnedAt: null } },
+        );
+        throw error;
+      }
     }
 
     return this.toResponse(assignment, inventoryItem);

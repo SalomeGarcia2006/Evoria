@@ -235,7 +235,9 @@ export class BudgetsService {
         amount = Math.round(item.unitCost * assignment.quantity);
         missingSnapshots.push({ id: assignment._id, amountCop: amount });
       }
-      inventorySpentCop += amount;
+      if (assignment.status === 'asignado') {
+        inventorySpentCop += amount;
+      }
     }
     const services = await this.providerServiceModel
       .find({ tenantId, eventId, status: 'confirmado' })
