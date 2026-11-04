@@ -18,6 +18,8 @@ import {
 } from '../../services/auth.service';
 import type { AuthUser } from '../../types/auth';
 
+const DEVELOPER_EMAIL = 'administrador@evoria.com';
+
 export type AuthContextValue = {
   user: AuthUser | null;
   isAuthenticated: boolean;
@@ -75,14 +77,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const value = useMemo<AuthContextValue>(
-    () => ({
+  const value = useMemo<AuthContextValue>(() => {
+    // shortcut: only the seeded developer gets the complete UI, replace when the API exposes a dedicated UI role.
+    const hasDeveloperUi =
+      user?.isDeveloper && user.email.toLowerCase() === DEVELOPER_EMAIL;
+
+    return {
       user,
       isAuthenticated: user !== null,
       isLoading,
       can: (permission) =>
-        (permission === 'empresas.ver' && !!user?.isDeveloper) ||
-        (user?.permissions.includes(permission) ?? false),
+        hasDeveloperUi || (user?.permissions.includes(permission) ?? false),
       selectTenant: async (tenantId) => {
         const session = await changeTenant(tenantId);
         ++sessionRequestId.current;
@@ -106,9 +111,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       },
       refreshSession,
-    }),
-    [isLoading, refreshSession, user],
-  );
+    };
+  }, [isLoading, refreshSession, user]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
