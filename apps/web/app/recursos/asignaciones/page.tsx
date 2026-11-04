@@ -10,7 +10,6 @@ import { LoadingState } from '../../../components/ui/LoadingState';
 import { getAllEvents, type EventItem } from '../../../services/events.service';
 import { useAuth } from '../../../hooks/useAuth';
 import { ProviderServices } from '../../../components/providers/ProviderServices';
-import { BudgetPanel } from '../../../components/budgets/BudgetPanel';
 import { getEventBudget } from '../../../services/presupuestos.service';
 import { FeedbackMessages, useFeedback } from '../../../components/ui/Feedback';
 
@@ -20,6 +19,7 @@ export default function AsignacionesPage() {
 }
 function AssignmentsContent() {
   const feedback = useFeedback();
+  const { notify } = feedback;
   const { can } = useAuth();
   const canSeeEvents = can('eventos.ver');
   const [events, setEvents] = useState<EventItem[]>([]);
@@ -67,6 +67,13 @@ function AssignmentsContent() {
       })
       .catch((error: unknown) => {
         if (active)
+          notify(
+            error instanceof Error
+              ? error.message
+              : 'No fue posible cargar los eventos. Intenta de nuevo.',
+            'error',
+          );
+        if (active)
           setError(
             error instanceof Error
               ? error.message
@@ -79,7 +86,7 @@ function AssignmentsContent() {
     return () => {
       active = false;
     };
-  }, [attempt, canSeeEvents]);
+  }, [attempt, canSeeEvents, notify]);
   const selected = events.find((event) => event.id === selectedId);
   return (
     <AppShell title="Asignación de recursos">
@@ -153,7 +160,7 @@ function AssignmentsContent() {
                       : selected.status === 'cancelado'
                         ? 'El evento está cancelado. Puedes consultar el historial, liberar unidades y cancelar acuerdos existentes; no crear nuevas asignaciones ni editar servicios.'
                         : !budgetReady
-                          ? 'Consulta el presupuesto del evento. Si está sin iniciar, una persona con presupuestos.editar debe registrar el monto inicial. Si la consulta falló, usa Actualizar presupuesto.'
+                          ? 'Revisa el evento desde Presupuestos. Si está sin iniciar, una persona con permiso de edición debe registrar el monto inicial. Después vuelve a esta pantalla y comprueba los requisitos de asignación.'
                           : 'Selecciona un recurso y sus unidades para reservar inventario, o usa Asignar servicio de proveedor para registrar un acuerdo. Cada gasto debe caber en el presupuesto disponible.',
                 'Qué necesitas para asignar',
               )
@@ -162,15 +169,26 @@ function AssignmentsContent() {
             Qué necesito para asignar
           </Button>
         </div>
-        {selected && canViewBudget && (
-          <BudgetPanel
-            key={`budget:${selected.id}`}
-            eventId={selected.id}
-            revision={budgetRevision}
-            onChanged={budgetChanged}
-            compact
-          />
-        )}
+        {selected &&
+          canViewBudget &&
+          !budgetReady &&
+          selected.status !== 'cancelado' && (
+            <div className="flex flex-wrap items-center gap-3 text-sm">
+              <p className="text-teal">
+                Para asignar, el evento debe tener un presupuesto iniciado.
+                Puedes revisarlo en Presupuestos.
+              </p>
+              <Link
+                className="font-semibold text-teal underline"
+                href={`/presupuestos?eventId=${encodeURIComponent(selected.id)}`}
+              >
+                Ir a Presupuestos
+              </Link>
+              <Button variant="secondary" onClick={budgetChanged}>
+                Comprobar requisitos de asignación
+              </Button>
+            </div>
+          )}
         {selected && !canViewBudget && (
           <p className="text-sm text-teal">
             Las asignaciones requieren un presupuesto iniciado y saldo

@@ -8,7 +8,6 @@ import { AppShell } from '../layout/AppShell';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { DataTable } from '../ui/DataTable';
-import { ErrorMessage } from '../ui/ErrorMessage';
 import { LoadingState } from '../ui/LoadingState';
 import { FeedbackMessages, useFeedback } from '../ui/Feedback';
 import { PermissionGate } from '../auth/PermissionGate';
@@ -137,7 +136,9 @@ export function InventoryView({
           <LoadingState label="Cargando recursos…" />
         ) : error ? (
           <Card className="min-w-0">
-            <ErrorMessage message={error} />
+            <p className="rounded-xl bg-red-50 p-4 text-sm text-red-800">
+              {error}
+            </p>
             <Button
               type="button"
               variant="secondary"

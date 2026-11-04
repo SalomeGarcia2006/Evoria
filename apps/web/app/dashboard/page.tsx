@@ -5,7 +5,6 @@ import { useEffect, useState } from 'react';
 import { AppShell } from '../../components/layout/AppShell';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
-import { ErrorMessage } from '../../components/ui/ErrorMessage';
 import { LoadingState } from '../../components/ui/LoadingState';
 import { useAuth } from '../../hooks/useAuth';
 import { getDashboard } from '../../services/dashboard.service';
@@ -153,7 +152,12 @@ export default function DashboardPage() {
         </div>
         {!data && <LoadingState label="Cargando resumen de la empresa..." />}
         {data?.errors.map((error) => (
-          <ErrorMessage key={error} message={error} />
+          <p
+            key={error}
+            className="rounded-xl bg-red-50 p-4 text-sm text-red-800"
+          >
+            {error}
+          </p>
         ))}
         {data &&
           !can('eventos.ver') &&

@@ -1,4 +1,5 @@
 ﻿import { test, expect } from '@playwright/test';
+import { acknowledgeFeedback } from './feedback.helpers.mjs';
 const permissions = [
   'dashboard.ver',
   'inventario.ver',
@@ -164,74 +165,72 @@ async function setup(page) {
   return state;
 }
 
-test('dashboard: confirma actualización, permite cerrar y repetir el snackbar, conserva errores hasta cerrarlos', async ({
+test('dashboard: éxito y error en ventanas centradas que esperan confirmación', async ({
   page,
 }) => {
   const state = await setup(page);
   await page.goto('/dashboard');
   await expect(
-    page.getByRole('heading', { name: 'Resumen general' }),
-  ).toBeVisible();
-  await expect(
     page.getByRole('button', { name: 'Actualizar', exact: true }),
   ).toBeEnabled();
   await page.getByRole('button', { name: 'Actualizar', exact: true }).click();
-  const snack = page.getByTestId('snackbar');
-  await expect(snack).toContainText('actualizado correctamente');
-  await snack.getByRole('button', { name: 'Cerrar notificación' }).click();
-  await expect(snack).toHaveCount(0);
+  const modal = page.getByTestId('feedback-modal');
+  await expect(modal.locator('.event-success-modal')).toBeVisible();
+  await expect(modal).toContainText('actualizado correctamente');
   await page.clock.install();
+  await page.clock.runFor(15000);
+  await expect(modal).toBeVisible();
+  await acknowledgeFeedback(page);
   await page.getByRole('button', { name: 'Actualizar', exact: true }).click();
-  await expect(snack).toBeVisible();
-  await page.mouse.move(0, 0);
-  await page.clock.runFor(8100);
-  await expect(snack).toHaveCount(0);
+  await acknowledgeFeedback(page, 'actualizado correctamente');
   state.failEvents = true;
   await page.getByRole('button', { name: 'Actualizar', exact: true }).click();
-  await expect(snack.getByRole('alert')).toContainText(
+  await expect(modal.locator('.login-alert-modal')).toBeVisible();
+  await expect(modal.getByRole('alert')).toContainText(
     'No se pudo completar el resumen',
   );
-  await page.clock.runFor(15000);
-  await expect(snack).toBeVisible();
+  await page.screenshot({
+    path: test.info().outputPath('error-dashboard.png'),
+    fullPage: true,
+  });
+  await acknowledgeFeedback(page);
 });
 
-test('recursos: valida en modal, conserva datos al fallar y confirma creación, edición y desactivación con snackbar', async ({
+test('recursos: campos obligatorios, error sin pérdida de datos y éxitos con estilo de Eventos', async ({
   page,
 }) => {
   const state = await setup(page);
   await page.goto('/inventario');
   await page.getByRole('button', { name: /Nuevo recurso/ }).click();
   const dialog = page.getByRole('dialog');
-  await dialog.getByRole('button', { name: 'Guardar recurso' }).click();
-  await expect(page.getByRole('alertdialog')).toContainText(
-    'Completa el nombre y el tipo',
+  await expect(dialog.getByLabel('Nombre del recurso')).toHaveAttribute(
+    'required',
+    '',
   );
-  await page
-    .getByRole('alertdialog')
-    .getByRole('button', { name: 'Entendido' })
-    .click();
+  await dialog.getByRole('button', { name: 'Guardar recurso' }).click();
+  await expect(
+    page.getByRole('alertdialog').locator('.login-alert-modal'),
+  ).toBeVisible();
+  await acknowledgeFeedback(page, 'Completa el nombre y el tipo');
   await dialog.getByLabel('Nombre del recurso').fill('Mesas');
   await dialog.getByLabel('Tipo', { exact: true }).fill('Mobiliario');
   await dialog.getByLabel('Cantidad total').fill('3');
   await dialog.getByLabel('Costo unitario (COP)').fill('200');
   state.failSave = true;
   await dialog.getByRole('button', { name: 'Guardar recurso' }).click();
-  await expect(dialog.getByTestId('snackbar')).toBeVisible();
-  await expect(dialog.getByTestId('snackbar').getByRole('alert')).toContainText(
-    'No fue posible guardar',
-  );
+  await expect(
+    page.getByRole('alertdialog').locator('.login-alert-modal'),
+  ).toBeVisible();
+  await acknowledgeFeedback(page, 'No fue posible guardar');
   await expect(dialog.getByLabel('Nombre del recurso')).toHaveValue('Mesas');
-  await dialog
-    .getByTestId('snackbar')
-    .getByRole('button', { name: 'Cerrar notificación' })
-    .click();
-  await expect(dialog.getByLabel('Nombre del recurso')).toHaveValue('Mesas');
+  await expect(dialog.getByLabel('Cantidad total')).toHaveValue('3');
   state.failSave = false;
   await dialog.getByRole('button', { name: 'Guardar recurso' }).click();
+  await expect(
+    page.getByRole('alertdialog').locator('.event-success-modal'),
+  ).toBeVisible();
+  await acknowledgeFeedback(page, 'Recurso creado correctamente');
   await expect(dialog).toHaveCount(0);
-  await expect(page.getByTestId('snackbar')).toContainText(
-    'Recurso creado correctamente',
-  );
   await page
     .getByRole('row')
     .filter({ hasText: 'Mesas' })
@@ -240,37 +239,28 @@ test('recursos: valida en modal, conserva datos al fallar y confirma creación, 
   await dialog.getByRole('button', { name: 'Editar recurso' }).click();
   await dialog.getByLabel('Nombre del recurso').fill('Mesas grandes');
   await dialog.getByRole('button', { name: 'Guardar recurso' }).click();
-  await expect(dialog.getByTestId('snackbar')).toBeVisible();
-  await expect(dialog.getByTestId('snackbar')).toContainText(
-    'actualizado correctamente',
-  );
+  await acknowledgeFeedback(page, 'actualizado correctamente');
   await dialog
     .getByRole('button', { name: 'Desactivar recurso', exact: true })
     .click();
-  await expect(dialog.getByText(/¿Desactivar Mesas grandes/)).toBeVisible();
   await dialog.getByRole('button', { name: 'Confirmar desactivación' }).click();
-  await expect(dialog.getByTestId('snackbar')).toContainText(
-    'desactivado correctamente',
-  );
+  await expect(
+    page.getByRole('alertdialog').locator('.event-success-modal'),
+  ).toBeVisible();
   await page.screenshot({
-    path: test.info().outputPath('snackbar-sobre-modal.png'),
+    path: test.info().outputPath('exito-recurso.png'),
     fullPage: true,
   });
+  await acknowledgeFeedback(page, 'desactivado correctamente');
 });
 
-test('asignaciones: explica el paso previo y confirma la liberación sin cambiar datos al cancelar', async ({
+test('asignaciones: paso previo, confirmación y ventana de éxito al liberar', async ({
   page,
 }) => {
   const state = await setup(page);
   await page.goto('/recursos/asignaciones');
   await page.getByRole('button', { name: 'Qué necesito para asignar' }).click();
-  await expect(page.getByRole('alertdialog')).toContainText(
-    'Selecciona un evento',
-  );
-  await page
-    .getByRole('alertdialog')
-    .getByRole('button', { name: 'Entendido' })
-    .click();
+  await acknowledgeFeedback(page, 'Selecciona un evento');
   await page.getByLabel('Evento', { exact: true }).selectOption('e1');
   await page
     .getByRole('button', { name: 'Liberar recurso', exact: true })
@@ -290,11 +280,11 @@ test('asignaciones: explica el paso previo y confirma la liberación sin cambiar
     .getByRole('alertdialog')
     .getByRole('button', { name: 'Liberar unidades' })
     .click();
-  await expect(page.getByTestId('snackbar')).toContainText('Recurso liberado');
+  await acknowledgeFeedback(page, 'Recurso liberado');
   expect(state.assignments).toHaveLength(0);
 });
 
-test('alertas y reportes: orientación honesta, cierre con Escape y devolución de foco', async ({
+test('alertas y reportes: orientación sin funciones simuladas y cierre accesible', async ({
   page,
 }) => {
   const state = await setup(page);
@@ -302,6 +292,9 @@ test('alertas y reportes: orientación honesta, cierre con Escape y devolución 
   await page
     .getByRole('button', { name: 'Cómo revisar autorizaciones' })
     .click();
+  await expect(
+    page.getByRole('alertdialog').locator('.login-alert-modal'),
+  ).toBeVisible();
   await expect(page.getByRole('alertdialog')).toContainText(
     'Solicita al administrador',
   );
@@ -315,16 +308,29 @@ test('alertas y reportes: orientación honesta, cierre con Escape y devolución 
     .getByRole('button', { name: 'Cómo consultar esta información' })
     .first()
     .click();
-  await expect(page.getByRole('alertdialog')).toContainText(
-    'aún no se puede generar ni descargar',
-  );
-  await page
-    .getByRole('alertdialog')
-    .getByRole('button', { name: 'Entendido' })
-    .click();
+  await acknowledgeFeedback(page, 'aún no se puede generar ni descargar');
   expect(state.calls.filter((call) => /report/.test(call.path))).toHaveLength(
     0,
   );
+});
+
+test('presupuestos: pide seleccionar un evento y no muestra la calculadora', async ({
+  page,
+}) => {
+  const state = await setup(page);
+  await page.goto('/presupuestos');
+  await expect(
+    page.getByRole('heading', { name: 'Eventos activos', exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText('Calculadora de presupuesto', { exact: true }),
+  ).toHaveCount(0);
+  await expect(page.locator('dl')).toHaveCount(0);
+  expect(
+    state.calls.filter((call) =>
+      ['POST', 'PATCH', 'DELETE'].includes(call.method),
+    ),
+  ).toHaveLength(0);
 });
 
 test('eventos conserva su detalle anterior al PR, sin panel ni consultas de presupuesto', async ({

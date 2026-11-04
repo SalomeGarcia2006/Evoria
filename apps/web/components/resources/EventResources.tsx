@@ -50,6 +50,7 @@ export function EventResources({
   const [loadError, setLoadError] = useState('');
   const [inventoryError, setInventoryError] = useState('');
   const feedback = useFeedback();
+  const { notify } = feedback;
   const [revision, setRevision] = useState(0);
   const selected = inventory.find((item) => item.id === selectedId);
 
@@ -64,6 +65,7 @@ export function EventResources({
         }
       })
       .catch((error: unknown) => {
+        if (active && editable) notify(apiErrorMessage(error), 'error');
         if (active)
           setLoadError(
             error instanceof Error
@@ -77,7 +79,7 @@ export function EventResources({
     return () => {
       active = false;
     };
-  }, [canView, eventId, revision]);
+  }, [canView, eventId, revision, editable, notify]);
 
   useEffect(() => {
     if (!canAssign) return;
@@ -90,6 +92,7 @@ export function EventResources({
         }
       })
       .catch((error: unknown) => {
+        if (active) notify(apiErrorMessage(error), 'error');
         if (active) {
           setInventory([]);
           setInventoryError(
@@ -102,7 +105,7 @@ export function EventResources({
     return () => {
       active = false;
     };
-  }, [canAssign, eventId, revision]);
+  }, [canAssign, eventId, revision, notify]);
 
   async function assign(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -197,7 +200,7 @@ export function EventResources({
       {editable && !cancelled && !budgetReady && (
         <p className="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
           Para reservar unidades, primero consulta e inicia el presupuesto del
-          evento.
+          evento en Presupuestos.
         </p>
       )}
       {error ? (
@@ -218,7 +221,13 @@ export function EventResources({
       ) : null}
       {loadError ? (
         <div className="my-4">
-          <ErrorMessage message={loadError} />
+          {editable ? (
+            <p className="rounded-xl bg-red-50 p-4 text-sm text-red-800">
+              {loadError}
+            </p>
+          ) : (
+            <ErrorMessage message={loadError} />
+          )}
           <Button
             type="button"
             variant="secondary"
@@ -233,7 +242,9 @@ export function EventResources({
       ) : null}
       {inventoryError ? (
         <div className="my-4">
-          <ErrorMessage message={inventoryError} />
+          <p className="rounded-xl bg-red-50 p-4 text-sm text-red-800">
+            {inventoryError}
+          </p>
           <Button
             type="button"
             variant="secondary"

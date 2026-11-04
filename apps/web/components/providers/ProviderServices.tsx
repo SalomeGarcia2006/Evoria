@@ -14,7 +14,6 @@ import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { DataTable } from '../ui/DataTable';
 import { LoadingState } from '../ui/LoadingState';
-import { ErrorMessage } from '../ui/ErrorMessage';
 import { ProviderServiceDialog } from './ProviderServiceDialog';
 import { ConfirmProviderAction } from './ConfirmProviderAction';
 import { apiErrorMessage } from '../../services/api';
@@ -49,6 +48,7 @@ export function ProviderServices({
     null,
   );
   const feedback = useFeedback();
+  const { notify } = feedback;
   const key = `${event.id}:${history}:${revision}`;
   useEffect(() => {
     let active = true;
@@ -57,6 +57,7 @@ export function ProviderServices({
         if (active) setResult({ key, items });
       })
       .catch((err: unknown) => {
+        if (active) notify(apiErrorMessage(err), 'error');
         if (active)
           setResult({
             key,
@@ -66,7 +67,7 @@ export function ProviderServices({
     return () => {
       active = false;
     };
-  }, [event.id, history, key]);
+  }, [event.id, history, key, notify]);
   const items = result?.key === key ? result.items : undefined;
   const error = result?.key === key ? result.error : undefined;
   const cancelled = event.status === 'cancelado';
@@ -110,8 +111,8 @@ export function ProviderServices({
           {!cancelled && !budgetReady && (
             <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
               No puedes crear ni editar acuerdos hasta consultar e iniciar el
-              presupuesto del evento. Revisa el resumen financiero de esta
-              pantalla.
+              presupuesto del evento. Revísalo desde Presupuestos y luego vuelve
+              a comprobar los requisitos de asignación.
             </p>
           )}
           <p className="text-sm text-teal">
@@ -128,7 +129,9 @@ export function ProviderServices({
           </label>
           {error ? (
             <>
-              <ErrorMessage message={error} />
+              <p className="rounded-xl bg-red-50 p-4 text-sm text-red-800">
+                {error}
+              </p>
               <Button onClick={() => setRevision((value) => value + 1)}>
                 Reintentar servicios
               </Button>
@@ -254,6 +257,9 @@ export function ProviderServices({
               title="Cancelar servicio de proveedor"
               description={`¿Cancelar ${cancelling.serviceName}? Su valor dejará de contar como gasto del presupuesto. El acuerdo permanecerá en el historial.`}
               action={() => cancelProviderService(event.id, cancelling.id)}
+              onError={(error) =>
+                feedback.notify(apiErrorMessage(error), 'error')
+              }
               onClose={() => setCancelling(null)}
               onSaved={() =>
                 saved('Servicio cancelado. Puedes consultarlo en el historial.')

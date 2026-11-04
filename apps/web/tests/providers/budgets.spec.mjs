@@ -1,4 +1,5 @@
 ﻿import { test, expect } from '@playwright/test';
+import { acknowledgeFeedback } from './feedback.helpers.mjs';
 
 const basePermissions = [
   'eventos.ver',
@@ -249,24 +250,30 @@ async function setup(page, options = {}) {
 async function openBudget(page) {
   await page.goto('/presupuestos?eventId=e1');
   await expect(
-    page.getByRole('heading', { name: 'Presupuesto del evento', exact: true }),
+    page.getByRole('heading', { name: 'Evento financiero', exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByRole('button', { name: 'Solicitar cambio de presupuesto' }),
+    page.getByRole('button', { name: 'Añadir presupuesto' }),
   ).toBeVisible();
 }
 async function requestChange(page, type = 'ampliacion') {
   await page
-    .getByRole('button', { name: 'Solicitar cambio de presupuesto' })
+    .getByRole('button', {
+      name:
+        type === 'ampliacion'
+          ? 'Añadir presupuesto'
+          : 'Registrar costo adicional',
+    })
     .click();
   const dialog = page.getByRole('dialog');
-  await dialog.getByLabel('Tipo de solicitud').selectOption(type);
+  await expect(dialog.getByLabel('Tipo de solicitud')).toHaveValue(type);
   await dialog.getByLabel('Monto solicitado (COP)').fill('2000');
   await dialog
     .getByLabel('Motivo', { exact: true })
     .fill('Se requieren recursos adicionales');
   await dialog.getByRole('button', { name: 'Enviar solicitud' }).click();
   await expect(dialog).toHaveCount(0);
+  await acknowledgeFeedback(page);
 }
 function available(page) {
   return page
@@ -277,28 +284,173 @@ function available(page) {
     .locator('dd');
 }
 
-test('presupuestos: búsqueda y paginación envían filtros al servidor', async ({
+test('eventos activos aparecen como tarjetas sin búsqueda y cargan todas las páginas', async ({
   page,
 }) => {
   const state = await setup(page);
   await page.goto('/presupuestos');
-  await expect(page.getByRole('table')).toBeVisible();
-  await page.getByLabel('Buscar evento').fill('financiero');
-  await expect
-    .poll(
-      () =>
-        state.calls.filter((call) => call.path === '/budgets').at(-1)?.query
-          .search,
-    )
-    .toBe('financiero');
-  await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
-  await expect
-    .poll(
-      () =>
-        state.calls.filter((call) => call.path === '/budgets').at(-1)?.query
-          .page,
-    )
-    .toBe('2');
+  const eventCard = page.getByRole('button', {
+    name: 'Ver presupuesto de Evento financiero',
+    exact: true,
+  });
+  await expect(eventCard).toHaveCount(1);
+  await expect(eventCard).toBeVisible();
+  await expect(page.getByLabel('Buscar evento')).toHaveCount(0);
+  await expect(page.getByRole('combobox')).toHaveCount(0);
+  await expect(page.locator('dl')).toHaveCount(0);
+  await expect(page.getByText('Calculadora de presupuesto')).toHaveCount(0);
+  expect(
+    state.calls.filter((call) => call.path === '/events/e1/budget'),
+  ).toHaveLength(0);
+  expect(
+    state.calls.some(
+      (call) => call.path === '/budgets' && call.query.page === '2',
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: test.info().outputPath('tarjetas-eventos.png'),
+    fullPage: true,
+  });
+  await eventCard.click();
+  await expect(available(page)).toContainText('9.900');
+  await expect(
+    page.getByRole('heading', { name: '¿En qué se ha usado?' }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Solicitudes y decisiones' }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Añadir presupuesto' }),
+  ).toBeVisible();
+  await page.screenshot({
+    path: test.info().outputPath('detalle-presupuesto.png'),
+    fullPage: true,
+  });
+  await page
+    .getByRole('button', { name: 'Volver a eventos activos', exact: false })
+    .click();
+  await expect(page.locator('dl')).toHaveCount(0);
+  await expect(eventCard).toBeVisible();
+});
+
+test('tarjetas excluyen eventos finalizados y cancelados y cambian al detalle elegido', async ({
+  page,
+}) => {
+  await setup(page);
+  const summary = {
+    eventId: 'e2',
+    eventName: 'Segundo evento',
+    eventStatus: 'planificado',
+    initialized: true,
+    baseAmountCop: 50000,
+    approvedIncreaseCop: 0,
+    inventorySpentCop: 0,
+    providerSpentCop: 0,
+    extraSpentCop: 0,
+    allocatedCop: 50000,
+    spentCop: 0,
+    remainingCop: 50000,
+  };
+  await page.route('**/api/budgets?*', (route) =>
+    route.fulfill({
+      headers: {
+        'access-control-allow-origin': 'http://localhost:3100',
+        'access-control-allow-credentials': 'true',
+      },
+      json: {
+        data: {
+          totals: { allocatedCop: 50000, spentCop: 0, remainingCop: 50000 },
+          items: [
+            summary,
+            {
+              ...summary,
+              eventId: 'e3',
+              eventName: 'Evento finalizado',
+              eventStatus: 'finalizado',
+            },
+            {
+              ...summary,
+              eventId: 'e4',
+              eventName: 'Evento cancelado',
+              eventStatus: 'cancelado',
+            },
+            {
+              ...summary,
+              eventId: 'e5',
+              eventName: 'Evento borrador',
+              eventStatus: 'borrador',
+            },
+            {
+              ...summary,
+              eventId: 'e6',
+              eventName: 'Evento en curso',
+              eventStatus: 'en_progreso',
+            },
+          ],
+          pagination: { page: 1, limit: 100, total: 5, totalPages: 1 },
+        },
+      },
+    }),
+  );
+  await page.route('**/api/events/e2/budget', (route) =>
+    route.fulfill({
+      headers: {
+        'access-control-allow-origin': 'http://localhost:3100',
+        'access-control-allow-credentials': 'true',
+      },
+      json: {
+        data: {
+          ...summary,
+          inventoryLines: [],
+          providerLines: [],
+          requests: [],
+        },
+      },
+    }),
+  );
+  await page.goto('/presupuestos?eventId=e1');
+  await expect(available(page)).toContainText('9.900');
+  await page
+    .getByRole('button', { name: 'Volver a eventos activos', exact: false })
+    .click();
+  await expect(
+    page.getByRole('button', {
+      name: 'Ver presupuesto de Evento finalizado',
+      exact: true,
+    }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole('button', {
+      name: 'Ver presupuesto de Evento cancelado',
+      exact: true,
+    }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole('button', {
+      name: 'Ver presupuesto de Evento borrador',
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('button', {
+      name: 'Ver presupuesto de Evento en curso',
+      exact: true,
+    }),
+  ).toBeVisible();
+  await page
+    .getByRole('button', {
+      name: 'Ver presupuesto de Segundo evento',
+      exact: true,
+    })
+    .click();
+  await expect(available(page)).toContainText('50.000');
+  const detail = page.getByRole('region', { name: 'Detalle del presupuesto' });
+  await expect(
+    detail.getByRole('heading', { name: 'Segundo evento', exact: true }),
+  ).toBeVisible();
+  await expect(
+    detail.getByText('Evento financiero', { exact: true }),
+  ).toHaveCount(0);
 });
 
 test('solicitud pendiente no altera saldo; líder confirma aprobación y refresca bandeja, detalle y totales', async ({
@@ -324,12 +476,21 @@ test('solicitud pendiente no altera saldo; líder confirma aprobación y refresc
   await expect(dialog.getByText('9.900', { exact: false })).toBeVisible();
   await dialog.getByRole('button', { name: 'Confirmar aprobación' }).click();
   await expect(dialog).toHaveCount(0);
+  await acknowledgeFeedback(page);
   await expect(available(page)).toContainText('11.900');
+  await page.getByRole('button', { name: /Autorizaciones pendientes/ }).click();
   await expect(
     page.getByText('No tienes autorizaciones pendientes.'),
   ).toBeVisible();
-  await page.getByRole('button', { name: 'Resumen por evento' }).click();
-  await expect(page.getByRole('table').first()).toContainText('12.000');
+  await page
+    .getByRole('button', { name: 'Volver al presupuesto', exact: false })
+    .click();
+  await expect(
+    page
+      .locator('dl div')
+      .filter({ has: page.locator('dt', { hasText: /^Total asignado$/ }) })
+      .locator('dd'),
+  ).toContainText('12.000');
   await page.screenshot({
     path: test.info().outputPath('presupuesto-aprobado.png'),
     fullPage: true,
@@ -364,20 +525,21 @@ test('rechazo exige motivo; conflicto conserva texto y permite reintentar', asyn
     status: 409,
   };
   await dialog.getByRole('button', { name: 'Confirmar rechazo' }).click();
-  await expect(dialog.getByRole('alert')).toContainText('ya fue decidida');
+  await acknowledgeFeedback(page, 'ya fue decidida');
   await expect(dialog.getByLabel('Motivo de rechazo')).toHaveValue(
     'El gasto no es necesario ahora',
   );
   state.fail = null;
   await dialog.getByRole('button', { name: 'Confirmar rechazo' }).click();
   await expect(dialog).toHaveCount(0);
+  await acknowledgeFeedback(page);
   await expect(
     page.getByText('Motivo de rechazo: El gasto no es necesario ahora'),
   ).toBeVisible();
   await expect(available(page)).toContainText('9.900');
 });
 
-test('presupuesto sin iniciar: bloquea asignaciones, inicia y habilita servicio con efecto financiero y cancelación histórica', async ({
+test('presupuesto sin iniciar: asignaciones sin panel financiero y gestión del saldo desde Presupuestos', async ({
   page,
 }) => {
   const state = await setup(page, { initialized: false });
@@ -386,6 +548,15 @@ test('presupuesto sin iniciar: bloquea asignaciones, inicia y habilita servicio 
   await expect(
     page.getByRole('button', { name: 'Asignar servicio de proveedor' }),
   ).toBeDisabled();
+  await expect(
+    page.getByRole('heading', { name: 'Presupuesto del evento', exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole('button', { name: 'Iniciar presupuesto', exact: true }),
+  ).toHaveCount(0);
+  await page
+    .getByRole('link', { name: 'Ir a Presupuestos', exact: true })
+    .click();
   await page
     .getByRole('button', { name: 'Iniciar presupuesto', exact: true })
     .click();
@@ -398,6 +569,10 @@ test('presupuesto sin iniciar: bloquea asignaciones, inicia y habilita servicio 
     .getByRole('button', { name: 'Iniciar presupuesto', exact: true })
     .click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
+  await acknowledgeFeedback(page);
+  await expect(available(page)).toContainText('9.900');
+  await page.goto('/recursos/asignaciones');
+  await page.getByLabel('Evento', { exact: true }).selectOption('e1');
   await page
     .getByRole('button', { name: 'Asignar servicio de proveedor' })
     .click();
@@ -414,9 +589,7 @@ test('presupuesto sin iniciar: bloquea asignaciones, inicia y habilita servicio 
     status: 409,
   };
   await dialog.getByRole('button', { name: 'Guardar servicio' }).click();
-  await expect(dialog.getByRole('alert')).toContainText(
-    'presupuesto disponible',
-  );
+  await acknowledgeFeedback(page, 'presupuesto disponible');
   await expect(dialog.getByLabel('Nombre del servicio')).toHaveValue(
     'Preparación y montaje',
   );
@@ -427,9 +600,12 @@ test('presupuesto sin iniciar: bloquea asignaciones, inicia y habilita servicio 
   state.fail = null;
   await dialog.getByRole('button', { name: 'Guardar servicio' }).click();
   await expect(dialog).toHaveCount(0);
-  await expect(available(page)).toContainText('9.400');
+  await acknowledgeFeedback(page);
+  await expect(
+    page.getByRole('heading', { name: 'Presupuesto del evento', exact: true }),
+  ).toHaveCount(0);
   await page.screenshot({
-    path: test.info().outputPath('servicio-y-presupuesto.png'),
+    path: test.info().outputPath('servicio-asignado.png'),
     fullPage: true,
   });
   await expect(
@@ -437,20 +613,39 @@ test('presupuesto sin iniciar: bloquea asignaciones, inicia y habilita servicio 
       .getByRole('region', { name: 'Servicios de proveedores', exact: true })
       .getByRole('table'),
   ).toContainText('Preparación y montaje');
+  await page.goto('/presupuestos?eventId=e1');
+  await expect(available(page)).toContainText('9.400');
+  await page.goto('/recursos/asignaciones');
+  await page.getByLabel('Evento', { exact: true }).selectOption('e1');
   await page
     .getByRole('button', { name: 'Cancelar servicio', exact: true })
     .click();
+  state.fail = {
+    path: '/events/e1/provider-services/s1',
+    method: 'DELETE',
+    status: 409,
+    message: 'No se pudo cancelar el servicio. Intenta de nuevo.',
+  };
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: 'Confirmar' })
+    .click();
+  await acknowledgeFeedback(page, 'No se pudo cancelar el servicio');
+  expect(state.services[0].status).toBe('confirmado');
+  state.fail = null;
   await page
     .getByRole('dialog')
     .getByRole('button', { name: 'Confirmar' })
     .click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(available(page)).toContainText('9.900');
+  await acknowledgeFeedback(page);
   await expect(
     page
       .getByRole('region', { name: 'Servicios de proveedores', exact: true })
       .getByRole('table'),
   ).toContainText('Cancelado');
+  await page.goto('/presupuestos?eventId=e1');
+  await expect(available(page)).toContainText('9.900');
   expect(
     state.calls.some(
       (call) => call.path === '/providers' && call.query.status === 'activo',
@@ -464,13 +659,24 @@ test('solo lectura: sin operaciones de presupuesto; errores 403 y 404 claros y r
   const state = await setup(page, { permissions: ['presupuestos.ver'] });
   await page.goto('/presupuestos?eventId=e1');
   await expect(
-    page.getByRole('heading', { name: 'Presupuesto del evento', exact: true }),
+    page.getByRole('heading', { name: 'Evento financiero', exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole('button', {
-      name: /Solicitar cambio|Aprobar|Rechazar|Iniciar presupuesto/,
+      name: /Añadir presupuesto|Registrar costo adicional|Aprobar|Rechazar|Iniciar presupuesto/,
     }),
   ).toHaveCount(0);
+  await page.goto('/presupuestos?view=authorizations');
+  await expect(
+    page.getByRole('heading', {
+      name: 'Necesitas permiso para revisar autorizaciones',
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Revisar presupuesto y decidir' }),
+  ).toHaveCount(0);
+  await page.goto('/presupuestos?eventId=e1');
+  await expect(available(page)).toContainText('9.900');
   state.fail = {
     path: '/events/e1/budget',
     method: 'GET',
@@ -478,18 +684,10 @@ test('solo lectura: sin operaciones de presupuesto; errores 403 y 404 claros y r
     status: 404,
   };
   await page.getByRole('button', { name: 'Actualizar presupuesto' }).click();
-  await expect(
-    page
-      .getByRole('region', { name: 'Detalle del presupuesto' })
-      .getByRole('alert'),
-  ).toContainText('no existe');
+  await acknowledgeFeedback(page, 'no existe');
   state.fail = { ...state.fail, message: 'Acceso denegado.', status: 403 };
   await page.getByRole('button', { name: 'Actualizar presupuesto' }).click();
-  await expect(
-    page
-      .getByRole('region', { name: 'Detalle del presupuesto' })
-      .getByRole('alert'),
-  ).toContainText('No tienes permiso');
+  await acknowledgeFeedback(page, 'No tienes permiso');
   state.fail = null;
   await page.getByRole('button', { name: 'Actualizar presupuesto' }).click();
   await expect(
@@ -508,7 +706,7 @@ test('evento cancelado: conserva detalle sin solicitudes ni decisiones nuevas', 
     page.getByText(/Evento cancelado: se conserva el historial/),
   ).toBeVisible();
   await expect(
-    page.getByRole('button', { name: 'Solicitar cambio de presupuesto' }),
+    page.getByRole('button', { name: 'Añadir presupuesto' }),
   ).toHaveCount(0);
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth > window.innerWidth,
@@ -523,9 +721,7 @@ test('solicitud valida COP y motivo, conserva formulario ante 403 y oculta autoa
     permissions: [...basePermissions, 'presupuestos.aprobar'],
   });
   await openBudget(page);
-  await page
-    .getByRole('button', { name: 'Solicitar cambio de presupuesto' })
-    .click();
+  await page.getByRole('button', { name: 'Añadir presupuesto' }).click();
   const dialog = page.getByRole('dialog');
   await dialog.getByLabel('Monto solicitado (COP)').fill('2.5');
   await dialog.getByLabel('Motivo', { exact: true }).fill('corto');
@@ -556,7 +752,7 @@ test('solicitud valida COP y motivo, conserva formulario ante 403 y oculta autoa
     message: 'Solo el líder asignado puede decidir.',
   };
   await dialog.getByRole('button', { name: 'Enviar solicitud' }).click();
-  await expect(dialog.getByRole('alert')).toContainText('No tienes permiso');
+  await acknowledgeFeedback(page, 'No tienes permiso');
   await expect(dialog.getByLabel('Monto solicitado (COP)')).toHaveValue('2000');
   await expect(dialog.getByLabel('Motivo', { exact: true })).toHaveValue(
     'Material adicional para la preparación',
@@ -564,6 +760,7 @@ test('solicitud valida COP y motivo, conserva formulario ante 403 y oculta autoa
   state.fail = null;
   await dialog.getByRole('button', { name: 'Enviar solicitud' }).click();
   await expect(dialog).toHaveCount(0);
+  await acknowledgeFeedback(page);
   await expect(
     page.getByText('Pendiente · sin efecto en el saldo', { exact: true }),
   ).toBeVisible();
@@ -592,6 +789,7 @@ test('aprobar costo adicional aplica el gasto y saldo que devuelve la API', asyn
     .getByRole('button', { name: 'Confirmar aprobación' })
     .click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
+  await acknowledgeFeedback(page);
   await expect(available(page)).toContainText('7.900');
   await expect(
     page
@@ -601,4 +799,41 @@ test('aprobar costo adicional aplica el gasto y saldo que devuelve la API', asyn
       })
       .locator('dd'),
   ).toContainText('2.000');
+});
+
+test('historial completo permite consultar solicitudes antiguas y sus decisiones', async ({
+  page,
+}) => {
+  const state = await setup(page);
+  state.increase = 2000;
+  state.requests = Array.from({ length: 4 }, (_, index) => ({
+    id: `r${index + 1}`,
+    eventId: 'e1',
+    type: 'ampliacion',
+    amountCop: 1000,
+    reason: `Solicitud histórica número ${index + 1}`,
+    status: index < 2 ? 'aprobada' : 'pendiente',
+    requestedBy: 'requester',
+    requestedAt: `2026-11-0${index + 1}T10:00:00Z`,
+    decidedBy: index < 2 ? 'leader' : null,
+    decidedAt: index < 2 ? '2026-11-04T12:00:00Z' : null,
+    rejectionReason: null,
+  }));
+  await openBudget(page);
+  await expect(
+    page.getByText('Solicitud histórica número 1', { exact: true }),
+  ).toHaveCount(0);
+  await page.getByRole('button', { name: /Ver historial completo/ }).click();
+  await expect(
+    page.getByText('Solicitud histórica número 1', { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText('Decisión: leader', { exact: false }).first(),
+  ).toBeVisible();
+  await page
+    .getByRole('button', { name: 'Mostrar solicitudes recientes', exact: true })
+    .click();
+  await expect(
+    page.getByText('Solicitud histórica número 1', { exact: true }),
+  ).toHaveCount(0);
 });

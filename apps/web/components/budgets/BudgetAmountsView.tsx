@@ -36,11 +36,11 @@ export function BudgetAmountsView({
         .filter((_, index) => !compact || index >= 5)
         .map(([label, amount]) => (
           <div
-            className={`rounded-xl p-4 ${label === 'Disponible' ? 'bg-sky-blue' : 'bg-beige/70'}`}
+            className={`min-w-0 rounded-xl p-4 ${label === 'Disponible' ? 'bg-teal/10' : label === 'Total asignado' ? 'bg-sky-blue/30' : 'bg-beige/70'}`}
             key={label}
           >
             <dt className="text-sm text-teal">{label}</dt>
-            <dd className="mt-2 text-xl font-bold">
+            <dd className="mt-2 break-words text-xl font-bold">
               {amount === null ? 'Sin iniciar' : cop(amount)}
             </dd>
           </div>

@@ -44,6 +44,7 @@ export function ResourceForm({
       feedback.guide(
         `Completa el nombre y el tipo con al menos dos caracteres. Indica un costo no negativo y una cantidad total entera de al menos ${resource?.reservedQuantity ?? 0} unidades para cubrir las reservas existentes.`,
         'Revisa los datos del recurso',
+        'error',
       );
       return;
     }

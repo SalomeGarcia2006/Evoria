@@ -139,6 +139,7 @@ export function ProviderServiceDialog({
       feedback.guide(
         Object.values(next).join('\n'),
         'Revisa los datos del servicio',
+        'error',
       );
       return;
     }
@@ -247,6 +248,7 @@ export function ProviderServiceDialog({
                     Proveedor
                     <select
                       aria-label="Proveedor"
+                      required
                       className={inputClass}
                       value={values.providerId}
                       aria-invalid={!!errors.providerId}
@@ -329,6 +331,7 @@ export function ProviderServiceDialog({
           )}
           <Field
             label="Nombre del servicio"
+            required
             maxLength={120}
             value={values.serviceName}
             error={errors.serviceName}
@@ -376,6 +379,7 @@ export function ProviderServiceDialog({
                 key={field.key}
                 label={field.label}
                 type={field.type}
+                required={field.key === 'startDate'}
                 error={errors[field.key]}
                 value={values[field.key]}
                 onChange={(e) =>
@@ -396,6 +400,7 @@ export function ProviderServiceDialog({
           )}
           <Field
             label="Valor total acordado (COP)"
+            required
             inputMode="numeric"
             value={values.amount}
             error={errors.amount}
