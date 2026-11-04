@@ -311,7 +311,7 @@ export function BudgetPanel({
                   {(
                     [
                       [
-                        'Inventario histórico',
+                        'Inventario asignado',
                         budget.inventorySpentCop,
                         'recursos.svg',
                       ],
@@ -352,9 +352,10 @@ export function BudgetPanel({
                   </div>
                 </dl>
                 <p className="mt-4 text-xs leading-5 text-teal">
-                  Devolver inventario conserva su gasto histórico. Los servicios
-                  cancelados permanecen en el historial y dejan de contar como
-                  gasto confirmado.
+                  Al devolver inventario, sus unidades vuelven a estar
+                  disponibles y su costo se libera del presupuesto del evento.
+                  Los servicios cancelados permanecen en el historial y dejan de
+                  contar como gasto confirmado.
                 </p>
               </Card>
               <section

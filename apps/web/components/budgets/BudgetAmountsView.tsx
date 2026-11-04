@@ -25,7 +25,7 @@ export function BudgetAmountsView({
         [
           ['Presupuesto base del evento', budget.baseAmountCop],
           ['Ampliaciones aprobadas', budget.approvedIncreaseCop],
-          ['Inventario histórico', budget.inventorySpentCop],
+          ['Inventario asignado', budget.inventorySpentCop],
           ['Servicios confirmados', budget.providerSpentCop],
           ['Costos adicionales aprobados', budget.extraSpentCop],
           ['Total asignado', budget.allocatedCop],

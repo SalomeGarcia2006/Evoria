@@ -266,7 +266,7 @@ test('asignaciones: paso previo, confirmación y ventana de éxito al liberar', 
     .getByRole('button', { name: 'Liberar recurso', exact: true })
     .click();
   await expect(page.getByRole('alertdialog')).toContainText(
-    'gasto histórico permanecerá',
+    'su costo se liberará del presupuesto del evento',
   );
   await page
     .getByRole('alertdialog')
