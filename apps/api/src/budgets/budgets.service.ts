@@ -8,6 +8,7 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { isValidObjectId, type Model, Types } from 'mongoose';
 import type { AuthenticatedUser } from '../auth/auth.types';
+import { AuditsService } from '../audits/audits.service';
 import { Event } from '../events/schemas/event.schema';
 import { InventoryItem } from '../inventory/schemas/inventory-item.schema';
 import { EventProviderService } from '../provider-services/schemas/event-provider-service.schema';
@@ -35,6 +36,7 @@ export class BudgetsService {
     private readonly providerServiceModel: Model<EventProviderService>,
     @InjectModel(Provider.name) private readonly providerModel: Model<Provider>,
     private readonly ledger: BudgetLedgerService,
+    private readonly auditsService: AuditsService,
   ) {}
 
   async overview(query: FindBudgetsDto, user: AuthenticatedUser) {
@@ -187,7 +189,22 @@ export class BudgetsService {
     user: AuthenticatedUser,
   ) {
     const tenantId = this.getTenantId(user);
-    return this.initializeForEvent(eventId, tenantId, baseAmountCop, user.id);
+    const budget = await this.initializeForEvent(
+      eventId,
+      tenantId,
+      baseAmountCop,
+      user.id,
+    );
+    await this.auditsService.record({
+      tenantId,
+      actor: user,
+      module: 'presupuestos',
+      action: 'inicializar',
+      entity: 'presupuesto',
+      entityId: eventId,
+      description: 'Inicializó el presupuesto del evento.',
+    });
+    return budget;
   }
 
   async initializeForEvent(
@@ -362,6 +379,15 @@ export class BudgetsService {
     );
     if (!created)
       throw new ConflictException('No se pudo registrar la solicitud.');
+    await this.auditsService.record({
+      tenantId,
+      actor: user,
+      module: 'presupuestos',
+      action: 'solicitar',
+      entity: 'solicitud_presupuesto',
+      entityId: created._id,
+      description: 'Solicitó un cambio de presupuesto para el evento.',
+    });
     return this.toRequest(eventId, created);
   }
 
@@ -441,6 +467,15 @@ export class BudgetsService {
     );
     if (!decided)
       throw new ConflictException('No se pudo consultar la decisión.');
+    await this.auditsService.record({
+      tenantId,
+      actor: user,
+      module: 'presupuestos',
+      action: 'aprobar',
+      entity: 'solicitud_presupuesto',
+      entityId: decided._id,
+      description: 'Aprobó una solicitud de cambio de presupuesto.',
+    });
     return this.toRequest(eventId, decided);
   }
 
@@ -483,6 +518,15 @@ export class BudgetsService {
     );
     if (!decided)
       throw new ConflictException('No se pudo consultar la decisión.');
+    await this.auditsService.record({
+      tenantId,
+      actor: user,
+      module: 'presupuestos',
+      action: 'rechazar',
+      entity: 'solicitud_presupuesto',
+      entityId: decided._id,
+      description: 'Rechazó una solicitud de cambio de presupuesto.',
+    });
     return this.toRequest(eventId, decided);
   }
 
