@@ -144,7 +144,8 @@ test('resume métricas de la empresa activa', async () => {
   });
   assert.ok(
     state.filters.every(
-      (filter) => !('tenantId' in filter) || filter.tenantId === tenantId,
+      (filter) =>
+        !('tenantId' in filter) || filter.tenantId?.toString() === tenantId,
     ),
   );
 });

@@ -1,7 +1,7 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import type { DashboardEventStatus, DashboardSummary } from '@evoria/contracts';
-import type { Model } from 'mongoose';
+import { type Model, Types } from 'mongoose';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { EVENT_STATUSES, type EventStatus } from '../events/events.constants';
 import { Event } from '../events/schemas/event.schema';
@@ -43,10 +43,11 @@ export class DashboardService {
   }
 
   private async eventSummary(tenantId: string) {
+    const tenantObjectId = new Types.ObjectId(tenantId);
     const [total, statusRows, upcoming] = await Promise.all([
       this.eventModel.countDocuments({ tenantId }),
       this.eventModel.aggregate<{ _id: EventStatus; count: number }>([
-        { $match: { tenantId } },
+        { $match: { tenantId: tenantObjectId } },
         { $group: { _id: '$status', count: { $sum: 1 } } },
       ]),
       this.eventModel
@@ -80,6 +81,7 @@ export class DashboardService {
   }
 
   private async inventorySummary(tenantId: string) {
+    const tenantObjectId = new Types.ObjectId(tenantId);
     const [summary] = await this.inventoryModel.aggregate<{
       resources: number;
       total: number;
@@ -87,7 +89,7 @@ export class DashboardService {
       reserved: number;
       maintenance: number;
     }>([
-      { $match: { tenantId, status: { $ne: 'inactivo' } } },
+      { $match: { tenantId: tenantObjectId, status: { $ne: 'inactivo' } } },
       {
         $group: {
           _id: null,
