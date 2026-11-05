@@ -6,6 +6,13 @@ export interface HealthResponse {
 export type { ApiResponse } from './api';
 export type { AuthScope, AuthSession, LoginRequest } from './auth';
 export type {
+  DashboardBudgetSummary,
+  DashboardEventStatus,
+  DashboardEventSummary,
+  DashboardInventorySummary,
+  DashboardSummary,
+} from './dashboard';
+export type {
   BudgetAmounts,
   BudgetEventSummary,
   BudgetInventoryLine,
