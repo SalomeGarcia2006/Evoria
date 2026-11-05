@@ -4,17 +4,13 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { AppShell } from '../../../components/layout/AppShell';
-import { Button } from '../../../components/ui/Button';
+import { EventLocation } from '../../../components/events/EventLocation';
 import { Card } from '../../../components/ui/Card';
 import { ErrorMessage } from '../../../components/ui/ErrorMessage';
 import { LoadingState } from '../../../components/ui/LoadingState';
 import { useAuth } from '../../../hooks/useAuth';
 import { EventResources } from '../../../components/resources/EventResources';
-import {
-  cancelEvent,
-  getEvent,
-  type EventItem,
-} from '../../../services/events.service';
+import { getEvent, type EventItem } from '../../../services/events.service';
 
 export default function EventoDetailPage() {
   const params = useParams<{ id: string }>();
@@ -22,7 +18,6 @@ export default function EventoDetailPage() {
   const [event, setEvent] = useState<EventItem | null>(null);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
-  const [isCancelling, setIsCancelling] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -45,27 +40,6 @@ export default function EventoDetailPage() {
       active = false;
     };
   }, [params.id]);
-
-  async function handleCancel() {
-    if (
-      !event ||
-      !window.confirm(`¿Deseas cancelar el evento "${event.name}"?`)
-    )
-      return;
-    setIsCancelling(true);
-    setError('');
-    try {
-      setEvent(await cancelEvent(event.id));
-    } catch (cancelError) {
-      setError(
-        cancelError instanceof Error
-          ? cancelError.message
-          : 'No se pudo cancelar el evento.',
-      );
-    } finally {
-      setIsCancelling(false);
-    }
-  }
 
   return (
     <AppShell title="Detalle del evento">
@@ -117,7 +91,7 @@ export default function EventoDetailPage() {
               <div>
                 <p className="text-sm text-muted">Ubicación</p>
                 <p className="mt-1 font-semibold">
-                  {event.location || 'Sin ubicación'}
+                  <EventLocation value={event.location} />
                 </p>
               </div>
               <div>
@@ -125,16 +99,6 @@ export default function EventoDetailPage() {
                 <p className="mt-1 font-semibold">{event.type || 'Sin tipo'}</p>
               </div>
             </div>
-            {can('eventos.eliminar') && event.status !== 'cancelado' ? (
-              <div className="mt-6 border-t border-sky-blue pt-5">
-                <Button
-                  disabled={isCancelling}
-                  onClick={() => void handleCancel()}
-                >
-                  {isCancelling ? 'Cancelando…' : 'Cancelar evento'}
-                </Button>
-              </div>
-            ) : null}
           </Card>
         ) : !error ? (
           <Card>

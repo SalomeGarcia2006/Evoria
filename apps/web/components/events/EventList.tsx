@@ -11,14 +11,12 @@ import {
   type EventStatus,
   updateEventStatus,
 } from '../../services/events.service';
-import {
-  getAddressFromCoordinates,
-  parseCoordinates,
-} from '../../services/locations.service';
 import { Button } from '../ui/Button';
 import { DataTable, type DataTableColumn } from '../ui/DataTable';
 import { ErrorMessage } from '../ui/ErrorMessage';
 import { LoadingState } from '../ui/LoadingState';
+import { EventLocation } from './EventLocation';
+import { EventLocationMap } from './EventLocationMap';
 
 const STATUS_LABELS: Record<EventStatus, string> = {
   borrador: 'Borrador',
@@ -47,46 +45,24 @@ function formatDate(value: string): string {
   }).format(new Date(value));
 }
 
-function EventLocation({ value }: { value: string | null }) {
-  const [address, setAddress] = useState<string | null>(null);
-  const hasCoordinates = parseCoordinates(value) !== null;
-
-  useEffect(() => {
-    const coordinates = parseCoordinates(value);
-    if (!coordinates) return;
-
-    let isMounted = true;
-    void getAddressFromCoordinates(coordinates)
-      .then((result) => {
-        if (isMounted) setAddress(result);
-      })
-      .catch(() => {
-        if (isMounted) setAddress('Ubicación seleccionada en el mapa');
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [value]);
-
-  if (!hasCoordinates) return value ?? 'Sin ubicación';
-  return address ?? 'Buscando dirección…';
-}
-
 export function EventList({
   onCreate,
+  onEdit,
   revision = 0,
 }: {
   onCreate?: () => void;
+  onEdit?: (event: EventItem) => void;
   revision?: number;
 }) {
   const { can } = useAuth();
+  const viewDialog = useRef<HTMLDialogElement>(null);
   const statusDialog = useRef<HTMLDialogElement>(null);
   const [events, setEvents] = useState<EventItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [statusEvent, setStatusEvent] = useState<EventItem | null>(null);
+  const [viewEvent, setViewEvent] = useState<EventItem | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<EventStatus>('borrador');
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
@@ -128,6 +104,9 @@ export function EventList({
           currentEvent.id === cancelledEvent.id ? cancelledEvent : currentEvent,
         ),
       );
+      setViewEvent((currentEvent) =>
+        currentEvent?.id === cancelledEvent.id ? cancelledEvent : currentEvent,
+      );
     } catch (cancelError) {
       setError(
         cancelError instanceof Error
@@ -143,6 +122,26 @@ export function EventList({
     setStatusEvent(event);
     setSelectedStatus(event.status);
     statusDialog.current?.showModal();
+  }
+
+  function openViewDialog(event: EventItem) {
+    setViewEvent(event);
+    viewDialog.current?.showModal();
+  }
+
+  function closeViewDialog() {
+    viewDialog.current?.close();
+    setViewEvent(null);
+  }
+
+  function openStatusFromView(event: EventItem) {
+    closeViewDialog();
+    openStatusDialog(event);
+  }
+
+  function editFromView(event: EventItem) {
+    closeViewDialog();
+    onEdit?.(event);
   }
 
   function closeStatusDialog() {
@@ -182,14 +181,7 @@ export function EventList({
     {
       key: 'name',
       header: 'Nombre',
-      render: (event) => (
-        <Link
-          className="font-semibold text-navy underline-offset-4 hover:underline"
-          href={`/eventos/${event.id}`}
-        >
-          {event.name}
-        </Link>
-      ),
+      render: (event) => <span className="font-semibold">{event.name}</span>,
     },
     {
       key: 'date',
@@ -223,32 +215,14 @@ export function EventList({
       header: 'Acciones',
       render: (event) => (
         <div className="flex gap-2 whitespace-nowrap">
-          <Link
-            className="rounded-lg border border-teal px-3 py-1.5 text-xs font-semibold text-navy hover:bg-sky-blue"
-            href={`/eventos/${event.id}`}
+          <Button
+            className="px-3 py-1.5 text-xs"
+            onClick={() => openViewDialog(event)}
+            type="button"
+            variant="secondary"
           >
             Ver
-          </Link>
-          {can('eventos.editar') && event.status !== 'cancelado' ? (
-            <Button
-              className="px-3 py-1.5 text-xs"
-              onClick={() => openStatusDialog(event)}
-              type="button"
-              variant="secondary"
-            >
-              Estado
-            </Button>
-          ) : null}
-          {can('eventos.eliminar') && event.status !== 'cancelado' ? (
-            <Button
-              className="px-3 py-1.5 text-xs"
-              disabled={cancellingId === event.id}
-              onClick={() => void handleCancel(event)}
-              type="button"
-            >
-              {cancellingId === event.id ? 'Cancelando…' : 'Cancelar'}
-            </Button>
-          ) : null}
+          </Button>
         </div>
       ),
     },
@@ -284,6 +258,127 @@ export function EventList({
           rows={events}
         />
       )}
+      <dialog
+        aria-labelledby="event-view-dialog-title"
+        className="m-auto max-h-[calc(100dvh-2rem)] w-11/12 max-w-3xl overflow-y-auto rounded-[1.5rem] border border-sky-blue bg-white p-0 text-navy shadow-2xl backdrop:bg-navy/60"
+        onClose={() => setViewEvent(null)}
+        ref={viewDialog}
+      >
+        <div className="flex items-start justify-between gap-4 border-b border-sky-blue bg-beige/70 p-6">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold uppercase tracking-[.16em] text-muted">
+              {viewEvent?.type ?? 'Evento'}
+            </p>
+            <h2
+              className="mt-1 break-words text-3xl font-bold"
+              id="event-view-dialog-title"
+            >
+              {viewEvent?.name}
+            </h2>
+          </div>
+          <Button
+            aria-label="Cerrar detalle del evento"
+            className="px-3 text-xl leading-none"
+            onClick={closeViewDialog}
+            type="button"
+            variant="ghost"
+          >
+            ×
+          </Button>
+        </div>
+        {viewEvent ? (
+          <div className="grid gap-6 p-6">
+            <section className="rounded-[1.125rem] border border-sky-blue bg-beige/55 p-5">
+              <p className="text-xs font-semibold uppercase tracking-[.14em] text-muted">
+                Descripción
+              </p>
+              <p className="mt-2 whitespace-pre-wrap leading-6 text-navy">
+                {viewEvent.description || 'Sin descripción.'}
+              </p>
+            </section>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-[1.125rem] border border-sky-blue p-4">
+                <p className="text-sm text-muted">Inicio</p>
+                <p className="mt-1 font-semibold">
+                  {formatDate(viewEvent.startAt)}
+                </p>
+              </div>
+              <div className="rounded-[1.125rem] border border-sky-blue p-4">
+                <p className="text-sm text-muted">Finalización</p>
+                <p className="mt-1 font-semibold">
+                  {formatDate(viewEvent.endAt)}
+                </p>
+              </div>
+              <div className="rounded-[1.125rem] border border-sky-blue p-4">
+                <p className="text-sm text-muted">Estado</p>
+                <span
+                  className={`mt-1 inline-flex rounded-full px-3 py-1 text-xs font-semibold ${STATUS_CLASSES[viewEvent.status]}`}
+                >
+                  {STATUS_LABELS[viewEvent.status]}
+                </span>
+              </div>
+              <div className="rounded-[1.125rem] border border-sky-blue p-4">
+                <p className="text-sm text-muted">Presupuesto base</p>
+                <p className="mt-1 font-semibold">
+                  {new Intl.NumberFormat('es-CO', {
+                    style: 'currency',
+                    currency: 'COP',
+                    maximumFractionDigits: 0,
+                  }).format(viewEvent.baseBudget)}
+                </p>
+              </div>
+            </div>
+            <section className="grid gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[.14em] text-muted">
+                  Ubicación seleccionada
+                </p>
+                <p className="mt-1 break-words font-semibold">
+                  <EventLocation value={viewEvent.location} />
+                </p>
+              </div>
+              <EventLocationMap
+                key={viewEvent.location ?? 'sin-ubicacion'}
+                value={viewEvent.location}
+              />
+            </section>
+            {viewEvent.status !== 'cancelado' ? (
+              <div className="flex flex-wrap gap-3 border-t border-sky-blue pt-5">
+                {can('eventos.editar') && onEdit ? (
+                  <Button
+                    onClick={() => editFromView(viewEvent)}
+                    type="button"
+                    variant="secondary"
+                  >
+                    Editar evento
+                  </Button>
+                ) : null}
+                {can('eventos.editar') ? (
+                  <Button
+                    onClick={() => openStatusFromView(viewEvent)}
+                    type="button"
+                    variant="secondary"
+                  >
+                    Modificar estado
+                  </Button>
+                ) : null}
+                {can('eventos.eliminar') ? (
+                  <Button
+                    className="border border-coral bg-white text-coral shadow-none hover:bg-coral hover:text-white"
+                    disabled={cancellingId === viewEvent.id}
+                    onClick={() => void handleCancel(viewEvent)}
+                    type="button"
+                  >
+                    {cancellingId === viewEvent.id
+                      ? 'Cancelando…'
+                      : 'Cancelar evento'}
+                  </Button>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+      </dialog>
       <dialog
         aria-labelledby="event-status-dialog-title"
         className="m-auto w-11/12 max-w-md rounded-2xl border border-sky-blue bg-white p-0 text-navy shadow-2xl backdrop:bg-navy/60"

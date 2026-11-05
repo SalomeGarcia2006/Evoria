@@ -3,6 +3,7 @@
 import { AppShell } from '../../components/layout/AppShell';
 import { EventForm } from '../../components/events/EventForm';
 import { EventList } from '../../components/events/EventList';
+import type { EventItem } from '../../services/events.service';
 import { useRef, useState } from 'react';
 import { PermissionGate } from '../../components/auth/PermissionGate';
 import { Button } from '../../components/ui/Button';
@@ -11,14 +12,23 @@ export default function EventosPage() {
   const eventDialog = useRef<HTMLDialogElement>(null);
   const [revision, setRevision] = useState(0);
   const [formKey, setFormKey] = useState(0);
+  const [editingEvent, setEditingEvent] = useState<EventItem | null>(null);
 
   function openCreateForm() {
+    setEditingEvent(null);
+    setFormKey((current) => current + 1);
+    eventDialog.current?.showModal();
+  }
+
+  function openEditForm(event: EventItem) {
+    setEditingEvent(event);
     setFormKey((current) => current + 1);
     eventDialog.current?.showModal();
   }
 
   function closeCreateForm() {
     eventDialog.current?.close();
+    setEditingEvent(null);
   }
 
   return (
@@ -37,7 +47,11 @@ export default function EventosPage() {
             </Button>
           </PermissionGate>
         </div>
-        <EventList onCreate={openCreateForm} revision={revision} />
+        <EventList
+          onCreate={openCreateForm}
+          onEdit={openEditForm}
+          revision={revision}
+        />
 
         <PermissionGate permission="eventos.crear">
           <dialog
@@ -51,7 +65,7 @@ export default function EventosPage() {
                   Eventos
                 </p>
                 <h2 className="mt-1 text-2xl font-bold" id="event-dialog-title">
-                  Nuevo evento
+                  {editingEvent ? 'Editar evento' : 'Nuevo evento'}
                 </h2>
               </div>
               <Button
@@ -66,7 +80,8 @@ export default function EventosPage() {
             </div>
             <div className="p-6">
               <EventForm
-                key={formKey}
+                initialEvent={editingEvent ?? undefined}
+                key={`${formKey}-${editingEvent?.id ?? 'new'}`}
                 onCancel={closeCreateForm}
                 onSuccess={() => {
                   closeCreateForm();
