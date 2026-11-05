@@ -102,7 +102,7 @@ export function ProviderServices({
                   Servicios de proveedores
                 </h3>
               </div>
-              <p className="mt-2 text-sm text-teal">
+              <p className="mt-2 text-sm text-muted">
                 Acuerdos y valores pactados para este evento.
               </p>
             </div>
@@ -134,8 +134,8 @@ export function ProviderServices({
           <div
             className={
               inDialog
-                ? 'flex items-start gap-3 rounded-xl border border-sky-blue bg-sky-blue/25 p-4 text-sm text-teal'
-                : 'text-sm text-teal'
+                ? 'flex items-start gap-3 rounded-xl border border-sky-blue bg-sky-blue/25 p-4 text-sm text-muted'
+                : 'text-sm text-muted'
             }
           >
             {inDialog && <AssignmentIcon name="alerta" small />}
@@ -162,7 +162,7 @@ export function ProviderServices({
                 <EmptyState title="No hay servicios de proveedores registrados para este evento" />
               </div>
             ) : (
-              <p className="py-5 text-teal">
+              <p className="py-5 text-muted">
                 No hay servicios de proveedores registrados para este evento.
               </p>
             )
@@ -191,11 +191,11 @@ export function ProviderServices({
                       }
                     />
                   </div>
-                  <p className="mt-3 break-words font-semibold text-teal">
+                  <p className="mt-3 break-words font-semibold text-muted">
                     {item.provider.name}
                   </p>
                   {item.provider.status === 'inactivo' && (
-                    <p className="mt-1 text-xs text-teal">
+                    <p className="mt-1 text-xs text-muted">
                       Proveedor inactivo · Acuerdo histórico
                     </p>
                   )}
@@ -204,7 +204,7 @@ export function ProviderServices({
                       {item.description}
                     </p>
                   )}
-                  <p className="mt-4 text-sm text-teal">
+                  <p className="mt-4 text-sm text-muted">
                     Desde {item.startDate} {item.startTime}
                     {item.endDate
                       ? ` hasta ${item.endDate} ${item.endTime ?? ''}`
@@ -214,7 +214,7 @@ export function ProviderServices({
                     {cop.format(item.agreedAmountCop)}
                   </p>
                   {item.status === 'cancelado' ? (
-                    <p className="text-xs text-teal">
+                    <p className="text-xs text-muted">
                       Histórico · No cuenta como gasto.
                     </p>
                   ) : (

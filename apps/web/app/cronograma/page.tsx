@@ -337,11 +337,11 @@ export default function CronogramaPage() {
       <div className="grid gap-6">
         <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[.16em] text-teal">
+            <p className="text-sm font-semibold uppercase tracking-[.16em] text-muted">
               Planificación operativa
             </p>
             <h2 className="mt-2 text-3xl font-bold">Actividades programadas</h2>
-            <p className="mt-1 text-teal">
+            <p className="mt-1 text-muted">
               Organiza las tareas de cada evento y da seguimiento a sus
               responsables.
             </p>
@@ -364,7 +364,7 @@ export default function CronogramaPage() {
             <p className="font-semibold">
               No hay eventos activos para programar.
             </p>
-            <p className="mt-1 text-sm text-teal">
+            <p className="mt-1 text-sm text-muted">
               Crea un evento antes de registrar actividades.
             </p>
           </Card>
@@ -373,7 +373,7 @@ export default function CronogramaPage() {
             <div className="flex flex-col gap-4 border-b border-sky-blue px-6 py-5 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <h3 className="font-bold">Cronograma de eventos</h3>
-                <p className="mt-1 text-sm text-teal">
+                <p className="mt-1 text-sm text-muted">
                   {selectedEvent
                     ? `Actividades de ${selectedEvent.name}.`
                     : 'Selecciona un evento para ver sus actividades.'}
@@ -402,7 +402,7 @@ export default function CronogramaPage() {
                 <LoadingState label="Cargando actividades…" />
               </div>
             ) : schedules.length === 0 ? (
-              <p className="p-6 text-sm text-teal">
+              <p className="p-6 text-sm text-muted">
                 Este evento aún no tiene actividades programadas.
               </p>
             ) : (
@@ -490,7 +490,7 @@ export default function CronogramaPage() {
         >
           <div className="flex items-start justify-between gap-4 border-b border-sky-blue p-6">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-[.16em] text-teal">
+              <p className="text-sm font-semibold uppercase tracking-[.16em] text-muted">
                 Cronograma
               </p>
               <h2
@@ -534,7 +534,7 @@ export default function CronogramaPage() {
               </select>
             </label>
             {formEvent ? (
-              <p className="rounded-lg bg-sky-blue/20 px-3 py-2 text-sm text-teal sm:col-span-2">
+              <p className="rounded-lg bg-sky-blue/20 px-3 py-2 text-sm text-muted sm:col-span-2">
                 Periodo del evento: {formatDate(formEvent.startAt)} —{' '}
                 {formatDate(formEvent.endAt)}
               </p>

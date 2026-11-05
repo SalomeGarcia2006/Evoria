@@ -24,11 +24,11 @@ export default function ReportesPage() {
       <div className="grid min-w-0 gap-6">
         <header className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[.16em] text-teal">
+            <p className="text-sm font-semibold uppercase tracking-[.16em] text-muted">
               Información de tu empresa
             </p>
             <h2 className="mt-2 text-3xl font-bold">Reportes</h2>
-            <p className="mt-2 text-teal">
+            <p className="mt-2 text-muted">
               Resumen actual de eventos, recursos y ejecución presupuestal.
             </p>
           </div>
@@ -75,7 +75,7 @@ export default function ReportesPage() {
                     <p className="mt-3 text-3xl font-bold">
                       {summary.events.length}
                     </p>
-                    <p className="mt-1 text-sm text-teal">
+                    <p className="mt-1 text-sm text-muted">
                       Eventos registrados
                     </p>
                     <dl className="mt-4 grid gap-2">
@@ -96,7 +96,7 @@ export default function ReportesPage() {
                       ))}
                     </dl>
                     <Link
-                      className="mt-5 inline-block font-semibold text-teal underline"
+                      className="mt-5 inline-block font-semibold text-muted underline"
                       href="/eventos"
                     >
                       Consultar eventos →
@@ -124,7 +124,7 @@ export default function ReportesPage() {
                       ))}
                     </dl>
                     <Link
-                      className="mt-5 inline-block font-semibold text-teal underline"
+                      className="mt-5 inline-block font-semibold text-muted underline"
                       href="/inventario"
                     >
                       Consultar recursos →
@@ -136,7 +136,7 @@ export default function ReportesPage() {
                     <h3 className="text-xl font-bold">
                       Ejecución presupuestal
                     </h3>
-                    <p className="mt-2 text-sm text-teal">
+                    <p className="mt-2 text-sm text-muted">
                       Totales de eventos no cancelados.
                     </p>
                     <dl className="mt-4 grid gap-4">
@@ -146,7 +146,7 @@ export default function ReportesPage() {
                         ['Disponible', summary.budgets.totals.remainingCop],
                       ].map(([label, value]) => (
                         <div key={label}>
-                          <dt className="text-sm text-teal">{label}</dt>
+                          <dt className="text-sm text-muted">{label}</dt>
                           <dd className="mt-1 break-words text-xl font-bold">
                             {cop(Number(value))}
                           </dd>
@@ -154,7 +154,7 @@ export default function ReportesPage() {
                       ))}
                     </dl>
                     <Link
-                      className="mt-5 inline-block font-semibold text-teal underline"
+                      className="mt-5 inline-block font-semibold text-muted underline"
                       href="/presupuestos"
                     >
                       Consultar presupuestos →
@@ -182,7 +182,7 @@ export default function ReportesPage() {
                           <h4 className="break-words text-base font-bold">
                             {item.eventName}
                           </h4>
-                          <p className="mt-2 text-sm text-teal">
+                          <p className="mt-2 text-sm text-muted">
                             {statusLabels[
                               item.eventStatus as keyof typeof statusLabels
                             ] ?? item.eventStatus}
@@ -206,13 +206,13 @@ export default function ReportesPage() {
                               ))}
                             </dl>
                           ) : (
-                            <p className="my-4 text-sm text-teal">
+                            <p className="my-4 text-sm text-muted">
                               Presupuesto inicial pendiente.
                             </p>
                           )}
                           <Link
                             href={`/presupuestos?eventId=${encodeURIComponent(item.eventId)}`}
-                            className="font-semibold text-teal underline"
+                            className="font-semibold text-muted underline"
                           >
                             Ver detalle →
                           </Link>
@@ -240,7 +240,7 @@ export default function ReportesPage() {
                           <h4 className="break-words text-base font-bold">
                             {event.name}
                           </h4>
-                          <p className="mt-2 text-sm text-teal">
+                          <p className="mt-2 text-sm text-muted">
                             {statusLabels[event.status]}
                           </p>
                           <p className="mt-3 text-sm">
@@ -251,7 +251,7 @@ export default function ReportesPage() {
                           </p>
                           {event.location && (
                             <p
-                              className="mt-2 line-clamp-1 break-words text-xs text-teal"
+                              className="mt-2 line-clamp-1 break-words text-xs text-muted"
                               title={event.location}
                             >
                               {event.location}
@@ -259,7 +259,7 @@ export default function ReportesPage() {
                           )}
                           <Link
                             href={`/eventos/${encodeURIComponent(event.id)}`}
-                            className="mt-4 inline-block font-semibold text-teal underline"
+                            className="mt-4 inline-block font-semibold text-muted underline"
                           >
                             Ver evento →
                           </Link>

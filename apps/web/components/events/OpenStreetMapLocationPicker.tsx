@@ -57,8 +57,8 @@ export function OpenStreetMapLocationPicker({
           } else {
             selectedMarker = leaflet
               .circleMarker(point, {
-                color: '#2f4156',
-                fillColor: '#567c8d',
+                color: '#14213D',
+                fillColor: '#6A4CFF',
                 fillOpacity: 1,
                 radius: 9,
                 weight: 3,
@@ -209,7 +209,7 @@ export function OpenStreetMapLocationPicker({
       {locationError ? (
         <p className="text-sm text-red-700">{locationError}</p>
       ) : null}
-      <p className="text-sm text-teal">
+      <p className="text-sm text-muted">
         Navega por el mapa y haz clic en el punto donde se realizará el evento.
       </p>
       <div
@@ -218,7 +218,7 @@ export function OpenStreetMapLocationPicker({
         ref={mapContainer}
       />
       {loadError ? <p className="text-sm text-red-700">{loadError}</p> : null}
-      <p className="text-sm text-teal">
+      <p className="text-sm text-muted">
         {isResolvingLocation
           ? 'Identificando la dirección del punto…'
           : value

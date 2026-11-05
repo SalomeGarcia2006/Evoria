@@ -114,7 +114,7 @@ export function EventAssignmentsDialog({
       size="wide"
       footer={
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm text-teal">Volver a la selección de eventos</p>
+          <p className="text-sm text-muted">Volver a la selección de eventos</p>
           <Button
             variant="secondary"
             disabled={inventoryBusy}
@@ -155,7 +155,7 @@ export function EventAssignmentsDialog({
                     {event.name}
                   </h3>
                   {event.description && (
-                    <p className="mt-3 whitespace-pre-wrap break-words text-sm text-teal">
+                    <p className="mt-3 whitespace-pre-wrap break-words text-sm text-muted">
                       {event.description}
                     </p>
                   )}
@@ -172,7 +172,7 @@ export function EventAssignmentsDialog({
                 <div className="flex items-start gap-3">
                   <AssignmentIcon name="cronograma" small />
                   <div>
-                    <dt className="text-xs text-teal">Inicio</dt>
+                    <dt className="text-xs text-muted">Inicio</dt>
                     <dd className="mt-1 font-semibold">
                       {assignmentEventDate(event.startAt)}
                     </dd>
@@ -181,7 +181,7 @@ export function EventAssignmentsDialog({
                 <div className="flex items-start gap-3">
                   <AssignmentIcon name="cronograma" small />
                   <div>
-                    <dt className="text-xs text-teal">Fin</dt>
+                    <dt className="text-xs text-muted">Fin</dt>
                     <dd className="mt-1 font-semibold">
                       {assignmentEventDate(event.endAt)}
                     </dd>
@@ -191,7 +191,7 @@ export function EventAssignmentsDialog({
                   <div className="flex min-w-0 items-start gap-3">
                     <AssignmentIcon name="empresas" small />
                     <div className="min-w-0">
-                      <dt className="text-xs text-teal">Lugar</dt>
+                      <dt className="text-xs text-muted">Lugar</dt>
                       <dd className="mt-1 break-words font-semibold">
                         {event.location}
                       </dd>
@@ -202,7 +202,7 @@ export function EventAssignmentsDialog({
                   <div className="flex min-w-0 items-start gap-3">
                     <AssignmentIcon name="eventos" small />
                     <div className="min-w-0">
-                      <dt className="text-xs text-teal">Tipo</dt>
+                      <dt className="text-xs text-muted">Tipo</dt>
                       <dd className="mt-1 break-words font-semibold">
                         {event.type}
                       </dd>
@@ -213,7 +213,7 @@ export function EventAssignmentsDialog({
             </Card>
             {!active ? (
               <Card>
-                <p role="status" className="text-sm text-teal">
+                <p role="status" className="text-sm text-muted">
                   Este evento ya no está activo. Cierra esta ventana y elige
                   otro evento para gestionar asignaciones.
                 </p>
@@ -237,13 +237,13 @@ export function EventAssignmentsDialog({
                   ) : (
                     !currentBudget.initialized && (
                       <Card>
-                        <p className="text-sm text-teal">
+                        <p className="text-sm text-muted">
                           Para crear asignaciones, inicia primero el presupuesto
                           del evento.
                         </p>
                         <div className="mt-3 flex flex-wrap items-center gap-3">
                           <Link
-                            className="font-semibold text-teal underline"
+                            className="font-semibold text-muted underline"
                             href={`/presupuestos?eventId=${encodeURIComponent(eventId)}`}
                           >
                             Ir a Presupuestos →
@@ -256,7 +256,7 @@ export function EventAssignmentsDialog({
                     )
                   )
                 ) : (
-                  <p className="text-sm text-teal">
+                  <p className="text-sm text-muted">
                     Las nuevas asignaciones requieren presupuesto iniciado y
                     saldo suficiente. Si necesitas consultar el saldo, solicita
                     acceso a Presupuestos.
@@ -288,7 +288,7 @@ export function EventAssignmentsDialog({
                 </div>
                 {!can('asignaciones.ver') &&
                   !can('servicios_proveedor.ver') && (
-                    <p role="status" className="text-sm text-teal">
+                    <p role="status" className="text-sm text-muted">
                       Puedes consultar el evento, pero no tienes permisos para
                       ver sus reservas ni servicios.
                     </p>

@@ -85,7 +85,7 @@ function ProvidersContent() {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold">Proveedores</h1>
-            <p className="mt-2 text-teal">
+            <p className="mt-2 text-muted">
               Contactos y categorías de los proveedores de tu empresa.
             </p>
           </div>
@@ -159,7 +159,7 @@ function ProvidersContent() {
           ) : (
             <>
               {!data.items.length ? (
-                <p className="py-8 text-center text-teal">
+                <p className="py-8 text-center text-muted">
                   No hay proveedores que coincidan con estos filtros.
                 </p>
               ) : (
@@ -196,7 +196,7 @@ function ProvidersContent() {
                         <span
                           className={
                             item.status === 'activo'
-                              ? 'font-semibold text-teal'
+                              ? 'font-semibold text-muted'
                               : 'text-slate-500'
                           }
                         >

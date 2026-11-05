@@ -159,11 +159,11 @@ export default function AuditoriaPage() {
     <AppShell title="Auditoría">
       <div className="grid gap-6">
         <header>
-          <p className="text-sm font-semibold uppercase tracking-[.16em] text-teal">
+          <p className="text-sm font-semibold uppercase tracking-[.16em] text-muted">
             Seguimiento administrativo
           </p>
           <h2 className="mt-2 text-3xl font-bold">Auditoría</h2>
-          <p className="mt-1 text-teal">
+          <p className="mt-1 text-muted">
             Consulta las acciones importantes realizadas en la plataforma.
           </p>
         </header>
@@ -225,7 +225,7 @@ export default function AuditoriaPage() {
           <div className="flex flex-col gap-2 border-b border-sky-blue px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h3 className="font-bold">Historial de acciones</h3>
-              <p className="mt-1 text-sm text-teal">
+              <p className="mt-1 text-sm text-muted">
                 Vista visual con registros de ejemplo.
               </p>
             </div>
@@ -257,7 +257,7 @@ export default function AuditoriaPage() {
               rows={visibleRecords}
             />
           ) : (
-            <p className="p-6 text-sm text-teal">
+            <p className="p-6 text-sm text-muted">
               No hay registros de ejemplo para los filtros seleccionados.
             </p>
           )}

@@ -9,7 +9,7 @@ export function UserPill() {
     <div className="flex items-center gap-3 rounded-full border border-sky-blue bg-white px-3 py-2 text-sm">
       <span
         aria-hidden="true"
-        className="grid size-8 place-items-center rounded-full bg-teal text-white"
+        className="grid size-8 place-items-center rounded-full bg-linear-to-br from-teal to-violet text-white"
       >
         {user?.name.charAt(0).toUpperCase() ?? 'E'}
       </span>

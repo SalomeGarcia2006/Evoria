@@ -1,5 +1,18 @@
 :root {
+  --evoria-bg: #f3f5fb;
+  --evoria-surface: #ffffff;
+  --evoria-ink: #14213d;
+  --evoria-muted: #5d6b86;
+  --evoria-border: #e3e8f3;
+  --evoria-sidebar: #101a33;
+  --evoria-teal: #12b5a6;
+  --evoria-violet: #6a4cff;
+  --evoria-coral: #ff5d73;
+  --evoria-amber: #ffb020;
+  --evoria-action: linear-gradient(135deg, #12b5a6, #6a4cff);
+  --evoria-banner: linear-gradient(120deg, #2a1b7a, #6a4cff);
+  --evoria-shadow: 0 14px 30px rgb(20 33 61 / 10%);
   --evoria-space: 1.5rem;
-  --evoria-radius: 1rem;
+  --evoria-radius: 1.5rem;
   --evoria-content-width: 80rem;
 }
