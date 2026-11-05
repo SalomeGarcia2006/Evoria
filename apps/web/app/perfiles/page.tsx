@@ -144,11 +144,11 @@ export default function PerfilesPage() {
         <Card>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-wide text-teal">
+              <p className="text-sm font-semibold uppercase tracking-wide text-muted">
                 Control de acceso
               </p>
               <h2 className="mt-1 text-2xl font-bold">Perfiles del sistema</h2>
-              <p className="mt-2 text-teal">
+              <p className="mt-2 text-muted">
                 Crea perfiles y asigna permisos para cada módulo.
               </p>
             </div>
@@ -176,7 +176,7 @@ export default function PerfilesPage() {
           >
             <div className="shrink-0 flex flex-col gap-1 border-b border-sky-blue p-6 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-sm text-teal">Nuevo perfil</p>
+                <p className="text-sm text-muted">Nuevo perfil</p>
                 <h2 className="text-2xl font-bold" id="profile-dialog-title">
                   Configura sus permisos
                 </h2>
@@ -210,7 +210,7 @@ export default function PerfilesPage() {
                 <div className="flex flex-col gap-4 border-b border-sky-blue px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <h3 className="font-bold">Módulos del sistema</h3>
-                    <p className="text-xs text-teal">
+                    <p className="text-xs text-muted">
                       Activa o desactiva los permisos según el rol o perfil.
                     </p>
                   </div>
@@ -225,7 +225,7 @@ export default function PerfilesPage() {
                     />
                     <span
                       aria-hidden="true"
-                      className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-teal"
+                      className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted"
                     >
                       ⌕
                     </span>
@@ -234,10 +234,10 @@ export default function PerfilesPage() {
                 <div className="min-h-0 flex-1 overflow-auto">
                   <div className="min-w-[720px]">
                     <div className="grid grid-cols-[minmax(16rem,1fr)_minmax(32rem,2fr)] bg-beige">
-                      <div className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-teal">
+                      <div className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-muted">
                         Módulo
                       </div>
-                      <div className="px-6 py-4 text-xs font-semibold uppercase tracking-wide text-teal">
+                      <div className="px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted">
                         Permisos
                       </div>
                     </div>
@@ -288,7 +288,7 @@ export default function PerfilesPage() {
                       </div>
                     ))}
                     {visibleModules.length === 0 ? (
-                      <p className="p-5 text-center text-sm text-teal">
+                      <p className="p-5 text-center text-sm text-muted">
                         No se encontraron módulos.
                       </p>
                     ) : null}

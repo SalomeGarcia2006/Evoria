@@ -66,11 +66,11 @@ export default function EmpresasPage() {
       <div className="grid gap-6">
         <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[.16em] text-teal">
+            <p className="text-sm font-semibold uppercase tracking-[.16em] text-muted">
               Administración de plataforma
             </p>
             <h2 className="mt-2 text-3xl font-bold">Empresas</h2>
-            <p className="mt-1 text-teal">
+            <p className="mt-1 text-muted">
               {user?.scope === 'tenant'
                 ? 'Consulta tu empresa activa o sal para volver a la plataforma.'
                 : 'Selecciona una empresa para trabajar en ella o registra una nueva.'}
@@ -118,7 +118,7 @@ export default function EmpresasPage() {
             >
               <div className="flex items-start justify-between gap-4 border-b border-sky-blue p-6">
                 <div>
-                  <p className="text-sm font-semibold uppercase tracking-[.16em] text-teal">
+                  <p className="text-sm font-semibold uppercase tracking-[.16em] text-muted">
                     Administración de plataforma
                   </p>
                   <h2
@@ -127,7 +127,7 @@ export default function EmpresasPage() {
                   >
                     Crear empresa
                   </h2>
-                  <p className="mt-1 text-sm text-teal">
+                  <p className="mt-1 text-sm text-muted">
                     También se creará el perfil Administrador y la cuenta
                     propietaria.
                   </p>
@@ -209,7 +209,7 @@ export default function EmpresasPage() {
                     required
                     type="password"
                   />
-                  <span className="font-normal text-teal">
+                  <span className="font-normal text-muted">
                     Mínimo 8 caracteres. Compártela de forma segura con el
                     propietario.
                   </span>

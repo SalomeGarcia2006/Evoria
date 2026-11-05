@@ -216,13 +216,13 @@ export function BudgetActionDialog({
           )}
         </fieldset>
         {action.kind === 'initialize' && (
-          <p className="text-sm text-teal">
+          <p className="text-sm text-muted">
             Este monto se sincroniza con el presupuesto base del evento. Debe
             cubrir los gastos ya registrados. Solo puede iniciarse una vez.
           </p>
         )}
         {action.kind === 'request' && (
-          <p className="text-sm text-teal">
+          <p className="text-sm text-muted">
             {type === 'ampliacion'
               ? 'Solicita dinero adicional para el evento. Al aprobarse, se suma al total asignado y al disponible; el presupuesto base conserva su valor.'
               : 'Registra un gasto que no corresponde a inventario ni a servicios ya asignados. Al aprobarse, consume saldo disponible; no añade dinero al presupuesto.'}{' '}

@@ -212,13 +212,13 @@ export function EventResources({
           {inDialog ? 'Reservas de inventario' : 'Recursos del evento'}
         </h3>
       </div>
-      <p className="mt-2 text-sm text-teal">
+      <p className="mt-2 text-sm text-muted">
         {editable
           ? 'Cada asignación reserva unidades del inventario. Liberar devuelve todas las unidades de ese recurso.'
           : 'Unidades del inventario reservadas para este evento. Las reservas y devoluciones se gestionan en Asignaciones.'}
       </p>
       {cancelled && editable ? (
-        <p className="mt-3 text-sm text-teal">
+        <p className="mt-3 text-sm text-muted">
           Este evento está cancelado. Puedes consultar y liberar sus recursos,
           pero no asignar más unidades.
         </p>
@@ -343,8 +343,8 @@ export function EventResources({
             <p
               className={
                 inDialog
-                  ? 'text-sm text-teal sm:col-span-2 xl:col-span-3'
-                  : 'w-full text-sm text-teal'
+                  ? 'text-sm text-muted sm:col-span-2 xl:col-span-3'
+                  : 'w-full text-sm text-muted'
               }
             >
               No hay unidades disponibles para asignar.
@@ -355,7 +355,7 @@ export function EventResources({
         !cancelled &&
         can('asignaciones.crear') &&
         !can('inventario.ver') ? (
-        <p className="my-4 text-sm text-teal">
+        <p className="my-4 text-sm text-muted">
           Necesitas permiso para consultar inventario y seleccionar los recursos
           disponibles.
         </p>
@@ -369,7 +369,7 @@ export function EventResources({
             description="Selecciona un recurso y una cantidad para reservar unidades para este evento."
           />
         ) : (
-          <p className="my-5 text-teal">
+          <p className="my-5 text-muted">
             No hay recursos asignados a este evento.
           </p>
         )
@@ -391,14 +391,14 @@ export function EventResources({
                   <h4 className="break-words font-semibold">
                     {item.inventoryItem.name}
                   </h4>
-                  <p className="mt-2 text-sm text-teal">
+                  <p className="mt-2 text-sm text-muted">
                     {item.quantity} unidades reservadas · Costo unitario:{' '}
                     {new Intl.NumberFormat('es-CO', {
                       style: 'currency',
                       currency: 'COP',
                     }).format(item.inventoryItem.unitCost)}
                   </p>
-                  <p className="mt-2 text-xs text-teal">
+                  <p className="mt-2 text-xs text-muted">
                     Asignado:{' '}
                     {new Date(item.assignedAt).toLocaleString('es-CO')}
                   </p>

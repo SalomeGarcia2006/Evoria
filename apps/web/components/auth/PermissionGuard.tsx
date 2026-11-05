@@ -31,7 +31,7 @@ export function PermissionGuard({ children }: { children: ReactNode }) {
   if (!hasAccess) {
     return (
       <main className="grid min-h-screen place-items-center bg-beige p-6">
-        <p aria-live="polite" className="text-teal">
+        <p aria-live="polite" className="text-muted">
           Verificando permisos…
         </p>
       </main>

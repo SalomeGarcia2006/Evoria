@@ -46,14 +46,14 @@ export function BudgetHistoryDialog({
     >
       <div className="grid min-w-0 gap-5">
         <div className="rounded-xl bg-sky-blue/25 p-4">
-          <p className="text-sm text-teal">Historial del evento</p>
+          <p className="text-sm text-muted">Historial del evento</p>
           <h3 className="mt-1 break-words text-xl font-bold">
             {budget.eventName}
           </h3>
         </div>
         {section === 'inventory' && (
           <>
-            <p className="text-sm text-teal">
+            <p className="text-sm text-muted">
               Las devoluciones permanecen en el historial y su costo se libera
               del presupuesto.
             </p>
@@ -87,7 +87,7 @@ export function BudgetHistoryDialog({
         )}
         {section === 'providers' && (
           <>
-            <p className="text-sm text-teal">
+            <p className="text-sm text-muted">
               Los servicios cancelados se conservan en el historial y no cuentan
               como gasto confirmado.
             </p>

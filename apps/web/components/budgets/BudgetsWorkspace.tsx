@@ -126,11 +126,11 @@ function BudgetsWorkspaceContent() {
       <FeedbackMessages feedback={feedback} />
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-[.16em] text-teal">
+          <p className="text-sm font-semibold uppercase tracking-[.16em] text-muted">
             Planeación financiera
           </p>
           <h1 className="mt-2 text-3xl font-bold">Presupuestos</h1>
-          <p className="mt-2 text-teal">
+          <p className="mt-2 text-muted">
             Controla el presupuesto, los gastos y las solicitudes de cada
             evento.
           </p>
@@ -153,7 +153,7 @@ function BudgetsWorkspaceContent() {
           <section aria-label="Eventos activos" className="grid gap-5">
             <div>
               <h2 className="text-xl font-bold">Eventos activos</h2>
-              <p className="mt-2 text-sm text-teal">
+              <p className="mt-2 text-sm text-muted">
                 Abre una tarjeta para gestionar el presupuesto de ese evento.
               </p>
             </div>
@@ -169,7 +169,7 @@ function BudgetsWorkspaceContent() {
             ) : !events.length ? (
               <Card>
                 <h3 className="font-bold">Todavía no hay eventos activos</h3>
-                <p className="mt-2 text-sm text-teal">
+                <p className="mt-2 text-sm text-muted">
                   Los eventos en borrador, planificados o en ejecución
                   aparecerán aquí cuando estén registrados en tu empresa.
                 </p>
@@ -187,10 +187,10 @@ function BudgetsWorkspaceContent() {
                     className="flex h-full min-w-0 flex-col items-start rounded-2xl border border-sky-blue bg-white p-4 text-left shadow-sm transition hover:border-teal hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal"
                   >
                     <div className="flex w-full items-center justify-between gap-3">
-                      <span className="rounded-full bg-teal/10 px-3 py-1 text-xs font-semibold text-teal">
+                      <span className="rounded-full bg-teal/10 px-3 py-1 text-xs font-semibold text-muted">
                         Activo
                       </span>
-                      <span className="text-xs text-teal">
+                      <span className="text-xs text-muted">
                         {statusLabels[event.eventStatus]}
                       </span>
                     </div>
@@ -200,12 +200,12 @@ function BudgetsWorkspaceContent() {
                     >
                       {event.eventName}
                     </h3>
-                    <p className="mt-1.5 text-xs text-teal">
+                    <p className="mt-1.5 text-xs text-muted">
                       {event.initialized
                         ? 'Saldo, gastos y solicitudes'
                         : 'Presupuesto inicial pendiente'}
                     </p>
-                    <span className="mt-3 text-sm font-semibold text-teal">
+                    <span className="mt-3 text-sm font-semibold text-muted">
                       Ver presupuesto →
                     </span>
                   </button>
@@ -239,7 +239,7 @@ function BudgetsWorkspaceContent() {
           <h2 className="text-xl font-bold">
             Necesitas permiso para revisar autorizaciones
           </h2>
-          <p className="mt-2 text-sm text-teal">
+          <p className="mt-2 text-sm text-muted">
             Solicita al administrador de tu empresa el acceso correspondiente.
           </p>
           <Button
@@ -266,7 +266,7 @@ function BudgetsWorkspaceContent() {
           </div>
           <Card>
             <h2 className="text-xl font-bold">Autorizaciones pendientes</h2>
-            <p className="my-3 text-sm text-teal">
+            <p className="my-3 text-sm text-muted">
               Solicitudes de los eventos que lideras, enviadas por otra persona.
               Revisa el presupuesto actual antes de decidir.
             </p>
@@ -281,7 +281,7 @@ function BudgetsWorkspaceContent() {
             ) : !pending?.items ? (
               <LoadingState label="Cargando autorizaciones…" />
             ) : !pending.items.length ? (
-              <p className="py-4 text-teal">
+              <p className="py-4 text-muted">
                 No tienes autorizaciones pendientes.
               </p>
             ) : (
@@ -295,7 +295,7 @@ function BudgetsWorkspaceContent() {
                     <p className="mt-2">
                       {requestLabels[request.type]} · {cop(request.amountCop)}
                     </p>
-                    <p className="mt-2 whitespace-pre-wrap break-words text-sm text-teal">
+                    <p className="mt-2 whitespace-pre-wrap break-words text-sm text-muted">
                       {request.reason}
                     </p>
                     <p className="mt-2 text-xs text-amber-900">

@@ -162,7 +162,7 @@ export function BudgetPanel({
       )}
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-sm font-semibold text-teal">
+          <p className="text-sm font-semibold text-muted">
             Presupuesto del evento
           </p>
           <h2 className="mt-1 break-words text-2xl font-bold">
@@ -171,13 +171,13 @@ export function BudgetPanel({
           {budget && (
             <div className="mt-3 flex flex-wrap items-center gap-4">
               <span
-                className={`rounded-full px-3 py-1 text-xs font-semibold capitalize ${['borrador', 'planificado', 'en_progreso'].includes(budget.eventStatus) ? 'bg-teal/10 text-teal' : 'bg-beige text-navy'}`}
+                className={`rounded-full px-3 py-1 text-xs font-semibold capitalize ${['borrador', 'planificado', 'en_progreso'].includes(budget.eventStatus) ? 'bg-teal/10 text-muted' : 'bg-beige text-navy'}`}
               >
                 {budget.eventStatus.replaceAll('_', ' ')}
               </span>
               {can('eventos.ver') && (
                 <Link
-                  className="text-sm font-semibold text-teal underline"
+                  className="text-sm font-semibold text-muted underline"
                   href={`/eventos/${encodeURIComponent(eventId)}`}
                 >
                   Ver evento ↗
@@ -198,7 +198,7 @@ export function BudgetPanel({
         (!budget.initialized ? (
           <Card>
             <h3 className="text-lg font-bold">Falta iniciar el presupuesto</h3>
-            <p className="mt-2 text-sm text-teal">
+            <p className="mt-2 text-sm text-muted">
               Registra el presupuesto base del evento para empezar. Hasta
               entonces no se pueden asignar nuevas unidades de inventario ni
               servicios de proveedores.
@@ -293,20 +293,20 @@ export function BudgetPanel({
                       >
                         Registrar costo adicional
                       </Button>
-                      <p className="text-xs leading-5 text-teal">
+                      <p className="text-xs leading-5 text-muted">
                         Ambas solicitudes requieren la aprobación del líder. Una
                         solicitud pendiente todavía no modifica el saldo.
                       </p>
                     </>
                   ) : (
-                    <p className="text-sm text-teal">
+                    <p className="text-sm text-muted">
                       Necesitas permiso de edición para enviar solicitudes de
                       cambio.
                     </p>
                   )}
                   <button
                     type="button"
-                    className="text-left text-sm font-semibold text-teal underline"
+                    className="text-left text-sm font-semibold text-muted underline"
                     onClick={openHistory}
                   >
                     Ver historial completo →
@@ -317,7 +317,7 @@ export function BudgetPanel({
             <div className="grid min-w-0 gap-5 xl:grid-cols-2">
               <Card className="min-w-0">
                 <h3 className="text-xl font-bold">¿En qué se ha usado?</h3>
-                <p className="mt-2 text-sm text-teal">
+                <p className="mt-2 text-sm text-muted">
                   Gastos registrados en el presupuesto del evento.
                 </p>
                 <div className="mt-5 divide-y divide-sky-blue">
@@ -370,7 +370,7 @@ export function BudgetPanel({
                           fill="none"
                           stroke="currentColor"
                           strokeWidth="2"
-                          className="size-5 shrink-0 text-teal transition duration-200 group-hover:translate-x-0.5 group-hover:text-navy group-focus-visible:translate-x-0.5 group-focus-visible:text-navy motion-reduce:transform-none motion-reduce:transition-none"
+                          className="size-5 shrink-0 text-muted transition duration-200 group-hover:translate-x-0.5 group-hover:text-navy group-focus-visible:translate-x-0.5 group-focus-visible:text-navy motion-reduce:transform-none motion-reduce:transition-none"
                         >
                           <path
                             d="m9 5 7 7-7 7"
@@ -386,7 +386,7 @@ export function BudgetPanel({
                     <span className="font-bold">{cop(budget.spentCop)}</span>
                   </div>
                 </div>
-                <p className="mt-4 text-xs leading-5 text-teal">
+                <p className="mt-4 text-xs leading-5 text-muted">
                   Al devolver inventario, sus unidades vuelven a estar
                   disponibles y su costo se libera del presupuesto del evento.
                   Los servicios cancelados permanecen en el historial y dejan de
@@ -404,11 +404,11 @@ export function BudgetPanel({
                       <h3 className="text-xl font-bold">
                         Solicitudes y decisiones
                       </h3>
-                      <p className="mt-2 text-sm text-teal">
+                      <p className="mt-2 text-sm text-muted">
                         Ampliaciones y costos adicionales del evento.
                       </p>
                     </div>
-                    <span className="rounded-full bg-beige px-3 py-1 text-xs text-teal">
+                    <span className="rounded-full bg-beige px-3 py-1 text-xs text-muted">
                       {budget.requests.length} solicitudes
                     </span>
                   </div>
@@ -420,7 +420,7 @@ export function BudgetPanel({
                     </div>
                   )}
                   {!requests.length ? (
-                    <p className="my-5 text-sm text-teal">
+                    <p className="my-5 text-sm text-muted">
                       No hay solicitudes registradas.
                     </p>
                   ) : (
@@ -436,7 +436,7 @@ export function BudgetPanel({
                               {cop(request.amountCop)}
                             </h4>
                             <span
-                              className={`rounded-full px-3 py-1 text-xs font-semibold ${request.status === 'pendiente' ? 'bg-amber-50 text-amber-900' : request.status === 'aprobada' ? 'bg-teal/10 text-teal' : 'bg-beige text-navy'}`}
+                              className={`rounded-full px-3 py-1 text-xs font-semibold ${request.status === 'pendiente' ? 'bg-amber-50 text-amber-900' : request.status === 'aprobada' ? 'bg-teal/10 text-muted' : 'bg-beige text-navy'}`}
                             >
                               {request.status === 'pendiente'
                                 ? 'Pendiente · sin efecto en el saldo'
@@ -448,7 +448,7 @@ export function BudgetPanel({
                           <p className="mt-3 whitespace-pre-wrap break-words text-sm">
                             {request.reason}
                           </p>
-                          <p className="mt-2 text-xs text-teal">
+                          <p className="mt-2 text-xs text-muted">
                             {new Date(request.requestedAt).toLocaleString(
                               'es-CO',
                             )}
@@ -459,7 +459,7 @@ export function BudgetPanel({
                             </p>
                           )}
                           {showHistory && (
-                            <div className="mt-3 grid gap-2 text-xs text-teal">
+                            <div className="mt-3 grid gap-2 text-xs text-muted">
                               <p className="break-all">
                                 Solicitante: {request.requestedBy}
                                 {request.requestedBy === user?.id
@@ -506,7 +506,7 @@ export function BudgetPanel({
                   {requests.length > 0 && (
                     <button
                       type="button"
-                      className="mt-4 text-sm font-semibold text-teal underline"
+                      className="mt-4 text-sm font-semibold text-muted underline"
                       onClick={() => setShowHistory((value) => !value)}
                     >
                       {showHistory
@@ -514,7 +514,7 @@ export function BudgetPanel({
                         : `Mostrar historial y decisiones (${requests.length})`}
                     </button>
                   )}
-                  <p className="mt-5 rounded-xl bg-sky-blue/30 p-3 text-xs leading-5 text-teal">
+                  <p className="mt-5 rounded-xl bg-sky-blue/30 p-3 text-xs leading-5 text-muted">
                     Las solicitudes pendientes permanecen separadas. Solo los
                     cambios aprobados se reflejan en los totales del
                     presupuesto.

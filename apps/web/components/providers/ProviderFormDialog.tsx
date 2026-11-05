@@ -157,7 +157,7 @@ export function ProviderFormDialog({
             />
           </label>
         </fieldset>
-        <p className="text-sm text-teal">
+        <p className="text-sm text-muted">
           Nombre, categorías y al menos un teléfono o correo son obligatorios.
         </p>
         <div className="flex flex-wrap justify-end gap-3">

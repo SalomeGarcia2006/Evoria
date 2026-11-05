@@ -292,7 +292,7 @@ export function EventList({
       >
         <div className="flex items-start justify-between gap-4 border-b border-sky-blue p-6">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[.16em] text-teal">
+            <p className="text-sm font-semibold uppercase tracking-[.16em] text-muted">
               Eventos
             </p>
             <h2
@@ -313,7 +313,7 @@ export function EventList({
           </Button>
         </div>
         <form className="grid gap-5 p-6" onSubmit={handleStatusUpdate}>
-          <p className="text-sm text-teal">{statusEvent?.name}</p>
+          <p className="text-sm text-muted">{statusEvent?.name}</p>
           <label className="grid gap-2 text-sm font-semibold">
             Nuevo estado
             <select

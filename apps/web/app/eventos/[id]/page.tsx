@@ -71,7 +71,7 @@ export default function EventoDetailPage() {
     <AppShell title="Detalle del evento">
       <div className="mx-auto grid max-w-3xl gap-6">
         <Link
-          className="text-sm font-semibold text-teal hover:underline"
+          className="text-sm font-semibold text-muted hover:underline"
           href="/eventos"
         >
           ← Volver a eventos
@@ -83,7 +83,7 @@ export default function EventoDetailPage() {
           <Card>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <p className="text-sm font-semibold uppercase tracking-[.16em] text-teal">
+                <p className="text-sm font-semibold uppercase tracking-[.16em] text-muted">
                   {event.type ?? 'Evento'}
                 </p>
                 <h2 className="mt-2 text-3xl font-bold">{event.name}</h2>
@@ -92,12 +92,12 @@ export default function EventoDetailPage() {
                 {event.status.replaceAll('_', ' ')}
               </span>
             </div>
-            <p className="mt-5 whitespace-pre-wrap text-teal">
+            <p className="mt-5 whitespace-pre-wrap text-muted">
               {event.description || 'Sin descripción.'}
             </p>
             <div className="mt-7 grid gap-4 border-t border-sky-blue pt-6 sm:grid-cols-2">
               <div>
-                <p className="text-sm text-teal">Inicio</p>
+                <p className="text-sm text-muted">Inicio</p>
                 <p className="mt-1 font-semibold">
                   {new Intl.DateTimeFormat('es-CO', {
                     dateStyle: 'medium',
@@ -106,7 +106,7 @@ export default function EventoDetailPage() {
                 </p>
               </div>
               <div>
-                <p className="text-sm text-teal">Finalización</p>
+                <p className="text-sm text-muted">Finalización</p>
                 <p className="mt-1 font-semibold">
                   {new Intl.DateTimeFormat('es-CO', {
                     dateStyle: 'medium',
@@ -115,13 +115,13 @@ export default function EventoDetailPage() {
                 </p>
               </div>
               <div>
-                <p className="text-sm text-teal">Ubicación</p>
+                <p className="text-sm text-muted">Ubicación</p>
                 <p className="mt-1 font-semibold">
                   {event.location || 'Sin ubicación'}
                 </p>
               </div>
               <div>
-                <p className="text-sm text-teal">Tipo</p>
+                <p className="text-sm text-muted">Tipo</p>
                 <p className="mt-1 font-semibold">{event.type || 'Sin tipo'}</p>
               </div>
             </div>

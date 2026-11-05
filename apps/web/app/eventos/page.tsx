@@ -27,7 +27,7 @@ export default function EventosPage() {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold">Eventos</h1>
-            <p className="mt-1 text-sm text-teal">
+            <p className="mt-1 text-sm text-muted">
               Consulta y administra los eventos de tu empresa.
             </p>
           </div>
@@ -47,7 +47,7 @@ export default function EventosPage() {
           >
             <div className="flex items-start justify-between gap-4 border-b border-sky-blue p-6">
               <div>
-                <p className="text-sm font-semibold uppercase tracking-[.16em] text-teal">
+                <p className="text-sm font-semibold uppercase tracking-[.16em] text-muted">
                   Eventos
                 </p>
                 <h2 className="mt-1 text-2xl font-bold" id="event-dialog-title">
