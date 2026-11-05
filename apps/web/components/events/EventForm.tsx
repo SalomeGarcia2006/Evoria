@@ -4,7 +4,9 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import {
   createEvent,
+  getAllEvents,
   type CreateEventPayload,
+  type EventItem,
 } from '../../services/events.service';
 import { getUsers, type CompanyUser } from '../../services/users.service';
 import { Button } from '../ui/Button';
@@ -42,6 +44,10 @@ function getTomorrowDate(): string {
   return formatDateForInput(tomorrow);
 }
 
+function normalizeEventText(value: string | null | undefined): string {
+  return (value ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
 export function EventForm({
   onCancel,
   onSuccess,
@@ -65,6 +71,9 @@ export function EventForm({
   });
   const [users, setUsers] = useState<CompanyUser[]>([]);
   const [usersError, setUsersError] = useState(false);
+  const [events, setEvents] = useState<EventItem[]>([]);
+  const [isLoadingEvents, setIsLoadingEvents] = useState(true);
+  const [eventsError, setEventsError] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [validationAlert, setValidationAlert] = useState<string | null>(null);
   const [successAlert, setSuccessAlert] = useState(false);
@@ -80,6 +89,13 @@ export function EventForm({
         setUsers(items.filter((user) => user.status === 'activo')),
       )
       .catch(() => setUsersError(true));
+  }, []);
+
+  useEffect(() => {
+    void getAllEvents()
+      .then(setEvents)
+      .catch(() => setEventsError(true))
+      .finally(() => setIsLoadingEvents(false));
   }, []);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -138,6 +154,55 @@ export function EventForm({
 
     const startAt = combineDateAndTime(form.startDate, form.startTime);
     const endAt = combineDateAndTime(form.endDate, form.endTime);
+
+    if (isLoadingEvents) {
+      setValidationAlert('Espera mientras validamos la disponibilidad.');
+      return;
+    }
+
+    if (eventsError) {
+      setValidationAlert(
+        'No fue posible validar la disponibilidad de la persona responsable.',
+      );
+      return;
+    }
+
+    if (
+      events.some(
+        (existingEvent) =>
+          normalizeEventText(existingEvent.name) ===
+          normalizeEventText(form.name),
+      )
+    ) {
+      setValidationAlert('Ya existe un evento con ese nombre.');
+      return;
+    }
+
+    if (
+      events.some(
+        (existingEvent) =>
+          normalizeEventText(existingEvent.description) ===
+          normalizeEventText(form.description),
+      )
+    ) {
+      setValidationAlert('Ya existe un evento con esa descripción.');
+      return;
+    }
+
+    const conflictingEvent = events.find(
+      (existingEvent) =>
+        existingEvent.responsibleUserId === form.responsibleUserId &&
+        existingEvent.status !== 'cancelado' &&
+        new Date(existingEvent.startAt) < new Date(endAt) &&
+        new Date(existingEvent.endAt) > new Date(startAt),
+    );
+
+    if (conflictingEvent) {
+      setValidationAlert(
+        `La persona responsable ya está asignada al evento “${conflictingEvent.name}” en ese horario.`,
+      );
+      return;
+    }
 
     const payload: CreateEventPayload = {
       name: form.name.trim(),
