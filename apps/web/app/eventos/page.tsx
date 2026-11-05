@@ -3,6 +3,7 @@
 import { AppShell } from '../../components/layout/AppShell';
 import { EventForm } from '../../components/events/EventForm';
 import { EventList } from '../../components/events/EventList';
+import type { EventItem } from '../../services/events.service';
 import { useRef, useState } from 'react';
 import { PermissionGate } from '../../components/auth/PermissionGate';
 import { Button } from '../../components/ui/Button';
@@ -11,24 +12,34 @@ export default function EventosPage() {
   const eventDialog = useRef<HTMLDialogElement>(null);
   const [revision, setRevision] = useState(0);
   const [formKey, setFormKey] = useState(0);
+  const [editingEvent, setEditingEvent] = useState<EventItem | null>(null);
 
   function openCreateForm() {
+    setEditingEvent(null);
+    setFormKey((current) => current + 1);
+    eventDialog.current?.showModal();
+  }
+
+  function openEditForm(event: EventItem) {
+    setEditingEvent(event);
     setFormKey((current) => current + 1);
     eventDialog.current?.showModal();
   }
 
   function closeCreateForm() {
     eventDialog.current?.close();
+    setEditingEvent(null);
   }
 
   return (
-    <AppShell title="Eventos">
-      <div className="grid gap-6">
-        <div className="flex flex-wrap items-center justify-between gap-4">
+    <AppShell hideTitle title="Eventos">
+      <div className="events-page grid gap-6">
+        <section className="events-hero">
           <div>
-            <h1 className="text-2xl font-bold">Eventos</h1>
-            <p className="mt-1 text-sm text-muted">
-              Consulta y administra los eventos de tu empresa.
+            <h1 className="text-4xl font-bold">Eventos</h1>
+            <p className="mt-2 max-w-xl text-base text-muted">
+              Organiza cada detalle de tus próximos encuentros desde un solo
+              lugar.
             </p>
           </div>
           <PermissionGate permission="eventos.crear">
@@ -36,8 +47,25 @@ export default function EventosPage() {
               + Nuevo evento
             </Button>
           </PermissionGate>
-        </div>
-        <EventList onCreate={openCreateForm} revision={revision} />
+        </section>
+        <section className="events-banner">
+          <span className="events-banner__icon" aria-hidden="true">
+            <span>✓</span>
+          </span>
+          <div>
+            <h2 className="text-xl font-bold">
+              Todo listo para tu próximo evento
+            </h2>
+            <p className="mt-1 text-sm text-muted">
+              Consulta fechas, ubicaciones y avances desde un solo lugar.
+            </p>
+          </div>
+        </section>
+        <EventList
+          onCreate={openCreateForm}
+          onEdit={openEditForm}
+          revision={revision}
+        />
 
         <PermissionGate permission="eventos.crear">
           <dialog
@@ -51,7 +79,7 @@ export default function EventosPage() {
                   Eventos
                 </p>
                 <h2 className="mt-1 text-2xl font-bold" id="event-dialog-title">
-                  Nuevo evento
+                  {editingEvent ? 'Editar evento' : 'Nuevo evento'}
                 </h2>
               </div>
               <Button
@@ -66,7 +94,8 @@ export default function EventosPage() {
             </div>
             <div className="p-6">
               <EventForm
-                key={formKey}
+                initialEvent={editingEvent ?? undefined}
+                key={`${formKey}-${editingEvent?.id ?? 'new'}`}
                 onCancel={closeCreateForm}
                 onSuccess={() => {
                   closeCreateForm();
