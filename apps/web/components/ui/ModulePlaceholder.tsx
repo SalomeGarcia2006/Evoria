@@ -10,7 +10,7 @@ export function ModulePlaceholder({
   return (
     <Card>
       <h2 className="text-2xl font-bold">{title}</h2>
-      <p className="mt-2 text-teal">{description}</p>
+      <p className="mt-2 text-muted">{description}</p>
     </Card>
   );
 }

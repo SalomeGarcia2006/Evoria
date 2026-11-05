@@ -74,18 +74,18 @@ function AssignmentsContent() {
         {can('inventario.ver') && (
           <Link
             href="/inventario"
-            className="text-sm font-semibold text-teal underline"
+            className="text-sm font-semibold text-muted underline"
           >
             ← Ver inventario
           </Link>
         )}
         <header className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[.16em] text-teal">
+            <p className="text-sm font-semibold uppercase tracking-[.16em] text-muted">
               Recursos de tu empresa
             </p>
             <h1 className="mt-2 text-3xl font-bold">Asignación de recursos</h1>
-            <p className="mt-2 text-teal">
+            <p className="mt-2 text-muted">
               Organiza el inventario y los servicios de cada evento
             </p>
           </div>
@@ -120,7 +120,7 @@ function AssignmentsContent() {
         ) : !events.length ? (
           <Card>
             <h2 className="text-xl font-bold">No hay eventos activos</h2>
-            <p className="mt-2 text-sm text-teal">
+            <p className="mt-2 text-sm text-muted">
               Aquí aparecen los eventos en borrador, planificados y en
               ejecución. Los eventos finalizados o cancelados no admiten nuevas
               asignaciones desde esta vista.
@@ -128,7 +128,7 @@ function AssignmentsContent() {
             {can('eventos.crear') && (
               <Link
                 href="/eventos/nuevo"
-                className="mt-4 inline-block font-semibold text-teal underline"
+                className="mt-4 inline-block font-semibold text-muted underline"
               >
                 Crear evento →
               </Link>
@@ -161,12 +161,12 @@ function AssignmentsContent() {
                 >
                   {event.name}
                 </h2>
-                <p className="mt-2 flex items-center gap-2 text-xs text-teal">
+                <p className="mt-2 flex items-center gap-2 text-xs text-muted">
                   <AssignmentIcon name="cronograma" small plain />
                   {assignmentEventDate(event.startAt)}
                 </p>
                 {event.location && (
-                  <p className="mt-2 flex items-center gap-2 break-words text-xs text-teal">
+                  <p className="mt-2 flex items-center gap-2 break-words text-xs text-muted">
                     <AssignmentIcon name="empresas" small plain />
                     <span
                       className="line-clamp-1 min-w-0 break-words"
@@ -176,7 +176,7 @@ function AssignmentsContent() {
                     </span>
                   </p>
                 )}
-                <span className="mt-3 w-full border-t border-sky-blue pt-3 text-sm font-semibold text-teal group-hover:text-navy">
+                <span className="mt-3 w-full border-t border-sky-blue pt-3 text-sm font-semibold text-muted group-hover:text-navy">
                   Ver detalles y asignar →
                 </span>
               </button>

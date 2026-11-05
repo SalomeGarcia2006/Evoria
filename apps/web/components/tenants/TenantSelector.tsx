@@ -80,7 +80,7 @@ export function TenantSelector({ revision }: { revision?: string }) {
     <Card>
       <h3 className="text-lg font-bold">Mi empresa</h3>
       {notice ? (
-        <p className="mt-3 text-sm text-teal" role="status">
+        <p className="mt-3 text-sm text-muted" role="status">
           {notice}
         </p>
       ) : null}
@@ -95,11 +95,11 @@ export function TenantSelector({ revision }: { revision?: string }) {
       {user.scope === 'tenant' && user.tenant ? (
         <div className="mt-4 grid gap-4 rounded-xl bg-beige p-4">
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-teal">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted">
               Empresa activa
             </p>
             <p className="mt-1 font-semibold">{user.tenant.name}</p>
-            <p className="mt-1 text-sm text-teal">
+            <p className="mt-1 text-sm text-muted">
               Tienes acceso como Administrador. Puedes salir cuando quieras para
               elegir otra empresa.
             </p>
@@ -107,7 +107,7 @@ export function TenantSelector({ revision }: { revision?: string }) {
           <div className="flex flex-wrap items-center gap-4">
             <Link
               href="/dashboard"
-              className="text-sm font-semibold text-teal underline"
+              className="text-sm font-semibold text-muted underline"
             >
               Ir al dashboard
             </Link>
@@ -123,11 +123,11 @@ export function TenantSelector({ revision }: { revision?: string }) {
         </div>
       ) : (
         <div className="mt-4 grid gap-4">
-          <p className="text-sm text-teal">
+          <p className="text-sm text-muted">
             Selecciona una empresa para unirte y trabajar en ella.
           </p>
           {isLoading ? (
-            <p role="status" className="text-sm text-teal">
+            <p role="status" className="text-sm text-muted">
               Cargando empresas…
             </p>
           ) : loadError ? (
@@ -147,7 +147,7 @@ export function TenantSelector({ revision }: { revision?: string }) {
               </Button>
             </div>
           ) : tenants.length === 0 ? (
-            <p className="rounded-xl bg-beige p-4 text-sm text-teal">
+            <p className="rounded-xl bg-beige p-4 text-sm text-muted">
               No hay empresas disponibles. Crea una empresa para poder
               seleccionarla.
             </p>

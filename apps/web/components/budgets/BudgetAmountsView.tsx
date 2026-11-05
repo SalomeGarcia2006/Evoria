@@ -39,7 +39,7 @@ export function BudgetAmountsView({
             className={`min-w-0 rounded-xl p-4 ${label === 'Disponible' ? 'bg-teal/10' : label === 'Total asignado' ? 'bg-sky-blue/30' : 'bg-beige/70'}`}
             key={label}
           >
-            <dt className="text-sm text-teal">{label}</dt>
+            <dt className="text-sm text-muted">{label}</dt>
             <dd className="mt-2 break-words text-xl font-bold">
               {amount === null ? 'Sin iniciar' : cop(amount)}
             </dd>

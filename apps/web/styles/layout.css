@@ -14,11 +14,11 @@
   overflow: hidden;
   margin: 1rem 0 1rem 1rem;
   padding: 1rem 0.7rem;
-  border: 1px solid rgb(200 217 230 / 75%);
-  border-radius: 1.35rem;
-  background: #1f3347;
-  box-shadow: 0 1rem 2.5rem rgb(31 51 71 / 24%);
-  color: #f5efeb;
+  border: 1px solid rgb(255 255 255 / 8%);
+  border-radius: 1.5rem;
+  background: var(--evoria-sidebar);
+  box-shadow: 0 14px 30px rgb(20 33 61 / 22%);
+  color: #f3f5fb;
   transition: width 260ms ease;
 }
 
@@ -57,7 +57,7 @@
   flex: 0 0 2rem;
   place-items: center;
   border-radius: 0.65rem;
-  background: #567c8d;
+  background: var(--evoria-action);
   color: #ffffff;
   font-size: 1.05rem;
   font-weight: 800;
@@ -112,7 +112,7 @@
   padding: 0.5rem 0.55rem;
   border: 0;
   background: transparent;
-  color: #c8d9e6;
+  color: #b8c5e0;
   cursor: pointer;
   font: inherit;
   font-size: 0.78rem;
@@ -132,14 +132,14 @@
 }
 
 .evoria-sidebar__link:hover {
-  background: rgb(200 217 230 / 12%);
+  background: rgb(255 255 255 / 9%);
   color: #ffffff;
 }
 
 .evoria-sidebar__link.is-active {
-  background: #567c8d;
+  background: var(--evoria-action);
   color: #ffffff;
-  box-shadow: 0 0.45rem 1rem rgb(86 124 141 / 22%);
+  box-shadow: 0 0.45rem 1rem rgb(106 76 255 / 32%);
 }
 
 .evoria-sidebar__icon {
@@ -159,7 +159,7 @@
 .evoria-sidebar__footer {
   margin-top: auto;
   padding-top: 0.85rem;
-  border-top: 1px solid rgb(200 217 230 / 18%);
+  border-top: 1px solid rgb(255 255 255 / 14%);
 }
 
 .evoria-sidebar__logout-icon {
@@ -168,7 +168,7 @@
   height: 1.2rem;
   flex: 0 0 1.2rem;
   place-items: center;
-  color: #c8d9e6;
+  color: #b8c5e0;
   font-size: 1.25rem;
   line-height: 1;
 }
@@ -187,7 +187,7 @@
     margin: 0;
     padding: 0.75rem 1rem;
     border-right: 0;
-    border-bottom: 1px solid #c8d9e6;
+    border-bottom: 1px solid var(--evoria-border);
     border-radius: 0 0 1.25rem 1.25rem;
   }
 

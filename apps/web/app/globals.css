@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@10..48,75..100,400..800&family=DM+Sans:opsz,wght@9..40,400..700&display=swap');
 @import 'tailwindcss';
 @import 'leaflet/dist/leaflet.css';
 @import '../styles/tokens.css';
@@ -7,13 +8,33 @@
 @import '../styles/responsive.css';
 
 @theme {
-  --color-navy: #2f4156;
-  --color-teal: #567c8d;
-  --color-pink: #f57cf5;
-  --color-sky-blue: #c8d9e6;
-  --color-beige: #f8fafc;
+  --color-navy: #14213d;
+  --color-teal: #12b5a6;
+  --color-violet: #6a4cff;
+  --color-coral: #ff5d73;
+  --color-amber: #ffb020;
+  --color-muted: #5d6b86;
+  --color-sky-blue: #e3e8f3;
+  --color-beige: #f3f5fb;
   --color-white: #ffffff;
-  --font-sans: 'Times New Roman', Times, serif;
+  --color-red-50: #fff0f3;
+  --color-red-100: #ffe0e7;
+  --color-red-200: #ffc4d0;
+  --color-red-700: #b4233c;
+  --color-red-800: #8a1730;
+  --color-amber-50: #fff8e8;
+  --color-amber-300: #ffd584;
+  --color-amber-800: #9b6400;
+  --color-amber-900: #724b00;
+  --color-emerald-50: #e8fbf8;
+  --color-emerald-100: #d1f7f1;
+  --color-emerald-200: #a3ece1;
+  --color-emerald-800: #087a70;
+  --color-emerald-900: #064942;
+  --color-blue-100: #f0edff;
+  --color-blue-800: #4730b8;
+  --font-sans: 'DM Sans', sans-serif;
+  --font-display: 'Bricolage Grotesque', sans-serif;
 }
 
 :root {
@@ -22,6 +43,53 @@
 
 body {
   @apply min-h-screen bg-beige font-sans text-navy antialiased;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid rgb(106 76 255 / 42%);
+  outline-offset: 3px;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-display);
+  letter-spacing: -0.025em;
+}
+
+input,
+select,
+textarea {
+  border-color: var(--evoria-border);
+  border-radius: 0.875rem;
+  color: var(--evoria-ink);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: color-mix(in srgb, var(--evoria-muted) 72%, white);
+}
+
+select:focus,
+input:focus,
+textarea:focus {
+  border-color: var(--evoria-teal);
+  box-shadow: 0 0 0 3px rgb(18 181 166 / 15%);
 }
 
 .login-page {
@@ -40,7 +108,7 @@ body {
   height: 14.375rem;
   pointer-events: none;
   opacity: 0.55;
-  background: linear-gradient(135deg, var(--color-teal), var(--color-sky-blue));
+  background: var(--evoria-action);
   border-radius: 0 0 100% 0;
 }
 
@@ -127,8 +195,8 @@ body {
   padding: clamp(1.55rem, 5vw, 2.625rem);
   background: var(--color-white);
   border: 1px solid var(--color-sky-blue);
-  border-radius: 0.9375rem;
-  box-shadow: 0 1rem 2.625rem rgb(47 65 86 / 12%);
+  border-radius: 1.5rem;
+  box-shadow: var(--evoria-shadow);
 }
 
 .login-card h2 {
@@ -235,8 +303,8 @@ body {
   min-height: 3.125rem;
   margin: 0.3125rem 0 1.375rem;
   border: 0;
-  border-radius: 0.5rem;
-  background: var(--color-teal);
+  border-radius: 0.875rem;
+  background: var(--evoria-action);
   color: var(--color-white);
   cursor: pointer;
   font: bold 1.1rem var(--font-sans);
@@ -244,7 +312,7 @@ body {
 }
 
 .login-button:hover {
-  background: var(--color-navy);
+  filter: brightness(1.04);
 }
 
 .login-alert-backdrop {
@@ -327,7 +395,7 @@ body {
   min-height: 2.875rem;
   border: 0;
   border-radius: 0.75rem;
-  background: var(--color-teal);
+  background: var(--evoria-action);
   color: var(--color-white);
   cursor: pointer;
   font: bold 0.95rem var(--font-sans);
@@ -337,7 +405,7 @@ body {
 }
 
 .login-alert-button:hover {
-  background: var(--color-navy);
+  filter: brightness(1.04);
   transform: translateY(-1px);
 }
 
@@ -382,10 +450,91 @@ body {
   min-height: 2.875rem;
   border: 0;
   border-radius: 0.75rem;
-  background: var(--color-teal);
+  background: var(--evoria-action);
   color: var(--color-white);
   cursor: pointer;
   font: bold 0.95rem var(--font-sans);
+}
+
+.dashboard-hero {
+  position: relative;
+  display: flex;
+  min-height: 12rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  overflow: hidden;
+  padding: clamp(1.5rem, 4vw, 2.75rem);
+  border-radius: 1.75rem;
+  background:
+    radial-gradient(circle at 91% 8%, rgb(255 93 115 / 88%), transparent 27%),
+    radial-gradient(circle at 52% 115%, rgb(18 181 166 / 72%), transparent 38%),
+    var(--evoria-banner);
+  box-shadow: var(--evoria-shadow);
+}
+
+.dashboard-hero > * {
+  position: relative;
+  z-index: 1;
+}
+
+.dashboard-hero__eyebrow {
+  color: rgb(255 255 255 / 74%);
+  font-size: 0.875rem;
+  text-transform: capitalize;
+}
+
+.dashboard-hero__button {
+  min-width: 10.5rem;
+  background: #fff;
+  color: var(--evoria-violet);
+  box-shadow: none;
+}
+
+.dashboard-hero__button:hover {
+  background: #fff;
+}
+
+.dashboard-metrics {
+  position: relative;
+  z-index: 2;
+  margin-top: clamp(-3.25rem, -4vw, -2rem);
+  padding-inline: clamp(0rem, 2vw, 1.5rem);
+}
+
+.dashboard-metric {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.dashboard-metric__icon {
+  display: grid;
+  width: 3rem;
+  height: 3rem;
+  flex: 0 0 3rem;
+  place-items: center;
+  border-radius: 1rem;
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.dashboard-metric__icon--violet {
+  background: linear-gradient(135deg, #6a4cff, #9b87ff);
+}
+
+.dashboard-metric__icon--teal {
+  background: linear-gradient(135deg, #12b5a6, #5be0d2);
+}
+
+.dashboard-metric__icon--coral {
+  background: linear-gradient(135deg, #ff5d73, #ffb020);
+}
+
+.dashboard-metric__value {
+  font-family: var(--font-display);
 }
 
 @keyframes login-alert-appear {
@@ -428,5 +577,15 @@ body {
 
   .login-wave {
     opacity: 0.3;
+  }
+
+  .dashboard-hero {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .dashboard-metrics {
+    margin-top: -1.5rem;
+    padding-inline: 0.5rem;
   }
 }

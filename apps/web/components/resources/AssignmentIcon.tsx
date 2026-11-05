@@ -20,7 +20,7 @@ export function AssignmentIcon({
   return (
     <span
       aria-hidden="true"
-      className={`inline-flex shrink-0 items-center justify-center text-teal ${plain ? 'size-4' : `rounded-xl bg-sky-blue/40 ${small ? 'size-8' : 'size-10'}`}`}
+      className={`inline-flex shrink-0 items-center justify-center text-muted ${plain ? 'size-4' : `rounded-xl bg-sky-blue/40 ${small ? 'size-8' : 'size-10'}`}`}
     >
       <span
         className={small ? 'size-4 bg-current' : 'size-5 bg-current'}

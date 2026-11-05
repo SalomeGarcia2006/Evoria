@@ -61,7 +61,7 @@ export function InventoryView({
         <header className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h2 className="text-3xl font-bold">Inventario</h2>
-            <p className="mt-2 text-teal">
+            <p className="mt-2 text-muted">
               Equipos y materiales activos de tu empresa. Abre una tarjeta para
               consultar o ajustar el recurso.
             </p>
@@ -85,7 +85,7 @@ export function InventoryView({
         <PermissionGate permission="asignaciones.ver">
           <Link
             href="/recursos/asignaciones"
-            className="font-semibold text-teal underline"
+            className="font-semibold text-muted underline"
           >
             Asignar recursos a eventos →
           </Link>
@@ -121,7 +121,7 @@ export function InventoryView({
                 ['Unidades reservadas', reserved],
               ].map(([label, value]) => (
                 <Card key={label} density="compact">
-                  <p className="text-sm text-teal">{label}</p>
+                  <p className="text-sm text-muted">{label}</p>
                   <p className="mt-2 text-xl font-bold">{value}</p>
                 </Card>
               ))}
@@ -129,7 +129,7 @@ export function InventoryView({
             {!activeResources.length ? (
               <Card>
                 <h3 className="font-bold">Todavía no hay recursos activos</h3>
-                <p className="mt-2 text-sm text-teal">
+                <p className="mt-2 text-sm text-muted">
                   Los recursos disponibles y en mantenimiento aparecerán aquí al
                   registrarlos.
                 </p>
@@ -156,7 +156,7 @@ export function InventoryView({
                         {resourceStatusLabels[resource.status]}
                       </span>
                     </div>
-                    <p className="mt-2 text-sm text-teal">{resource.type}</p>
+                    <p className="mt-2 text-sm text-muted">{resource.type}</p>
                     {resource.description && (
                       <p
                         className="mt-2 line-clamp-2 whitespace-pre-wrap break-words text-xs"
@@ -177,7 +177,7 @@ export function InventoryView({
                         ['Reservadas', resource.reservedQuantity],
                       ].map(([label, value]) => (
                         <div key={label}>
-                          <dt className="text-teal">{label}</dt>
+                          <dt className="text-muted">{label}</dt>
                           <dd className="mt-1 text-lg font-bold">{value}</dd>
                         </div>
                       ))}

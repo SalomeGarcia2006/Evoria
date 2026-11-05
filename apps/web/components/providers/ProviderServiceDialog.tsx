@@ -311,7 +311,7 @@ export function ProviderServiceDialog({
                     )}
                   </label>
                   {!providerData.items.length && (
-                    <p className="text-sm text-teal">
+                    <p className="text-sm text-muted">
                       No hay proveedores activos que coincidan con los filtros.
                     </p>
                   )}
@@ -401,11 +401,11 @@ export function ProviderServiceDialog({
             error={errors.amount}
             onChange={(e) => setValues({ ...values, amount: e.target.value })}
           />
-          <p className="text-sm text-teal">
+          <p className="text-sm text-muted">
             Registra el acuerdo confirmado con el proveedor. Evoria no consulta
             disponibilidad ni modifica el inventario.
           </p>
-          <p className="text-sm text-teal">
+          <p className="text-sm text-muted">
             El valor confirmado se registra como gasto del presupuesto. Al
             editarlo, se ajusta el gasto y se valida el saldo disponible.
           </p>

@@ -7,7 +7,7 @@ export function Card({
 }: HTMLAttributes<HTMLElement> & { density?: 'default' | 'compact' }) {
   return (
     <section
-      className={`rounded-2xl border border-sky-blue bg-white ${density === 'compact' ? 'p-4' : 'p-6'} shadow-sm ${className}`}
+      className={`rounded-[1.5rem] border border-sky-blue bg-white ${density === 'compact' ? 'p-4' : 'p-6'} shadow-[0_14px_30px_rgba(20,33,61,0.1)] ${className}`}
       {...props}
     />
   );

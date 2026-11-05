@@ -146,11 +146,11 @@ export default function UsuariosPage() {
         <Card>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-wide text-teal">
+              <p className="text-sm font-semibold uppercase tracking-wide text-muted">
                 Administración
               </p>
               <h2 className="mt-1 text-2xl font-bold">Usuarios del sistema</h2>
-              <p className="mt-2 text-teal">
+              <p className="mt-2 text-muted">
                 Crea, consulta, edita y desactiva usuarios. El perfil define sus
                 permisos de acceso.
               </p>
@@ -179,7 +179,7 @@ export default function UsuariosPage() {
         >
           <div className="flex items-start justify-between gap-4 border-b border-sky-blue p-6">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-[.16em] text-teal">
+              <p className="text-sm font-semibold uppercase tracking-[.16em] text-muted">
                 Usuarios
               </p>
               <h2 className="mt-1 text-2xl font-bold" id="user-dialog-title">
@@ -303,7 +303,7 @@ export default function UsuariosPage() {
             <h3 className="font-bold">Usuarios registrados</h3>
           </div>
           {isLoading ? (
-            <p className="p-6 text-sm text-teal">Cargando usuarios…</p>
+            <p className="p-6 text-sm text-muted">Cargando usuarios…</p>
           ) : (
             <DataTable
               columns={[

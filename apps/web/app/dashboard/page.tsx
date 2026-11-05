@@ -83,6 +83,8 @@ export default function DashboardPage() {
             ),
             hint: `${data.events.length} eventos registrados`,
             href: '/eventos',
+            icon: '▣',
+            tone: 'violet',
           },
         ]
       : []),
@@ -93,6 +95,8 @@ export default function DashboardPage() {
             value: String(data.inventory.available),
             hint: `${data.inventory.total} unidades en inventario`,
             href: '/inventario',
+            icon: '◇',
+            tone: 'teal',
           },
         ]
       : []),
@@ -103,52 +107,59 @@ export default function DashboardPage() {
             value: money(data.budgets.totals.spentCop),
             hint: `${money(data.budgets.totals.remainingCop)} disponibles`,
             href: '/presupuestos',
+            icon: '$',
+            tone: 'coral',
           },
         ]
       : []),
   ];
   return (
     <AppShell title="Dashboard">
-      <div className="grid gap-6">
+      <div className="grid gap-6 dashboard-page">
         <FeedbackMessages feedback={feedback} />
-        <div className="flex flex-wrap items-center justify-between gap-4">
+        <section className="dashboard-hero">
           <div>
-            <p className="text-sm text-teal">
+            <p className="dashboard-hero__eyebrow">
               {new Intl.DateTimeFormat('es-CO', { dateStyle: 'full' }).format(
                 now,
               )}
             </p>
-            <h2 className="mt-2 text-3xl font-bold">Resumen general</h2>
-            <p className="mt-2 text-teal">
+            <p className="mt-5 text-sm text-white/80">Operación de Evoria</p>
+            <h2 className="mt-1 text-4xl font-bold text-white">
+              Resumen general
+            </h2>
+            <p className="mt-2 max-w-xl text-white/90">
               Operación de {user?.tenant?.name ?? 'tu empresa'}.
             </p>
           </div>
-          <Button
-            disabled={!data}
-            onClick={() => {
-              feedback.dismiss();
-              setState(null);
-              setRevision((value) => value + 1);
-            }}
-          >
-            Actualizar
-          </Button>
-        </div>
-        <div>
-          <Button
-            variant="ghost"
-            onClick={() =>
-              feedback.guide(
-                !user?.tenant
-                  ? 'Selecciona una empresa desde el selector de empresa para consultar su operación.'
-                  : 'El resumen usa los eventos, recursos y presupuestos registrados en tu empresa. Si no ves un módulo, solicita su permiso de consulta. Si no hay registros, crea los datos desde el módulo correspondiente. Usa Actualizar para consultar los cambios recientes.',
-                'Cómo completar el resumen',
-              )
-            }
-          >
-            Cómo completar el resumen
-          </Button>
-        </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              className="dashboard-hero__button"
+              disabled={!data}
+              onClick={() => {
+                feedback.dismiss();
+                setState(null);
+                setRevision((value) => value + 1);
+              }}
+            >
+              Actualizar datos
+            </Button>
+            <Button
+              className="text-white hover:bg-white/15 hover:text-white"
+              variant="ghost"
+              onClick={() =>
+                feedback.guide(
+                  !user?.tenant
+                    ? 'Selecciona una empresa desde el selector de empresa para consultar su operación.'
+                    : 'El resumen usa los eventos, recursos y presupuestos registrados en tu empresa. Si no ves un módulo, solicita su permiso de consulta. Si no hay registros, crea los datos desde el módulo correspondiente. Usa Actualizar para consultar los cambios recientes.',
+                  'Cómo completar el resumen',
+                )
+              }
+            >
+              Cómo completar el resumen
+            </Button>
+          </div>
+        </section>
         {!data && <LoadingState label="Cargando resumen de la empresa..." />}
         {data?.errors.map((error) => (
           <p
@@ -168,14 +179,24 @@ export default function DashboardPage() {
           )}
         <section
           aria-label="Métricas principales"
-          className="grid gap-4 sm:grid-cols-3"
+          className="dashboard-metrics grid gap-4 sm:grid-cols-3"
         >
           {metrics.map((metric) => (
             <Link href={metric.href} key={metric.label}>
-              <Card density="compact" className="h-full">
-                <p className="text-sm text-teal">{metric.label}</p>
-                <p className="mt-2 text-2xl font-bold">{metric.value}</p>
-                <p className="mt-2 text-xs text-teal">{metric.hint}</p>
+              <Card density="compact" className="dashboard-metric h-full">
+                <span
+                  aria-hidden="true"
+                  className={`dashboard-metric__icon dashboard-metric__icon--${metric.tone}`}
+                >
+                  {metric.icon}
+                </span>
+                <div>
+                  <p className="text-sm text-muted">{metric.label}</p>
+                  <p className="dashboard-metric__value mt-1 text-2xl font-bold">
+                    {metric.value}
+                  </p>
+                  <p className="mt-1 text-xs text-muted">{metric.hint}</p>
+                </div>
               </Card>
             </Link>
           ))}
@@ -202,7 +223,7 @@ export default function DashboardPage() {
                       </div>
                       <div className="h-2 rounded-full bg-beige">
                         <div
-                          className="h-full rounded-full bg-teal"
+                          className="h-full rounded-full bg-linear-to-r from-teal to-violet"
                           style={{ width: `${percent}%` }}
                         />
                       </div>
@@ -211,7 +232,7 @@ export default function DashboardPage() {
                 })}
               </div>
               {data.events.length === 0 && (
-                <p className="mt-4 text-sm text-teal">
+                <p className="mt-4 text-sm text-muted">
                   No hay eventos registrados.
                 </p>
               )}
@@ -220,7 +241,7 @@ export default function DashboardPage() {
           {data?.budgets && (
             <Card>
               <h3 className="text-lg font-bold">Presupuesto por evento</h3>
-              <p className="mt-2 text-sm text-teal">
+              <p className="mt-2 text-sm text-muted">
                 Asignado y ejecutado en eventos no cancelados.
               </p>
               <div className="mt-5 grid gap-4">
@@ -231,7 +252,7 @@ export default function DashboardPage() {
                     key={budget.eventId}
                   >
                     <p className="font-semibold">{budget.eventName}</p>
-                    <p className="mt-2 text-sm text-teal">
+                    <p className="mt-2 text-sm text-muted">
                       {budget.initialized
                         ? `${money(budget.spentCop)} ejecutados de ${money(budget.allocatedCop)}`
                         : 'Sin presupuesto inicial'}
@@ -240,12 +261,12 @@ export default function DashboardPage() {
                 ))}
               </div>
               {data.budgets.items.length === 0 && (
-                <p className="mt-4 text-sm text-teal">
+                <p className="mt-4 text-sm text-muted">
                   No hay eventos registrados.
                 </p>
               )}
               <Link
-                className="mt-4 inline-block text-sm font-semibold text-teal"
+                className="mt-4 inline-block text-sm font-semibold text-muted"
                 href="/presupuestos"
               >
                 Ver presupuestos →
@@ -265,25 +286,27 @@ export default function DashboardPage() {
                 >
                   <div>
                     <p className="font-semibold">{event.name}</p>
-                    <p className="mt-1 text-sm text-teal">
+                    <p className="mt-1 text-sm text-muted">
                       {new Intl.DateTimeFormat('es-CO', {
                         dateStyle: 'medium',
                         timeStyle: 'short',
                       }).format(new Date(event.startAt))}
                     </p>
                   </div>
-                  <span className="text-sm text-teal">
+                  <span className="text-sm text-muted">
                     {labels[event.status]}
                   </span>
                 </Link>
               ))}
             </div>
             {upcoming.length === 0 && (
-              <p className="mt-4 text-sm text-teal">No hay próximos eventos.</p>
+              <p className="mt-4 text-sm text-muted">
+                No hay próximos eventos.
+              </p>
             )}
             <Link
               href="/eventos"
-              className="mt-4 inline-block text-sm font-semibold text-teal"
+              className="mt-4 inline-block text-sm font-semibold text-muted"
             >
               Ver todos →
             </Link>

@@ -33,11 +33,11 @@ export default function AlertasPage() {
       <div className="grid gap-6">
         <header className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[.16em] text-teal">
+            <p className="text-sm font-semibold uppercase tracking-[.16em] text-muted">
               Seguimiento
             </p>
             <h2 className="mt-2 text-3xl font-bold">Centro de alertas</h2>
-            <p className="mt-2 text-teal">
+            <p className="mt-2 text-muted">
               Solicitudes pendientes y situaciones que requieren atención en tu
               empresa.
             </p>
@@ -72,13 +72,13 @@ export default function AlertasPage() {
                 </Card>
               ) : (
                 <>
-                  <p className="text-sm text-teal">
+                  <p className="text-sm text-muted">
                     {count} avisos detectados en la información consultada.
                   </p>
                   {count === 0 && data.errors.length === 0 && (
                     <Card>
                       <h3 className="text-xl font-bold">Todo al día</h3>
-                      <p className="mt-2 text-sm text-teal">
+                      <p className="mt-2 text-sm text-muted">
                         No hay autorizaciones pendientes ni incidencias en los
                         presupuestos y recursos que puedes consultar.
                       </p>
@@ -94,7 +94,7 @@ export default function AlertasPage() {
                         density="compact"
                         className="flex min-w-0 flex-col"
                       >
-                        <p className="text-xs font-semibold uppercase text-teal">
+                        <p className="text-xs font-semibold uppercase text-muted">
                           Autorización pendiente
                         </p>
                         <h3 className="mt-2 break-words text-base font-bold">
@@ -106,22 +106,22 @@ export default function AlertasPage() {
                         </p>
                         <p
                           title={request.reason}
-                          className="my-2 line-clamp-3 whitespace-pre-wrap break-words text-xs text-teal"
+                          className="my-2 line-clamp-3 whitespace-pre-wrap break-words text-xs text-muted"
                         >
                           {request.reason}
                         </p>
-                        <p className="mb-4 text-xs text-teal">
+                        <p className="mb-4 text-xs text-muted">
                           La solicitud todavía no modifica el saldo.
                         </p>
                         {can('presupuestos.ver') ? (
                           <Link
-                            className="mt-auto font-semibold text-teal underline"
+                            className="mt-auto font-semibold text-muted underline"
                             href={`/presupuestos?eventId=${encodeURIComponent(request.eventId)}&view=authorizations`}
                           >
                             Revisar y decidir →
                           </Link>
                         ) : (
-                          <p className="text-sm text-teal">
+                          <p className="text-sm text-muted">
                             Necesitas permiso de consulta de presupuestos para
                             revisar el detalle.
                           </p>
@@ -130,7 +130,7 @@ export default function AlertasPage() {
                     ))}
                     {attention.map((item) => (
                       <Card key={item.eventId} density="compact">
-                        <p className="text-xs font-semibold uppercase text-teal">
+                        <p className="text-xs font-semibold uppercase text-muted">
                           {item.initialized
                             ? 'Saldo agotado'
                             : 'Presupuesto sin iniciar'}
@@ -138,13 +138,13 @@ export default function AlertasPage() {
                         <h3 className="mt-2 break-words text-base font-bold">
                           {item.eventName}
                         </h3>
-                        <p className="mt-3 text-sm text-teal">
+                        <p className="mt-3 text-sm text-muted">
                           {item.initialized
                             ? `Disponible: ${cop(item.remainingCop)}. Revisa los gastos y las ampliaciones antes de nuevas asignaciones.`
                             : 'Registra el presupuesto inicial para poder asignar recursos y servicios.'}
                         </p>
                         <Link
-                          className="mt-4 inline-block font-semibold text-teal underline"
+                          className="mt-4 inline-block font-semibold text-muted underline"
                           href={`/presupuestos?eventId=${encodeURIComponent(item.eventId)}`}
                         >
                           Revisar presupuesto →
@@ -156,13 +156,13 @@ export default function AlertasPage() {
                         <h3 className="text-base font-bold">
                           Recursos en mantenimiento
                         </h3>
-                        <p className="mt-3 text-sm text-teal">
+                        <p className="mt-3 text-sm text-muted">
                           {inventory.maintenance} recursos requieren revisión
                           antes de volver a estar disponibles.
                         </p>
                         <Link
                           href="/inventario"
-                          className="mt-4 inline-block font-semibold text-teal underline"
+                          className="mt-4 inline-block font-semibold text-muted underline"
                         >
                           Ver recursos →
                         </Link>
@@ -175,13 +175,13 @@ export default function AlertasPage() {
                           <h3 className="text-base font-bold">
                             Sin unidades disponibles
                           </h3>
-                          <p className="mt-3 text-sm text-teal">
+                          <p className="mt-3 text-sm text-muted">
                             El inventario activo no tiene unidades disponibles
                             para nuevas reservas.
                           </p>
                           <Link
                             href="/inventario"
-                            className="mt-4 inline-block font-semibold text-teal underline"
+                            className="mt-4 inline-block font-semibold text-muted underline"
                           >
                             Revisar inventario →
                           </Link>

@@ -17,7 +17,7 @@ export function AuthGuard({ children }: { children: ReactNode }) {
   if (isLoading || !isAuthenticated) {
     return (
       <main className="grid min-h-screen place-items-center bg-beige p-6">
-        <p aria-live="polite" className="text-teal">
+        <p aria-live="polite" className="text-muted">
           Verificando sesión…
         </p>
       </main>

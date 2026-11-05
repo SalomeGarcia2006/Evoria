@@ -134,7 +134,7 @@ export function ResourceDialog({
     >
       <div className="flex items-start justify-between gap-4 border-b border-sky-blue p-6">
         <div className="min-w-0">
-          <p className="text-sm font-semibold uppercase tracking-[.16em] text-teal">
+          <p className="text-sm font-semibold uppercase tracking-[.16em] text-muted">
             Inventario
           </p>
           <h2 id={titleId} className="mt-1 break-words text-2xl font-bold">
@@ -186,7 +186,7 @@ export function ResourceDialog({
               />
             ) : confirming && canAdjust ? (
               <>
-                <p className="break-words text-sm text-teal">
+                <p className="break-words text-sm text-muted">
                   ¿Desactivar {resource.name}? Dejará de aparecer en el
                   inventario de recursos activos.
                 </p>
@@ -211,14 +211,14 @@ export function ResourceDialog({
             ) : (
               <>
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <p className="break-words font-semibold text-teal">
+                  <p className="break-words font-semibold text-muted">
                     {resource.type}
                   </p>
                   <span className="rounded-full bg-sky-blue px-3 py-1 text-xs font-semibold">
                     {resourceStatusLabels[resource.status]}
                   </span>
                 </div>
-                <p className="break-words whitespace-pre-wrap text-sm text-teal">
+                <p className="break-words whitespace-pre-wrap text-sm text-muted">
                   {resource.description || 'Sin descripción.'}
                 </p>
                 <dl className="grid min-w-0 gap-4 sm:grid-cols-2">
@@ -238,7 +238,7 @@ export function ResourceDialog({
                       className="min-w-0 rounded-xl bg-beige p-4"
                       key={label}
                     >
-                      <dt className="text-sm text-teal">{label}</dt>
+                      <dt className="text-sm text-muted">{label}</dt>
                       <dd className="mt-2 break-words font-bold">{value}</dd>
                     </div>
                   ))}

@@ -14,9 +14,9 @@ interface DataTableProps<T> {
 
 export function DataTable<T>({ columns, rows, rowKey }: DataTableProps<T>) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-sky-blue">
+    <div className="overflow-x-auto rounded-[1.375rem] border border-sky-blue bg-white shadow-[0_14px_30px_rgba(20,33,61,0.07)]">
       <table className="min-w-full text-left text-sm">
-        <thead className="bg-beige text-xs uppercase tracking-wide text-teal">
+        <thead className="bg-beige text-xs uppercase tracking-wide text-muted">
           <tr>
             {columns.map((column) => (
               <th className="px-4 py-3 font-semibold" key={column.key}>
@@ -27,7 +27,10 @@ export function DataTable<T>({ columns, rows, rowKey }: DataTableProps<T>) {
         </thead>
         <tbody className="divide-y divide-sky-blue">
           {rows.map((row) => (
-            <tr className="bg-white" key={rowKey(row)}>
+            <tr
+              className="bg-white transition-colors hover:bg-beige/55"
+              key={rowKey(row)}
+            >
               {columns.map((column) => (
                 <td className="px-4 py-3" key={column.key}>
                   {column.render(row)}

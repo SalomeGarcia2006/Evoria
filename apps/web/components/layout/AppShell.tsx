@@ -16,9 +16,9 @@ export function AppShell({
       <PermissionGuard>
         <div className="min-h-screen lg:flex">
           <Sidebar />
-          <div className="min-w-0 flex-1 lg:ml-[6rem]">
+          <div className="min-w-0 flex-1 lg:ml-[6.25rem]">
             <Topbar title={title} />
-            <main className="mx-auto max-w-7xl p-6">{children}</main>
+            <main className="mx-auto max-w-7xl p-6 lg:p-8">{children}</main>
           </div>
         </div>
       </PermissionGuard>
