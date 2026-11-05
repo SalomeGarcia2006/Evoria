@@ -4,21 +4,37 @@ services:
   mongo:
     image: mongo:9.0.2-noble
     restart: unless-stopped
+    entrypoint: ['/bin/bash', '/opt/evoria/mongo-entrypoint.sh']
+    command:
+      [
+        'mongod',
+        '--replSet',
+        'evoria-rs',
+        '--bind_ip_all',
+        '--keyFile',
+        '/data/replica-key/keyfile',
+      ]
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:-evoria}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-evoria_local_password}
       MONGO_INITDB_DATABASE: ${MONGO_DATABASE:-evoria}
     ports:
-      - '27017:27017'
+      - '127.0.0.1:27017:27017'
     volumes:
-      - mongo_data:/data/db
+      - mongo_replica_data:/data/db
+      - mongo_replica_key:/data/replica-key
+      - ./docker/mongo/entrypoint.sh:/opt/evoria/mongo-entrypoint.sh:ro
+      - ./docker/mongo/healthcheck.js:/opt/evoria/mongo-healthcheck.js:ro
     healthcheck:
       test:
-        ['CMD', 'mongosh', '--quiet', '--eval', "db.adminCommand('ping').ok"]
-      interval: 10s
+        [
+          'CMD-SHELL',
+          'mongosh --quiet "mongodb://127.0.0.1:27017/admin?directConnection=true" --username "$$MONGO_INITDB_ROOT_USERNAME" --password "$$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin --file /opt/evoria/mongo-healthcheck.js',
+        ]
+      interval: 5s
       timeout: 5s
-      retries: 5
-      start_period: 10s
+      retries: 30
+      start_period: 20s
 
   api:
     build:
@@ -28,7 +44,11 @@ services:
     environment:
       PORT: '3001'
       WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:3000}
-      MONGODB_URI: mongodb://${MONGO_ROOT_USERNAME:-evoria}:${MONGO_ROOT_PASSWORD:-evoria_local_password}@mongo:27017/${MONGO_DATABASE:-evoria}?authSource=admin
+      MONGO_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:-evoria}
+      MONGO_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-evoria_local_password}
+      MONGO_DATABASE: ${MONGO_DATABASE:-evoria}
+      MONGO_HOST: mongo
+      MONGO_DIRECT_CONNECTION: 'false'
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-}
       JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN:-2h}
@@ -81,4 +101,5 @@ services:
       start_period: 15s
 
 volumes:
-  mongo_data:
+  mongo_replica_data:
+  mongo_replica_key:

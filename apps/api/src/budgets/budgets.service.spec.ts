@@ -17,17 +17,25 @@ test('iniciar un presupuesto antiguo solo cuenta las reservas activas', async ()
   const eventId = new Types.ObjectId().toString();
   let recordedInventoryCost: number | undefined;
   const budgetModel = {
+    db: {
+      startSession: async () => ({
+        withTransaction: async (fn: () => Promise<unknown>) => fn(),
+        endSession: async () => undefined,
+      }),
+    },
     exists: async () => false,
-    create: async (data: { inventorySpentCop: number }) => {
+    create: async ([data]: [{ inventorySpentCop: number }]) => {
       recordedInventoryCost = data.inventorySpentCop;
-      return {
-        ...data,
-        _id: new Types.ObjectId(),
-        baseAmountCop: 100000,
-        approvedIncreaseCop: 0,
-        providerSpentCop: 0,
-        extraSpentCop: 0,
-      };
+      return [
+        {
+          ...data,
+          _id: new Types.ObjectId(),
+          baseAmountCop: 100000,
+          approvedIncreaseCop: 0,
+          providerSpentCop: 0,
+          extraSpentCop: 0,
+        },
+      ];
     },
   } as unknown as Model<EventBudget>;
   const assignments = [

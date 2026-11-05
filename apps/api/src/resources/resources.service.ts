@@ -4,12 +4,19 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { isValidObjectId, type Model, type Types } from 'mongoose';
+import {
+  isValidObjectId,
+  type ClientSession,
+  type Model,
+  type Types,
+} from 'mongoose';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { AuditsService } from '../audits/audits.service';
 import { BudgetLedgerService } from '../budgets/budget-ledger.service';
+import { AlertsService } from '../alerts/alerts.service';
 import { Event } from '../events/schemas/event.schema';
 import {
   InventoryItem,
@@ -31,6 +38,7 @@ export class ResourcesService {
     @InjectModel(Event.name) private readonly eventModel: Model<Event>,
     private readonly budgetLedger: BudgetLedgerService,
     private readonly auditsService: AuditsService,
+    @Optional() private readonly alerts?: AlertsService,
   ) {}
 
   async assign(
@@ -39,84 +47,90 @@ export class ResourcesService {
     user: AuthenticatedUser,
   ) {
     const tenantId = this.getTenantId(user);
-    const event = await this.findEvent(eventId, tenantId);
-
-    if (event.status === 'cancelado') {
-      throw new ConflictException(
-        'No puedes asignar recursos a un evento cancelado.',
-      );
-    }
-
-    const inventoryItem = await this.reserveInventory(
-      dto.inventoryItemId,
-      dto.quantity,
-      tenantId,
-    );
-
-    const costAmountCop = Math.round(inventoryItem.unitCost * dto.quantity);
+    await this.findEvent(eventId, tenantId);
+    const session = await this.inventoryModel.db.startSession();
+    let result: {
+      assignment: EventResourceDocument;
+      inventoryItem: InventoryItemDocument;
+    };
     try {
-      await this.budgetLedger.reserveInventoryCost(
-        tenantId,
-        eventId,
-        costAmountCop,
-      );
-    } catch (error) {
-      await this.restoreInventory(
-        inventoryItem._id.toString(),
-        dto.quantity,
-        tenantId,
-      );
-      throw error;
-    }
-
-    let assignment: EventResourceDocument | null;
-    try {
-      assignment = await this.assignmentModel.findOneAndUpdate(
-        {
+      result = await session.withTransaction(async () => {
+        const event = await this.eventModel.findOneAndUpdate(
+          { _id: eventId, tenantId, status: { $ne: 'cancelado' } },
+          { $inc: { budgetDecisionRevision: 1 } },
+          { session, new: true, timestamps: false },
+        );
+        if (!event)
+          throw new ConflictException(
+            'No puedes asignar recursos a un evento cancelado.',
+          );
+        const inventoryItem = await this.reserveInventory(
+          dto.inventoryItemId,
+          dto.quantity,
+          tenantId,
+          session,
+        );
+        const costAmountCop = Math.round(inventoryItem.unitCost * dto.quantity);
+        await this.budgetLedger.reserveInventoryCost(
           tenantId,
           eventId,
-          inventoryItemId: dto.inventoryItemId,
-          status: 'asignado',
-        },
-        {
-          $setOnInsert: {
+          costAmountCop,
+          session,
+        );
+        const assignment = await this.assignmentModel.findOneAndUpdate(
+          {
             tenantId,
             eventId,
             inventoryItemId: dto.inventoryItemId,
-            assignedBy: user.id,
-            assignedAt: new Date(),
             status: 'asignado',
-            returnedAt: null,
           },
-          $inc: { quantity: dto.quantity, costAmountCop },
-        },
-        { new: true, upsert: true, setDefaultsOnInsert: true },
-      );
-    } catch (error) {
-      await this.restoreInventory(
-        inventoryItem._id.toString(),
-        dto.quantity,
-        tenantId,
-      );
-      await this.budgetLedger.releaseInventoryCost(
-        tenantId,
-        eventId,
-        costAmountCop,
-      );
-      throw error;
+          {
+            $setOnInsert: {
+              tenantId,
+              eventId,
+              inventoryItemId: dto.inventoryItemId,
+              assignedBy: user.id,
+              assignedAt: new Date(),
+              status: 'asignado',
+              returnedAt: null,
+            },
+            $inc: { quantity: dto.quantity, costAmountCop },
+          },
+          { new: true, upsert: true, setDefaultsOnInsert: true, session },
+        );
+        if (!assignment)
+          throw new ConflictException(
+            'No se pudo asignar el recurso al evento.',
+          );
+        await this.alerts?.checkBudget(tenantId, eventId, session);
+        await this.alerts?.checkInventory(
+          tenantId,
+          dto.inventoryItemId,
+          session,
+        );
+        await this.auditsService.record(
+          {
+            tenantId,
+            actor: user,
+            module: 'asignaciones',
+            action: 'crear',
+            entity: 'asignacion_recurso',
+            entityId: assignment._id,
+            description: `Asignó ${dto.quantity} unidad(es) de ${inventoryItem.name} al evento.`,
+          },
+          session,
+        );
+        return { assignment, inventoryItem };
+      });
+    } finally {
+      await session.endSession();
     }
-    if (!assignment) {
-      throw new ConflictException('No se pudo asignar el recurso al evento.');
-    }
-    await this.auditsService.record({
+    const { assignment, inventoryItem } = result;
+    await this.alerts?.refreshThresholds(
       tenantId,
-      actor: user,
-      module: 'asignaciones',
-      action: 'crear',
-      entity: 'asignacion_recurso',
-      entityId: assignment._id,
-      description: `Asignó ${dto.quantity} unidad(es) de ${inventoryItem.name} al evento.`,
-    });
+      eventId,
+      dto.inventoryItemId,
+    );
     return this.toResponse(assignment, inventoryItem);
   }
 
@@ -162,104 +176,80 @@ export class ResourcesService {
       );
     }
 
-    const assignment = await this.assignmentModel.findOneAndUpdate(
-      {
-        tenantId,
-        eventId,
-        inventoryItemId,
-        status: 'asignado',
-      },
-      { $set: { status: 'devuelto', returnedAt: new Date() } },
-      { new: true },
-    );
-    if (!assignment) {
-      throw new NotFoundException('El recurso no está asignado a este evento.');
-    }
-
-    let hasBudget: boolean;
+    const session = await this.inventoryModel.db.startSession();
+    let result: {
+      assignment: EventResourceDocument;
+      inventoryItem: InventoryItemDocument;
+    };
     try {
-      hasBudget = await this.budgetLedger.hasBudget(tenantId, eventId);
-      if (hasBudget && assignment.costAmountCop == null) {
-        throw new ConflictException(
-          'La asignación no tiene un costo registrado para ajustar el presupuesto.',
+      result = await session.withTransaction(async () => {
+        const assignment = await this.assignmentModel.findOneAndUpdate(
+          { tenantId, eventId, inventoryItemId, status: 'asignado' },
+          { $set: { status: 'devuelto', returnedAt: new Date() } },
+          { new: true, session },
         );
-      }
-    } catch (error) {
-      await this.assignmentModel.updateOne(
-        { _id: assignment._id, tenantId, eventId, status: 'devuelto' },
-        { $set: { status: 'asignado', returnedAt: null } },
-      );
-      throw error;
-    }
-
-    const inventoryItem = await this.inventoryModel.findOneAndUpdate(
-      {
-        _id: inventoryItemId,
-        tenantId,
-        reservedQuantity: { $gte: assignment.quantity },
-      },
-      {
-        $inc: {
-          availableQuantity: assignment.quantity,
-          reservedQuantity: -assignment.quantity,
-        },
-      },
-      { new: true },
-    );
-    if (!inventoryItem) {
-      await this.assignmentModel.updateOne(
-        { _id: assignment._id, tenantId, eventId, status: 'devuelto' },
-        { $set: { status: 'asignado', returnedAt: null } },
-      );
-      throw new ConflictException(
-        'No se pudo liberar la reserva de inventario.',
-      );
-    }
-
-    if (hasBudget) {
-      try {
-        await this.budgetLedger.releaseInventoryCost(
+        if (!assignment)
+          throw new NotFoundException(
+            'El recurso no está asignado a este evento.',
+          );
+        const hasBudget = await this.budgetLedger.hasBudget(
           tenantId,
           eventId,
-          assignment.costAmountCop!,
+          session,
         );
-      } catch (error) {
-        const restoredReservation = await this.inventoryModel.findOneAndUpdate(
+        if (hasBudget && assignment.costAmountCop == null) {
+          throw new ConflictException(
+            'La asignación no tiene un costo registrado para ajustar el presupuesto.',
+          );
+        }
+        const inventoryItem = await this.inventoryModel.findOneAndUpdate(
           {
             _id: inventoryItemId,
             tenantId,
-            availableQuantity: { $gte: assignment.quantity },
+            reservedQuantity: { $gte: assignment.quantity },
           },
           {
             $inc: {
-              availableQuantity: -assignment.quantity,
-              reservedQuantity: assignment.quantity,
+              availableQuantity: assignment.quantity,
+              reservedQuantity: -assignment.quantity,
             },
           },
-          { new: true },
+          { new: true, session },
         );
-        if (!restoredReservation) {
+        if (!inventoryItem)
           throw new ConflictException(
-            'No se pudo revertir la devolución; revisa el inventario y el presupuesto del evento.',
+            'No se pudo liberar la reserva de inventario.',
           );
+        if (hasBudget) {
+          await this.budgetLedger.releaseInventoryCost(
+            tenantId,
+            eventId,
+            assignment.costAmountCop!,
+            session,
+          );
+          await this.alerts?.checkBudget(tenantId, eventId, session);
         }
-        await this.assignmentModel.updateOne(
-          { _id: assignment._id, tenantId, eventId, status: 'devuelto' },
-          { $set: { status: 'asignado', returnedAt: null } },
+        await this.alerts?.checkInventory(tenantId, inventoryItemId, session);
+        await this.auditsService.record(
+          {
+            tenantId,
+            actor: user,
+            module: 'asignaciones',
+            action: 'devolver',
+            entity: 'asignacion_recurso',
+            entityId: assignment._id,
+            description: `Devolvió ${assignment.quantity} unidad(es) de ${inventoryItem.name} del evento.`,
+          },
+          session,
         );
-        throw error;
-      }
+        return { assignment, inventoryItem };
+      });
+    } finally {
+      await session.endSession();
     }
+    const { assignment, inventoryItem } = result;
 
-    await this.auditsService.record({
-      tenantId,
-      actor: user,
-      module: 'asignaciones',
-      action: 'devolver',
-      entity: 'asignacion_recurso',
-      entityId: assignment._id,
-      description: `Devolvió ${assignment.quantity} unidad(es) de ${inventoryItem.name} del evento.`,
-    });
+    await this.alerts?.refreshThresholds(tenantId, eventId, inventoryItemId);
     return this.toResponse(assignment, inventoryItem);
   }
 
@@ -286,6 +276,7 @@ export class ResourcesService {
     inventoryItemId: string,
     quantity: number,
     tenantId: string,
+    session: ClientSession,
   ): Promise<InventoryItemDocument> {
     if (!isValidObjectId(inventoryItemId)) {
       throw new BadRequestException(
@@ -303,31 +294,20 @@ export class ResourcesService {
       {
         $inc: { availableQuantity: -quantity, reservedQuantity: quantity },
       },
-      { new: true },
+      { new: true, session },
     );
     if (inventoryItem) return inventoryItem;
 
-    const existingItem = await this.inventoryModel.exists({
-      _id: inventoryItemId,
-      tenantId,
-    });
+    const existingItem = await this.inventoryModel
+      .exists({
+        _id: inventoryItemId,
+        tenantId,
+      })
+      .session(session);
     if (!existingItem) {
       throw new NotFoundException('El ítem de inventario no existe.');
     }
     throw new ConflictException('No hay suficientes unidades disponibles.');
-  }
-
-  private async restoreInventory(
-    inventoryItemId: string,
-    quantity: number,
-    tenantId: string,
-  ) {
-    await this.inventoryModel.updateOne(
-      { _id: inventoryItemId, tenantId },
-      {
-        $inc: { availableQuantity: quantity, reservedQuantity: -quantity },
-      },
-    );
   }
 
   private toResponse(
