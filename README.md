@@ -34,6 +34,10 @@ npm run docker:dev
 
 La primera ejecución descarga las imágenes necesarias y crea los servicios. A
 partir de entonces Docker sincroniza los cambios de código automáticamente.
+MongoDB inicia como réplica de un nodo con autenticación; la API espera a que
+el nodo sea primario. Se usa un volumen nuevo, por lo que los datos del volumen
+anterior no aparecen automáticamente. Para respaldo, migración y reversión,
+consulta [el procedimiento de réplica](docs/alertas/migracion-replica.md).
 
 Cuando los servicios estén listos, abre:
 
@@ -102,11 +106,13 @@ herramienta gráfica como MongoDB Compass debe conectarse con una URI de esta
 forma:
 
 ```text
-mongodb://<MONGO_ROOT_USERNAME>:<MONGO_ROOT_PASSWORD>@localhost:27017/<MONGO_DATABASE>?authSource=admin
+mongodb://<MONGO_ROOT_USERNAME>:<MONGO_ROOT_PASSWORD>@localhost:27017/<MONGO_DATABASE>?authSource=admin&replicaSet=evoria-rs&directConnection=true
 ```
 
 `authSource=admin` indica dónde MongoDB valida el usuario; los datos de Evoria
-se guardan en la base definida por `MONGO_DATABASE`.
+se guardan en la base definida por `MONGO_DATABASE`. Codifica en formato URL
+los caracteres especiales del usuario y la contraseña en una URI. La conexión
+directa es para el acceso local al único nodo publicado por Docker.
 
 ### Datos iniciales
 

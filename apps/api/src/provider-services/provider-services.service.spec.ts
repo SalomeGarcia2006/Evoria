@@ -41,17 +41,25 @@ function setup(eventStatus = 'confirmado', providerStatus = 'activo') {
     },
   } as unknown as Model<Provider>;
   const serviceModel = {
-    create: async (data: Record<string, unknown>) => {
+    db: {
+      startSession: async () => ({
+        withTransaction: async (fn: () => Promise<unknown>) => fn(),
+        endSession: async () => undefined,
+      }),
+    },
+    create: async ([data]: [Record<string, unknown>]) => {
       created.push(data);
-      return {
-        ...data,
-        _id: new Types.ObjectId(),
-        eventId,
-        providerId,
-        assignedBy: new Types.ObjectId(user.id),
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
+      return [
+        {
+          ...data,
+          _id: new Types.ObjectId(),
+          eventId,
+          providerId,
+          assignedBy: new Types.ObjectId(user.id),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ];
     },
   } as unknown as Model<EventProviderService>;
   const ledger = {
