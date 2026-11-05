@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
@@ -11,14 +12,11 @@ import {
   type EventStatus,
   updateEventStatus,
 } from '../../services/events.service';
-import {
-  getAddressFromCoordinates,
-  parseCoordinates,
-} from '../../services/locations.service';
 import { Button } from '../ui/Button';
-import { DataTable, type DataTableColumn } from '../ui/DataTable';
 import { ErrorMessage } from '../ui/ErrorMessage';
 import { LoadingState } from '../ui/LoadingState';
+import { EventLocation } from './EventLocation';
+import { EventLocationMap } from './EventLocationMap';
 
 const STATUS_LABELS: Record<EventStatus, string> = {
   borrador: 'Borrador',
@@ -40,6 +38,8 @@ const EDITABLE_STATUSES = EVENT_STATUSES.filter(
   (status) => status !== 'cancelado',
 );
 
+type EventFilter = 'all' | 'en_progreso' | 'finalizado';
+
 function formatDate(value: string): string {
   return new Intl.DateTimeFormat('es-CO', {
     dateStyle: 'medium',
@@ -47,48 +47,38 @@ function formatDate(value: string): string {
   }).format(new Date(value));
 }
 
-function EventLocation({ value }: { value: string | null }) {
-  const [address, setAddress] = useState<string | null>(null);
-  const hasCoordinates = parseCoordinates(value) !== null;
-
-  useEffect(() => {
-    const coordinates = parseCoordinates(value);
-    if (!coordinates) return;
-
-    let isMounted = true;
-    void getAddressFromCoordinates(coordinates)
-      .then((result) => {
-        if (isMounted) setAddress(result);
-      })
-      .catch(() => {
-        if (isMounted) setAddress('Ubicación seleccionada en el mapa');
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [value]);
-
-  if (!hasCoordinates) return value ?? 'Sin ubicación';
-  return address ?? 'Buscando dirección…';
+function formatDateBadge(value: string): { day: string; month: string } {
+  const date = new Date(value);
+  return {
+    day: new Intl.DateTimeFormat('es-CO', { day: '2-digit' }).format(date),
+    month: new Intl.DateTimeFormat('es-CO', { month: 'short' })
+      .format(date)
+      .replace('.', '')
+      .toUpperCase(),
+  };
 }
 
 export function EventList({
   onCreate,
+  onEdit,
   revision = 0,
 }: {
   onCreate?: () => void;
+  onEdit?: (event: EventItem) => void;
   revision?: number;
 }) {
   const { can } = useAuth();
+  const viewDialog = useRef<HTMLDialogElement>(null);
   const statusDialog = useRef<HTMLDialogElement>(null);
   const [events, setEvents] = useState<EventItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [statusEvent, setStatusEvent] = useState<EventItem | null>(null);
+  const [viewEvent, setViewEvent] = useState<EventItem | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<EventStatus>('borrador');
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [selectedFilter, setSelectedFilter] = useState<EventFilter>('all');
 
   useEffect(() => {
     let isMounted = true;
@@ -128,6 +118,9 @@ export function EventList({
           currentEvent.id === cancelledEvent.id ? cancelledEvent : currentEvent,
         ),
       );
+      setViewEvent((currentEvent) =>
+        currentEvent?.id === cancelledEvent.id ? cancelledEvent : currentEvent,
+      );
     } catch (cancelError) {
       setError(
         cancelError instanceof Error
@@ -143,6 +136,26 @@ export function EventList({
     setStatusEvent(event);
     setSelectedStatus(event.status);
     statusDialog.current?.showModal();
+  }
+
+  function openViewDialog(event: EventItem) {
+    setViewEvent(event);
+    viewDialog.current?.showModal();
+  }
+
+  function closeViewDialog() {
+    viewDialog.current?.close();
+    setViewEvent(null);
+  }
+
+  function openStatusFromView(event: EventItem) {
+    closeViewDialog();
+    openStatusDialog(event);
+  }
+
+  function editFromView(event: EventItem) {
+    closeViewDialog();
+    onEdit?.(event);
   }
 
   function closeStatusDialog() {
@@ -178,81 +191,25 @@ export function EventList({
     }
   }
 
-  const columns: DataTableColumn<EventItem>[] = [
-    {
-      key: 'name',
-      header: 'Nombre',
-      render: (event) => (
-        <Link
-          className="font-semibold text-navy underline-offset-4 hover:underline"
-          href={`/eventos/${event.id}`}
-        >
-          {event.name}
-        </Link>
-      ),
-    },
-    {
-      key: 'date',
-      header: 'Fecha',
-      render: (event) => (
-        <span className="whitespace-nowrap">{formatDate(event.startAt)}</span>
-      ),
-    },
-    {
-      key: 'location',
-      header: 'Ubicación',
-      render: (event) => (
-        <span className="block max-w-md break-words">
-          <EventLocation value={event.location} />
-        </span>
-      ),
-    },
-    {
-      key: 'status',
-      header: 'Estado',
-      render: (event) => (
-        <span
-          className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${STATUS_CLASSES[event.status]}`}
-        >
-          {STATUS_LABELS[event.status]}
-        </span>
-      ),
-    },
-    {
-      key: 'actions',
-      header: 'Acciones',
-      render: (event) => (
-        <div className="flex gap-2 whitespace-nowrap">
-          <Link
-            className="rounded-lg border border-teal px-3 py-1.5 text-xs font-semibold text-navy hover:bg-sky-blue"
-            href={`/eventos/${event.id}`}
-          >
-            Ver
-          </Link>
-          {can('eventos.editar') && event.status !== 'cancelado' ? (
-            <Button
-              className="px-3 py-1.5 text-xs"
-              onClick={() => openStatusDialog(event)}
-              type="button"
-              variant="secondary"
-            >
-              Estado
-            </Button>
-          ) : null}
-          {can('eventos.eliminar') && event.status !== 'cancelado' ? (
-            <Button
-              className="px-3 py-1.5 text-xs"
-              disabled={cancellingId === event.id}
-              onClick={() => void handleCancel(event)}
-              type="button"
-            >
-              {cancellingId === event.id ? 'Cancelando…' : 'Cancelar'}
-            </Button>
-          ) : null}
-        </div>
-      ),
-    },
-  ];
+  const inProgressCount = events.filter(
+    (event) => event.status === 'en_progreso',
+  ).length;
+  const finishedCount = events.filter(
+    (event) => event.status === 'finalizado',
+  ).length;
+  const filteredEvents = events.filter(
+    (event) => selectedFilter === 'all' || event.status === selectedFilter,
+  );
+  const upcomingEvent = [...events]
+    .filter(
+      (event) =>
+        event.status !== 'cancelado' &&
+        event.status !== 'finalizado' &&
+        new Date(event.startAt) >= new Date(),
+    )
+    .sort(
+      (first, second) => Date.parse(first.startAt) - Date.parse(second.startAt),
+    )[0];
 
   return (
     <section className="grid gap-4">
@@ -278,12 +235,274 @@ export function EventList({
           ) : null}
         </div>
       ) : (
-        <DataTable
-          columns={columns}
-          rowKey={(event) => event.id}
-          rows={events}
-        />
+        <>
+          <section className="events-list-panel">
+            <div className="events-list-panel__toolbar">
+              <div
+                className="events-list-panel__filters"
+                aria-label="Resumen de eventos"
+              >
+                <button
+                  className={`events-list-panel__filter ${selectedFilter === 'all' ? 'is-active' : ''}`}
+                  onClick={() => setSelectedFilter('all')}
+                  type="button"
+                >
+                  Todos ({events.length})
+                </button>
+                <button
+                  className={`events-list-panel__filter ${selectedFilter === 'en_progreso' ? 'is-active' : ''}`}
+                  onClick={() => setSelectedFilter('en_progreso')}
+                  type="button"
+                >
+                  En ejecución ({inProgressCount})
+                </button>
+                <button
+                  className={`events-list-panel__filter ${selectedFilter === 'finalizado' ? 'is-active' : ''}`}
+                  onClick={() => setSelectedFilter('finalizado')}
+                  type="button"
+                >
+                  Finalizados ({finishedCount})
+                </button>
+              </div>
+              <span className="text-sm text-muted">
+                {filteredEvents.length}{' '}
+                {filteredEvents.length === 1 ? 'evento' : 'eventos'}
+              </span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="events-table">
+                <thead>
+                  <tr>
+                    <th>Evento</th>
+                    <th>Fecha y hora</th>
+                    <th>Ubicación</th>
+                    <th>Estado</th>
+                    <th aria-label="Acciones" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredEvents.map((event) => (
+                    <tr key={event.id}>
+                      <td>
+                        <span className="font-semibold text-navy">
+                          {event.name}
+                        </span>
+                      </td>
+                      <td>
+                        <div className="events-table__detail">
+                          <span className="events-table__icon">
+                            <Image
+                              alt=""
+                              aria-hidden="true"
+                              height={20}
+                              src="/icons/FECHA.svg"
+                              width={20}
+                            />
+                          </span>
+                          <span>{formatDate(event.startAt)}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <div className="events-table__detail min-w-52">
+                          <span className="events-table__icon">
+                            <Image
+                              alt=""
+                              aria-hidden="true"
+                              height={20}
+                              src="/icons/ubicacion.svg"
+                              width={20}
+                            />
+                          </span>
+                          <span className="break-words">
+                            <EventLocation value={event.location} />
+                          </span>
+                        </div>
+                      </td>
+                      <td>
+                        <span
+                          className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${STATUS_CLASSES[event.status]}`}
+                        >
+                          {STATUS_LABELS[event.status]}
+                        </span>
+                      </td>
+                      <td className="text-right">
+                        <Button
+                          className="whitespace-nowrap px-4 py-2 text-xs"
+                          onClick={() => openViewDialog(event)}
+                          type="button"
+                          variant="secondary"
+                        >
+                          Ver detalles
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                  {filteredEvents.length === 0 ? (
+                    <tr>
+                      <td
+                        className="py-8 text-center text-sm text-muted"
+                        colSpan={5}
+                      >
+                        No hay eventos en este estado.
+                      </td>
+                    </tr>
+                  ) : null}
+                </tbody>
+              </table>
+            </div>
+            <p className="events-list-panel__footer">
+              Mostrando {filteredEvents.length} de {events.length}{' '}
+              {events.length === 1 ? 'evento' : 'eventos'}
+            </p>
+          </section>
+          {upcomingEvent ? (
+            <section className="events-upcoming">
+              <h2 className="text-xl font-bold">Próximo en tu agenda</h2>
+              <div className="events-upcoming__item">
+                <div className="events-upcoming__date">
+                  <strong>{formatDateBadge(upcomingEvent.startAt).day}</strong>
+                  <span>{formatDateBadge(upcomingEvent.startAt).month}</span>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold">{upcomingEvent.name}</p>
+                  <p className="mt-1 break-words text-sm text-muted">
+                    <EventLocation value={upcomingEvent.location} />
+                  </p>
+                </div>
+                <Button
+                  className="whitespace-nowrap"
+                  onClick={() => openViewDialog(upcomingEvent)}
+                  type="button"
+                  variant="ghost"
+                >
+                  Consultar evento →
+                </Button>
+              </div>
+            </section>
+          ) : null}
+        </>
       )}
+      <dialog
+        aria-labelledby="event-view-dialog-title"
+        className="m-auto max-h-[calc(100dvh-2rem)] w-11/12 max-w-3xl overflow-y-auto rounded-[1.5rem] border border-sky-blue bg-white p-0 text-navy shadow-2xl backdrop:bg-navy/60"
+        onClose={() => setViewEvent(null)}
+        ref={viewDialog}
+      >
+        <div className="flex items-start justify-between gap-4 border-b border-sky-blue bg-beige/70 p-6">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold uppercase tracking-[.16em] text-muted">
+              {viewEvent?.type ?? 'Evento'}
+            </p>
+            <h2
+              className="mt-1 break-words text-3xl font-bold"
+              id="event-view-dialog-title"
+            >
+              {viewEvent?.name}
+            </h2>
+          </div>
+          <Button
+            aria-label="Cerrar detalle del evento"
+            className="px-3 text-xl leading-none"
+            onClick={closeViewDialog}
+            type="button"
+            variant="ghost"
+          >
+            ×
+          </Button>
+        </div>
+        {viewEvent ? (
+          <div className="grid gap-6 p-6">
+            <section className="rounded-[1.125rem] border border-sky-blue bg-beige/55 p-5">
+              <p className="text-xs font-semibold uppercase tracking-[.14em] text-muted">
+                Descripción
+              </p>
+              <p className="mt-2 whitespace-pre-wrap leading-6 text-navy">
+                {viewEvent.description || 'Sin descripción.'}
+              </p>
+            </section>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-[1.125rem] border border-sky-blue p-4">
+                <p className="text-sm text-muted">Inicio</p>
+                <p className="mt-1 font-semibold">
+                  {formatDate(viewEvent.startAt)}
+                </p>
+              </div>
+              <div className="rounded-[1.125rem] border border-sky-blue p-4">
+                <p className="text-sm text-muted">Finalización</p>
+                <p className="mt-1 font-semibold">
+                  {formatDate(viewEvent.endAt)}
+                </p>
+              </div>
+              <div className="rounded-[1.125rem] border border-sky-blue p-4">
+                <p className="text-sm text-muted">Estado</p>
+                <span
+                  className={`mt-1 inline-flex rounded-full px-3 py-1 text-xs font-semibold ${STATUS_CLASSES[viewEvent.status]}`}
+                >
+                  {STATUS_LABELS[viewEvent.status]}
+                </span>
+              </div>
+              <div className="rounded-[1.125rem] border border-sky-blue p-4">
+                <p className="text-sm text-muted">Presupuesto base</p>
+                <p className="mt-1 font-semibold">
+                  {new Intl.NumberFormat('es-CO', {
+                    style: 'currency',
+                    currency: 'COP',
+                    maximumFractionDigits: 0,
+                  }).format(viewEvent.baseBudget)}
+                </p>
+              </div>
+            </div>
+            <section className="grid gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[.14em] text-muted">
+                  Ubicación seleccionada
+                </p>
+                <p className="mt-1 break-words font-semibold">
+                  <EventLocation value={viewEvent.location} />
+                </p>
+              </div>
+              <EventLocationMap
+                key={viewEvent.location ?? 'sin-ubicacion'}
+                value={viewEvent.location}
+              />
+            </section>
+            {viewEvent.status !== 'cancelado' ? (
+              <div className="flex flex-wrap gap-3 border-t border-sky-blue pt-5">
+                {can('eventos.editar') && onEdit ? (
+                  <Button
+                    onClick={() => editFromView(viewEvent)}
+                    type="button"
+                    variant="secondary"
+                  >
+                    Editar evento
+                  </Button>
+                ) : null}
+                {can('eventos.editar') ? (
+                  <Button
+                    onClick={() => openStatusFromView(viewEvent)}
+                    type="button"
+                    variant="secondary"
+                  >
+                    Modificar estado
+                  </Button>
+                ) : null}
+                {can('eventos.eliminar') ? (
+                  <Button
+                    className="border border-coral bg-white text-coral shadow-none hover:bg-coral hover:text-white"
+                    disabled={cancellingId === viewEvent.id}
+                    onClick={() => void handleCancel(viewEvent)}
+                    type="button"
+                  >
+                    {cancellingId === viewEvent.id
+                      ? 'Cancelando…'
+                      : 'Cancelar evento'}
+                  </Button>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+      </dialog>
       <dialog
         aria-labelledby="event-status-dialog-title"
         className="m-auto w-11/12 max-w-md rounded-2xl border border-sky-blue bg-white p-0 text-navy shadow-2xl backdrop:bg-navy/60"

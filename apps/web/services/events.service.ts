@@ -48,6 +48,8 @@ export interface CreateEventPayload {
   responsibleUserId?: string;
 }
 
+export type UpdateEventPayload = CreateEventPayload;
+
 interface ApiResponse<T> {
   data: T;
   message: string;
@@ -118,6 +120,20 @@ export async function updateEventStatus(
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ status }),
+  });
+
+  return response.data;
+}
+
+export async function updateEvent(
+  id: string,
+  payload: UpdateEventPayload,
+): Promise<EventItem> {
+  const response = await apiRequest<ApiResponse<EventItem>>(`/events/${id}`, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
   });
 
   return response.data;
