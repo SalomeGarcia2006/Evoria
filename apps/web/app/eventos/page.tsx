@@ -10,8 +10,10 @@ import { Button } from '../../components/ui/Button';
 export default function EventosPage() {
   const eventDialog = useRef<HTMLDialogElement>(null);
   const [revision, setRevision] = useState(0);
+  const [formKey, setFormKey] = useState(0);
 
   function openCreateForm() {
+    setFormKey((current) => current + 1);
     eventDialog.current?.showModal();
   }
 
@@ -64,6 +66,7 @@ export default function EventosPage() {
             </div>
             <div className="p-6">
               <EventForm
+                key={formKey}
                 onCancel={closeCreateForm}
                 onSuccess={() => {
                   closeCreateForm();
