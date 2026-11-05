@@ -9,6 +9,10 @@ import {
   type EventItem,
   type EventStatus,
 } from '../../services/events.service';
+import {
+  getAddressFromCoordinates,
+  parseCoordinates,
+} from '../../services/locations.service';
 import { Button } from '../ui/Button';
 import { DataTable, type DataTableColumn } from '../ui/DataTable';
 import { ErrorMessage } from '../ui/ErrorMessage';
@@ -35,6 +39,32 @@ function formatDate(value: string): string {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(new Date(value));
+}
+
+function EventLocation({ value }: { value: string | null }) {
+  const [address, setAddress] = useState<string | null>(null);
+  const hasCoordinates = parseCoordinates(value) !== null;
+
+  useEffect(() => {
+    const coordinates = parseCoordinates(value);
+    if (!coordinates) return;
+
+    let isMounted = true;
+    void getAddressFromCoordinates(coordinates)
+      .then((result) => {
+        if (isMounted) setAddress(result);
+      })
+      .catch(() => {
+        if (isMounted) setAddress('Ubicación seleccionada en el mapa');
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [value]);
+
+  if (!hasCoordinates) return value ?? 'Sin ubicación';
+  return address ?? 'Buscando dirección…';
 }
 
 export function EventList({
@@ -115,12 +145,18 @@ export function EventList({
     {
       key: 'date',
       header: 'Fecha',
-      render: (event) => formatDate(event.startAt),
+      render: (event) => (
+        <span className="whitespace-nowrap">{formatDate(event.startAt)}</span>
+      ),
     },
     {
       key: 'location',
       header: 'Ubicación',
-      render: (event) => event.location ?? 'Sin ubicación',
+      render: (event) => (
+        <span className="block max-w-md break-words">
+          <EventLocation value={event.location} />
+        </span>
+      ),
     },
     {
       key: 'status',
@@ -137,7 +173,7 @@ export function EventList({
       key: 'actions',
       header: 'Acciones',
       render: (event) => (
-        <div className="flex flex-wrap gap-2">
+        <div className="flex gap-2 whitespace-nowrap">
           <Link
             className="rounded-lg border border-teal px-3 py-1.5 text-xs font-semibold text-navy hover:bg-sky-blue"
             href={`/eventos/${event.id}`}

@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   createEvent,
   getAllEvents,
@@ -11,6 +11,7 @@ import {
 import { getUsers, type CompanyUser } from '../../services/users.service';
 import { Button } from '../ui/Button';
 import { ErrorMessage } from '../ui/ErrorMessage';
+import { OpenStreetMapLocationPicker } from './OpenStreetMapLocationPicker';
 
 const eventTypes = [
   'Congreso',
@@ -79,9 +80,16 @@ export function EventForm({
   const [successAlert, setSuccessAlert] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  function updateField(field: keyof typeof form, value: string): void {
-    setForm((currentForm) => ({ ...currentForm, [field]: value }));
-  }
+  const updateField = useCallback(
+    (field: keyof typeof form, value: string): void => {
+      setForm((currentForm) => ({ ...currentForm, [field]: value }));
+    },
+    [],
+  );
+  const updateLocation = useCallback(
+    (value: string) => updateField('location', value),
+    [updateField],
+  );
 
   useEffect(() => {
     void getUsers()
@@ -316,17 +324,10 @@ export function EventForm({
               value={form.endTime}
             />
           </label>
-          <label className="grid gap-2">
-            <span className="text-sm font-semibold">Ubicación</span>
-            <input
-              className="rounded-lg border border-sky-blue px-3 py-2 outline-none focus:border-teal focus:ring-2 focus:ring-sky-blue"
-              maxLength={255}
-              onChange={(event) => updateField('location', event.target.value)}
-              required
-              type="text"
-              value={form.location}
-            />
-          </label>
+          <OpenStreetMapLocationPicker
+            onChange={updateLocation}
+            value={form.location}
+          />
           <label className="grid gap-2">
             <span className="text-sm font-semibold">Tipo</span>
             <select
@@ -405,7 +406,7 @@ export function EventForm({
         <div
           aria-label="Alerta de validación del evento"
           aria-live="assertive"
-          className="login-alert-backdrop fixed inset-0 z-50 grid place-items-center p-6"
+          className="login-alert-backdrop fixed inset-0 z-[1100] grid place-items-center p-6"
           role="alertdialog"
           aria-modal="true"
         >
@@ -437,7 +438,7 @@ export function EventForm({
         <div
           aria-label="Evento creado correctamente"
           aria-live="polite"
-          className="login-alert-backdrop fixed inset-0 z-50 grid place-items-center p-6"
+          className="login-alert-backdrop fixed inset-0 z-[1100] grid place-items-center p-6"
           role="alertdialog"
           aria-modal="true"
         >
