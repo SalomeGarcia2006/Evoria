@@ -5,7 +5,6 @@ import { useEffect, useState } from 'react';
 import { AppShell } from '../../components/layout/AppShell';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
-import { ErrorMessage } from '../../components/ui/ErrorMessage';
 import { LoadingState } from '../../components/ui/LoadingState';
 import { useAuth } from '../../hooks/useAuth';
 import { getDashboard } from '../../services/dashboard.service';
@@ -69,8 +68,7 @@ export default function DashboardPage() {
           event.status !== 'finalizado' &&
           new Date(event.startAt) >= now,
       )
-      .sort((a, b) => Date.parse(a.startAt) - Date.parse(b.startAt))
-      .slice(0, 5) ?? [];
+      .sort((a, b) => Date.parse(a.startAt) - Date.parse(b.startAt)) ?? [];
   const metrics = [
     ...(data?.events
       ? [
@@ -153,7 +151,12 @@ export default function DashboardPage() {
         </div>
         {!data && <LoadingState label="Cargando resumen de la empresa..." />}
         {data?.errors.map((error) => (
-          <ErrorMessage key={error} message={error} />
+          <p
+            key={error}
+            className="rounded-xl bg-red-50 p-4 text-sm text-red-800"
+          >
+            {error}
+          </p>
         ))}
         {data &&
           !can('eventos.ver') &&
@@ -169,9 +172,9 @@ export default function DashboardPage() {
         >
           {metrics.map((metric) => (
             <Link href={metric.href} key={metric.label}>
-              <Card className="h-full">
+              <Card density="compact" className="h-full">
                 <p className="text-sm text-teal">{metric.label}</p>
-                <p className="mt-4 text-3xl font-bold">{metric.value}</p>
+                <p className="mt-2 text-2xl font-bold">{metric.value}</p>
                 <p className="mt-2 text-xs text-teal">{metric.hint}</p>
               </Card>
             </Link>
@@ -221,15 +224,19 @@ export default function DashboardPage() {
                 Asignado y ejecutado en eventos no cancelados.
               </p>
               <div className="mt-5 grid gap-4">
-                {data.budgets.items.slice(0, 5).map((budget) => (
-                  <div className="rounded-xl bg-beige p-4" key={budget.eventId}>
+                {data.budgets.items.map((budget) => (
+                  <Link
+                    href={`/presupuestos?eventId=${encodeURIComponent(budget.eventId)}`}
+                    className="rounded-xl border border-sky-blue bg-beige p-4 focus-visible:outline-2 focus-visible:outline-teal"
+                    key={budget.eventId}
+                  >
                     <p className="font-semibold">{budget.eventName}</p>
                     <p className="mt-2 text-sm text-teal">
                       {budget.initialized
                         ? `${money(budget.spentCop)} ejecutados de ${money(budget.allocatedCop)}`
                         : 'Sin presupuesto inicial'}
                     </p>
-                  </div>
+                  </Link>
                 ))}
               </div>
               {data.budgets.items.length === 0 && (
@@ -249,11 +256,12 @@ export default function DashboardPage() {
         {data?.events && (
           <Card>
             <h3 className="text-lg font-bold">Próximos eventos</h3>
-            <div className="mt-4 divide-y divide-sky-blue">
+            <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {upcoming.map((event) => (
-                <div
+                <Link
+                  href={`/eventos/${encodeURIComponent(event.id)}`}
                   key={event.id}
-                  className="flex flex-wrap justify-between gap-3 py-4"
+                  className="flex min-w-0 flex-wrap justify-between gap-3 rounded-xl border border-sky-blue p-4 focus-visible:outline-2 focus-visible:outline-teal"
                 >
                   <div>
                     <p className="font-semibold">{event.name}</p>
@@ -267,7 +275,7 @@ export default function DashboardPage() {
                   <span className="text-sm text-teal">
                     {labels[event.status]}
                   </span>
-                </div>
+                </Link>
               ))}
             </div>
             {upcoming.length === 0 && (

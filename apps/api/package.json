@@ -15,6 +15,7 @@
     "test:alerts": "node --require ts-node/register --test src/alerts/alerts.service.spec.ts src/alerts/thresholds.spec.ts src/budgets/decision-concurrency.spec.ts",
     "test:alerts:mongo": "node --require ts-node/register --test src/alerts/alerts.mongo.spec.ts src/alerts/alerts.http.mongo.spec.ts",
     "test:budgets": "node --require ts-node/register --test src/events/events.service.spec.ts src/budgets/budgets.service.spec.ts src/resources/resources.service.spec.ts src/migrations/20261104-release-returned-inventory-cost.migration.spec.ts",
+    "test:audits": "node --require ts-node/register --test src/audits/audits.service.spec.ts",
     "test:providers:e2e": "node test/provider-services.e2e.mjs",
     "typecheck": "tsc --noEmit"
   },

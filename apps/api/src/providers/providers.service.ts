@@ -8,6 +8,7 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { isValidObjectId, type Model, type Types } from 'mongoose';
 import type { AuthenticatedUser } from '../auth/auth.types';
+import { AuditsService } from '../audits/audits.service';
 import { CreateProviderDto } from './dto/create-provider.dto';
 import { FindProvidersDto } from './dto/find-providers.dto';
 import { UpdateProviderDto } from './dto/update-provider.dto';
@@ -18,9 +19,11 @@ import { Provider, type ProviderDocument } from './schemas/provider.schema';
 export class ProvidersService {
   constructor(
     @InjectModel(Provider.name) private readonly providerModel: Model<Provider>,
+    private readonly auditsService: AuditsService,
   ) {}
 
   async create(dto: CreateProviderDto, user: AuthenticatedUser) {
+    const tenantId = this.getTenantId(user);
     const name = dto.name.trim();
     this.validateName(name);
     const phone = this.trimOptional(dto.phone);
@@ -28,7 +31,7 @@ export class ProvidersService {
     this.validateContact(phone, email);
 
     const provider = await this.providerModel.create({
-      tenantId: this.getTenantId(user),
+      tenantId,
       name,
       categoryKeys: dto.categoryKeys,
       contactName: this.trimOptional(dto.contactName),
@@ -38,6 +41,15 @@ export class ProvidersService {
       notes: this.trimOptional(dto.notes),
       status: 'activo',
       createdBy: user.id,
+    });
+    await this.auditsService.record({
+      tenantId,
+      actor: user,
+      module: 'proveedores',
+      action: 'crear',
+      entity: 'proveedor',
+      entityId: provider._id,
+      description: `Creó el proveedor ${provider.name}.`,
     });
     return this.toResponse(provider);
   }
@@ -81,7 +93,8 @@ export class ProvidersService {
   }
 
   async update(id: string, dto: UpdateProviderDto, user: AuthenticatedUser) {
-    const provider = await this.findProvider(id, this.getTenantId(user));
+    const tenantId = this.getTenantId(user);
+    const provider = await this.findProvider(id, tenantId);
     if (provider.status === 'inactivo') {
       throw new ConflictException('No puedes editar un proveedor inactivo.');
     }
@@ -108,16 +121,35 @@ export class ProvidersService {
     if (dto.notes !== undefined) provider.notes = this.trimOptional(dto.notes);
 
     await provider.save();
+    await this.auditsService.record({
+      tenantId,
+      actor: user,
+      module: 'proveedores',
+      action: 'editar',
+      entity: 'proveedor',
+      entityId: provider._id,
+      description: `Actualizó el proveedor ${provider.name}.`,
+    });
     return this.toResponse(provider);
   }
 
   async deactivate(id: string, user: AuthenticatedUser) {
-    const provider = await this.findProvider(id, this.getTenantId(user));
+    const tenantId = this.getTenantId(user);
+    const provider = await this.findProvider(id, tenantId);
     if (provider.status === 'inactivo') {
       throw new ConflictException('El proveedor ya está inactivo.');
     }
     provider.status = 'inactivo';
     await provider.save();
+    await this.auditsService.record({
+      tenantId,
+      actor: user,
+      module: 'proveedores',
+      action: 'desactivar',
+      entity: 'proveedor',
+      entityId: provider._id,
+      description: `Desactivó el proveedor ${provider.name}.`,
+    });
     return this.toResponse(provider);
   }
 

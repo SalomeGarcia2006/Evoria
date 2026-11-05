@@ -10,6 +10,16 @@ export const EVENT_STATUSES = [
 
 export type EventStatus = (typeof EVENT_STATUSES)[number];
 
+export const ACTIVE_EVENT_STATUSES: readonly EventStatus[] = [
+  'borrador',
+  'planificado',
+  'en_progreso',
+];
+
+export function isActiveEvent(status: string) {
+  return ACTIVE_EVENT_STATUSES.some((activeStatus) => activeStatus === status);
+}
+
 export interface EventItem {
   id: string;
   name: string;
@@ -81,6 +91,7 @@ export async function getAllEvents(): Promise<EventItem[]> {
 export async function getEvent(id: string): Promise<EventItem> {
   const response = await apiRequest<ApiResponse<EventItem>>(`/events/${id}`, {
     credentials: 'include',
+    cache: 'no-store',
   });
   return response.data;
 }
@@ -93,6 +104,20 @@ export async function createEvent(
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
+  });
+
+  return response.data;
+}
+
+export async function updateEventStatus(
+  id: string,
+  status: EventStatus,
+): Promise<EventItem> {
+  const response = await apiRequest<ApiResponse<EventItem>>(`/events/${id}`, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status }),
   });
 
   return response.data;

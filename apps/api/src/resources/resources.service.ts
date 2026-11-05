@@ -9,6 +9,7 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { isValidObjectId, type Model, type Types } from 'mongoose';
 import type { AuthenticatedUser } from '../auth/auth.types';
+import { AuditsService } from '../audits/audits.service';
 import { BudgetLedgerService } from '../budgets/budget-ledger.service';
 import { AlertsService } from '../alerts/alerts.service';
 import { Event } from '../events/schemas/event.schema';
@@ -31,6 +32,7 @@ export class ResourcesService {
     private readonly inventoryModel: Model<InventoryItem>,
     @InjectModel(Event.name) private readonly eventModel: Model<Event>,
     private readonly budgetLedger: BudgetLedgerService,
+    private readonly auditsService: AuditsService,
     @Optional() private readonly alerts?: AlertsService,
   ) {}
 
@@ -70,8 +72,9 @@ export class ResourcesService {
       throw error;
     }
 
+    let assignment: EventResourceDocument | null;
     try {
-      const assignment = await this.assignmentModel.findOneAndUpdate(
+      assignment = await this.assignmentModel.findOneAndUpdate(
         {
           tenantId,
           eventId,
@@ -92,13 +95,6 @@ export class ResourcesService {
         },
         { new: true, upsert: true, setDefaultsOnInsert: true },
       );
-
-      await this.alerts?.refreshThresholds(
-        tenantId,
-        eventId,
-        dto.inventoryItemId,
-      );
-      return this.toResponse(assignment, inventoryItem);
     } catch (error) {
       await this.restoreInventory(
         inventoryItem._id.toString(),
@@ -112,6 +108,24 @@ export class ResourcesService {
       );
       throw error;
     }
+    if (!assignment) {
+      throw new ConflictException('No se pudo asignar el recurso al evento.');
+    }
+    await this.alerts?.refreshThresholds(
+      tenantId,
+      eventId,
+      dto.inventoryItemId,
+    );
+    await this.auditsService.record({
+      tenantId,
+      actor: user,
+      module: 'asignaciones',
+      action: 'crear',
+      entity: 'asignacion_recurso',
+      entityId: assignment._id,
+      description: `Asignó ${dto.quantity} unidad(es) de ${inventoryItem.name} al evento.`,
+    });
+    return this.toResponse(assignment, inventoryItem);
   }
 
   async findAll(eventId: string, user: AuthenticatedUser) {
@@ -246,6 +260,15 @@ export class ResourcesService {
     }
 
     await this.alerts?.refreshThresholds(tenantId, eventId, inventoryItemId);
+    await this.auditsService.record({
+      tenantId,
+      actor: user,
+      module: 'asignaciones',
+      action: 'devolver',
+      entity: 'asignacion_recurso',
+      entityId: assignment._id,
+      description: `Devolvió ${assignment.quantity} unidad(es) de ${inventoryItem.name} del evento.`,
+    });
     return this.toResponse(assignment, inventoryItem);
   }
 

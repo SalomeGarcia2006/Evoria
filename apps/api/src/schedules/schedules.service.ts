@@ -8,6 +8,7 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { isValidObjectId, type Model, type Types } from 'mongoose';
 import type { AuthenticatedUser } from '../auth/auth.types';
+import { AuditsService } from '../audits/audits.service';
 import { Event, type EventDocument } from '../events/schemas/event.schema';
 import { Membership } from '../memberships/schemas/membership.schema';
 import { CreateScheduleDto } from './dto/create-schedule.dto';
@@ -23,6 +24,7 @@ export class SchedulesService {
     @InjectModel(Event.name) private readonly eventModel: Model<Event>,
     @InjectModel(Membership.name)
     private readonly membershipModel: Model<Membership>,
+    private readonly auditsService: AuditsService,
   ) {}
 
   async create(
@@ -52,6 +54,16 @@ export class SchedulesService {
       startAt: new Date(createScheduleDto.startAt),
       endAt: new Date(createScheduleDto.endAt),
       status: createScheduleDto.status,
+    });
+
+    await this.auditsService.record({
+      tenantId,
+      actor: user,
+      module: 'cronogramas',
+      action: 'crear',
+      entity: 'cronograma',
+      entityId: schedule._id,
+      description: `Creó la actividad ${schedule.name}.`,
     });
 
     return this.toResponse(schedule);
@@ -119,13 +131,33 @@ export class SchedulesService {
     }
 
     await schedule.save();
+    await this.auditsService.record({
+      tenantId,
+      actor: user,
+      module: 'cronogramas',
+      action: 'editar',
+      entity: 'cronograma',
+      entityId: schedule._id,
+      description: `Actualizó la actividad ${schedule.name}.`,
+    });
     return this.toResponse(schedule);
   }
 
   async cancel(id: string, user: AuthenticatedUser) {
-    const schedule = await this.findSchedule(id, this.getTenantId(user));
+    const tenantId = this.getTenantId(user);
+    const schedule = await this.findSchedule(id, tenantId);
     schedule.status = 'cancelado';
     await schedule.save();
+
+    await this.auditsService.record({
+      tenantId,
+      actor: user,
+      module: 'cronogramas',
+      action: 'cancelar',
+      entity: 'cronograma',
+      entityId: schedule._id,
+      description: `Canceló la actividad ${schedule.name}.`,
+    });
 
     return this.toResponse(schedule);
   }

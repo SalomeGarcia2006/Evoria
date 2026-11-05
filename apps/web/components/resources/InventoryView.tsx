@@ -7,13 +7,11 @@ import { ResourceDialog } from './ResourceDialog';
 import { AppShell } from '../layout/AppShell';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
-import { DataTable } from '../ui/DataTable';
-import { ErrorMessage } from '../ui/ErrorMessage';
 import { LoadingState } from '../ui/LoadingState';
 import { FeedbackMessages, useFeedback } from '../ui/Feedback';
 import { PermissionGate } from '../auth/PermissionGate';
 import { useRecursos } from '../../hooks/useRecursos';
-import { resourceStatusLabels, type ResourceStatus } from '../../types/recurso';
+import { resourceStatusLabels } from '../../types/recurso';
 
 export function InventoryView({
   initialCreate = false,
@@ -35,111 +33,73 @@ export function InventoryView({
   );
   const feedback = useFeedback();
   const { notify } = feedback;
+  const { recursos, isLoading, error, retry } = useRecursos({}, true);
+  const activeResources = recursos.filter(
+    (resource) => resource.status !== 'inactivo',
+  );
+  const available = activeResources.reduce(
+    (total, resource) =>
+      total +
+      (resource.status === 'disponible' ? resource.availableQuantity : 0),
+    0,
+  );
+  const reserved = activeResources.reduce(
+    (total, resource) => total + resource.reservedQuantity,
+    0,
+  );
+  useEffect(() => {
+    if (error) notify(error, 'error');
+  }, [error, notify]);
   function closePanel() {
     setPanel(null);
     if (initialCreate || initialResourceId)
       router.replace('/inventario', { scroll: false });
   }
-  const [filters, setFilters] = useState({
-    search: '',
-    type: '',
-    status: '' as ResourceStatus | '',
-    page: 1,
-  });
-  const { recursos, pagination, isLoading, error, retry } =
-    useRecursos(filters);
-  useEffect(() => {
-    if (error) notify(error, 'error');
-  }, [error, notify]);
   return (
     <AppShell title="Inventario">
       <div className="grid min-w-0 gap-6">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <PermissionGate permission="asignaciones.ver">
-            <Link
-              href="/recursos/asignaciones"
-              className="font-semibold text-teal underline"
-            >
-              Asignar recursos a eventos →
-            </Link>
-          </PermissionGate>
+        <header className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h2 className="text-3xl font-bold">Inventario</h2>
             <p className="mt-2 text-teal">
-              Administra los equipos, materiales y servicios disponibles de tu
-              empresa.
+              Equipos y materiales activos de tu empresa. Abre una tarjeta para
+              consultar o ajustar el recurso.
             </p>
           </div>
-          <PermissionGate permission="inventario.ajustar">
-            <Button
-              type="button"
-              onClick={() => {
-                feedback.dismiss();
-                setPanel({ kind: 'create' });
-              }}
-            >
-              ＋ Nuevo recurso
+          <div className="flex flex-wrap gap-3">
+            <Button variant="secondary" onClick={retry}>
+              Actualizar
             </Button>
-          </PermissionGate>
-        </div>
-        <FeedbackMessages feedback={feedback} />
-        <Card className="min-w-0">
-          <form
-            className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-4"
-            onSubmit={(event) => {
-              event.preventDefault();
-              feedback.dismiss();
-              const data = new FormData(event.currentTarget);
-              setFilters({
-                search: String(data.get('search') ?? '').trim(),
-                type: String(data.get('type') ?? '').trim(),
-                status: String(data.get('status') ?? '') as ResourceStatus | '',
-                page: 1,
-              });
-            }}
-          >
-            <label className="grid min-w-0 gap-2 text-sm font-semibold">
-              Buscar
-              <input
-                className="min-w-0 rounded-lg border border-sky-blue px-3 py-2"
-                name="search"
-                placeholder="Nombre o tipo"
-              />
-            </label>
-            <label className="grid min-w-0 gap-2 text-sm font-semibold">
-              Tipo
-              <input
-                className="min-w-0 rounded-lg border border-sky-blue px-3 py-2"
-                name="type"
-                placeholder="Ej. Tecnología"
-              />
-            </label>
-            <label className="grid min-w-0 gap-2 text-sm font-semibold">
-              Estado
-              <select
-                className="min-w-0 rounded-lg border border-sky-blue bg-white px-3 py-2"
-                name="status"
+            <PermissionGate permission="inventario.ajustar">
+              <Button
+                onClick={() => {
+                  feedback.dismiss();
+                  setPanel({ kind: 'create' });
+                }}
               >
-                <option value="">Activos</option>
-                {Object.entries(resourceStatusLabels).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <Button type="submit" className="self-end">
-              Buscar
-            </Button>
-          </form>
-        </Card>
-        {isLoading ? (
+                Nuevo recurso
+              </Button>
+            </PermissionGate>
+          </div>
+        </header>
+        <PermissionGate permission="asignaciones.ver">
+          <Link
+            href="/recursos/asignaciones"
+            className="font-semibold text-teal underline"
+          >
+            Asignar recursos a eventos →
+          </Link>
+        </PermissionGate>
+        <FeedbackMessages feedback={feedback} />
+        {!can('inventario.ver') ? (
+          <Card>No tienes permiso para consultar el inventario.</Card>
+        ) : isLoading ? (
           <LoadingState label="Cargando recursos…" />
         ) : error ? (
-          <Card className="min-w-0">
-            <ErrorMessage message={error} />
+          <Card>
+            <p className="text-red-800">{error}</p>
             <Button
-              type="button"
+              className="mt-4"
               variant="secondary"
               onClick={() => {
                 feedback.dismiss();
@@ -150,104 +110,95 @@ export function InventoryView({
             </Button>
           </Card>
         ) : (
-          <Card className="min-w-0">
-            <p className="mb-4 text-sm text-teal">
-              {pagination?.total ?? 0} recursos encontrados
-            </p>
-            {recursos.length === 0 ? (
-              <p role="status" className="py-6 text-teal">
-                No hay recursos que coincidan con la búsqueda.
-              </p>
+          <>
+            <section
+              aria-label="Resumen de inventario"
+              className="grid gap-4 sm:grid-cols-3"
+            >
+              {[
+                ['Recursos activos', activeResources.length],
+                ['Unidades disponibles', available],
+                ['Unidades reservadas', reserved],
+              ].map(([label, value]) => (
+                <Card key={label} density="compact">
+                  <p className="text-sm text-teal">{label}</p>
+                  <p className="mt-2 text-xl font-bold">{value}</p>
+                </Card>
+              ))}
+            </section>
+            {!activeResources.length ? (
+              <Card>
+                <h3 className="font-bold">Todavía no hay recursos activos</h3>
+                <p className="mt-2 text-sm text-teal">
+                  Los recursos disponibles y en mantenimiento aparecerán aquí al
+                  registrarlos.
+                </p>
+              </Card>
             ) : (
-              <DataTable
-                rows={recursos}
-                rowKey={(resource) => resource.id}
-                columns={[
-                  {
-                    key: 'name',
-                    header: 'Recurso',
-                    render: (resource) => resource.name,
-                  },
-                  {
-                    key: 'type',
-                    header: 'Tipo',
-                    render: (resource) => resource.type,
-                  },
-                  {
-                    key: 'total',
-                    header: 'Total',
-                    render: (resource) => resource.totalQuantity,
-                  },
-                  {
-                    key: 'available',
-                    header: 'Disponibles',
-                    render: (resource) => resource.availableQuantity,
-                  },
-                  {
-                    key: 'reserved',
-                    header: 'Reservados',
-                    render: (resource) => resource.reservedQuantity,
-                  },
-                  {
-                    key: 'status',
-                    header: 'Estado',
-                    render: (resource) => resourceStatusLabels[resource.status],
-                  },
-                  {
-                    key: 'action',
-                    header: 'Acción',
-                    render: (resource) => (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        className="whitespace-nowrap"
-                        onClick={() => {
-                          feedback.dismiss();
-                          setPanel({ kind: 'detail', id: resource.id });
-                        }}
+              <section
+                aria-label="Recursos activos"
+                className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4"
+              >
+                {activeResources.map((resource) => (
+                  <Card
+                    key={resource.id}
+                    density="compact"
+                    className="flex min-w-0 flex-col"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <h3
+                        title={resource.name}
+                        className="line-clamp-2 break-words text-base font-bold"
                       >
-                        Ver detalle →
-                      </Button>
-                    ),
-                  },
-                ]}
-              />
+                        {resource.name}
+                      </h3>
+                      <span className="rounded-full bg-beige px-3 py-1 text-xs font-semibold">
+                        {resourceStatusLabels[resource.status]}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-sm text-teal">{resource.type}</p>
+                    {resource.description && (
+                      <p
+                        className="mt-2 line-clamp-2 whitespace-pre-wrap break-words text-xs"
+                        title={resource.description}
+                      >
+                        {resource.description}
+                      </p>
+                    )}
+                    <dl className="my-3 grid grid-cols-3 gap-2 text-xs">
+                      {[
+                        ['Total', resource.totalQuantity],
+                        [
+                          'Disponibles',
+                          resource.status === 'disponible'
+                            ? resource.availableQuantity
+                            : 0,
+                        ],
+                        ['Reservadas', resource.reservedQuantity],
+                      ].map(([label, value]) => (
+                        <div key={label}>
+                          <dt className="text-teal">{label}</dt>
+                          <dd className="mt-1 text-lg font-bold">{value}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                    <Button
+                      className="mt-auto self-start"
+                      variant="secondary"
+                      onClick={() => {
+                        feedback.dismiss();
+                        setPanel({ kind: 'detail', id: resource.id });
+                      }}
+                    >
+                      Ver detalle →
+                    </Button>
+                  </Card>
+                ))}
+              </section>
             )}
-            <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
-              <Button
-                type="button"
-                variant="secondary"
-                disabled={filters.page <= 1}
-                onClick={() =>
-                  setFilters((current) => ({
-                    ...current,
-                    page: current.page - 1,
-                  }))
-                }
-              >
-                Anterior
-              </Button>
-              <span className="text-sm text-teal">
-                Página {pagination?.page ?? filters.page} de{' '}
-                {Math.max(1, pagination?.totalPages ?? 1)}
-              </span>
-              <Button
-                type="button"
-                variant="secondary"
-                disabled={filters.page >= (pagination?.totalPages ?? 0)}
-                onClick={() =>
-                  setFilters((current) => ({
-                    ...current,
-                    page: current.page + 1,
-                  }))
-                }
-              >
-                Siguiente
-              </Button>
-            </div>
-          </Card>
+          </>
         )}
-        {panel && (panel.kind !== 'create' || can('inventario.ajustar')) ? (
+        {panel && (panel.kind !== 'create' || can('inventario.ajustar')) && (
           <ResourceDialog
             key={panel.kind === 'create' ? 'new' : panel.id}
             resourceId={panel.kind === 'detail' ? panel.id : undefined}
@@ -257,7 +208,7 @@ export function InventoryView({
               if (message) notify(message);
             }}
           />
-        ) : null}
+        )}
       </div>
     </AppShell>
   );

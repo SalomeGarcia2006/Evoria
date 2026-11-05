@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { AuditsModule } from '../audits/audits.module';
 import { InventoryController } from './inventory.controller';
 import { InventoryService } from './inventory.service';
 import {
@@ -9,6 +10,7 @@ import {
 
 @Module({
   imports: [
+    AuditsModule,
     MongooseModule.forFeature([
       { name: InventoryItem.name, schema: InventoryItemSchema },
     ]),

@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { AuditsModule } from '../audits/audits.module';
 import { MembershipsModule } from '../memberships/memberships.module';
 import { ProfilesModule } from '../profiles/profiles.module';
 import { InitialAdminSeedService } from './initial-admin.seed.service';
@@ -11,6 +12,7 @@ import { UsersService } from './users.service';
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
+    AuditsModule,
     MembershipsModule,
     ProfilesModule,
   ],

@@ -9,6 +9,7 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { isValidObjectId, type Model, type Types } from 'mongoose';
 import type { AuthenticatedUser } from '../auth/auth.types';
+import { AuditsService } from '../audits/audits.service';
 import { BudgetLedgerService } from '../budgets/budget-ledger.service';
 import { AlertsService } from '../alerts/alerts.service';
 import { Event } from '../events/schemas/event.schema';
@@ -32,6 +33,7 @@ export class ProviderServicesService {
     @InjectModel(Provider.name) private readonly providerModel: Model<Provider>,
     @InjectModel(Event.name) private readonly eventModel: Model<Event>,
     private readonly budgetLedger: BudgetLedgerService,
+    private readonly auditsService: AuditsService,
     @Optional() private readonly alerts?: AlertsService,
   ) {}
 
@@ -91,8 +93,9 @@ export class ProviderServicesService {
       eventId,
       dto.agreedAmountCop,
     );
+    let service: EventProviderServiceDocument;
     try {
-      const service = await this.serviceModel.create({
+      service = await this.serviceModel.create({
         tenantId,
         eventId,
         providerId: dto.providerId,
@@ -107,8 +110,6 @@ export class ProviderServicesService {
         assignedBy: user.id,
         cancelledAt: null,
       });
-      await this.alerts?.refreshThresholds(tenantId, eventId);
-      return this.toResponse(service, provider);
     } catch (error) {
       await this.budgetLedger.releaseProviderCost(
         tenantId,
@@ -117,6 +118,17 @@ export class ProviderServicesService {
       );
       throw error;
     }
+    await this.alerts?.refreshThresholds(tenantId, eventId);
+    await this.auditsService.record({
+      tenantId,
+      actor: user,
+      module: 'servicios_proveedor',
+      action: 'crear',
+      entity: 'servicio_proveedor',
+      entityId: service._id,
+      description: `Asignó el servicio ${service.serviceName} de ${provider.name} al evento.`,
+    });
+    return this.toResponse(service, provider);
   }
 
   async update(
@@ -202,6 +214,15 @@ export class ProviderServicesService {
     if (!service)
       throw new ConflictException('El servicio ya no está confirmado.');
     await this.alerts?.refreshThresholds(tenantId, eventId);
+    await this.auditsService.record({
+      tenantId,
+      actor: user,
+      module: 'servicios_proveedor',
+      action: 'editar',
+      entity: 'servicio_proveedor',
+      entityId: service._id,
+      description: `Editó el servicio ${service.serviceName} de ${provider.name}.`,
+    });
     return this.toResponse(service, provider);
   }
 
@@ -235,6 +256,15 @@ export class ProviderServicesService {
       tenantId,
     );
     await this.alerts?.refreshThresholds(tenantId, eventId);
+    await this.auditsService.record({
+      tenantId,
+      actor: user,
+      module: 'servicios_proveedor',
+      action: 'cancelar',
+      entity: 'servicio_proveedor',
+      entityId: service._id,
+      description: `Canceló el servicio ${service.serviceName} de ${provider.name}.`,
+    });
     return this.toResponse(service, provider);
   }
 

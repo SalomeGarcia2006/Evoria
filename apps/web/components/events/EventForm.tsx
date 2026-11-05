@@ -1,14 +1,17 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   createEvent,
+  getAllEvents,
   type CreateEventPayload,
+  type EventItem,
 } from '../../services/events.service';
 import { getUsers, type CompanyUser } from '../../services/users.service';
 import { Button } from '../ui/Button';
 import { ErrorMessage } from '../ui/ErrorMessage';
+import { OpenStreetMapLocationPicker } from './OpenStreetMapLocationPicker';
 
 const eventTypes = [
   'Congreso',
@@ -42,6 +45,10 @@ function getTomorrowDate(): string {
   return formatDateForInput(tomorrow);
 }
 
+function normalizeEventText(value: string | null | undefined): string {
+  return (value ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
 export function EventForm({
   onCancel,
   onSuccess,
@@ -65,14 +72,24 @@ export function EventForm({
   });
   const [users, setUsers] = useState<CompanyUser[]>([]);
   const [usersError, setUsersError] = useState(false);
+  const [events, setEvents] = useState<EventItem[]>([]);
+  const [isLoadingEvents, setIsLoadingEvents] = useState(true);
+  const [eventsError, setEventsError] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [validationAlert, setValidationAlert] = useState<string | null>(null);
   const [successAlert, setSuccessAlert] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  function updateField(field: keyof typeof form, value: string): void {
-    setForm((currentForm) => ({ ...currentForm, [field]: value }));
-  }
+  const updateField = useCallback(
+    (field: keyof typeof form, value: string): void => {
+      setForm((currentForm) => ({ ...currentForm, [field]: value }));
+    },
+    [],
+  );
+  const updateLocation = useCallback(
+    (value: string) => updateField('location', value),
+    [updateField],
+  );
 
   useEffect(() => {
     void getUsers()
@@ -80,6 +97,13 @@ export function EventForm({
         setUsers(items.filter((user) => user.status === 'activo')),
       )
       .catch(() => setUsersError(true));
+  }, []);
+
+  useEffect(() => {
+    void getAllEvents()
+      .then(setEvents)
+      .catch(() => setEventsError(true))
+      .finally(() => setIsLoadingEvents(false));
   }, []);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -138,6 +162,55 @@ export function EventForm({
 
     const startAt = combineDateAndTime(form.startDate, form.startTime);
     const endAt = combineDateAndTime(form.endDate, form.endTime);
+
+    if (isLoadingEvents) {
+      setValidationAlert('Espera mientras validamos la disponibilidad.');
+      return;
+    }
+
+    if (eventsError) {
+      setValidationAlert(
+        'No fue posible validar la disponibilidad de la persona responsable.',
+      );
+      return;
+    }
+
+    if (
+      events.some(
+        (existingEvent) =>
+          normalizeEventText(existingEvent.name) ===
+          normalizeEventText(form.name),
+      )
+    ) {
+      setValidationAlert('Ya existe un evento con ese nombre.');
+      return;
+    }
+
+    if (
+      events.some(
+        (existingEvent) =>
+          normalizeEventText(existingEvent.description) ===
+          normalizeEventText(form.description),
+      )
+    ) {
+      setValidationAlert('Ya existe un evento con esa descripción.');
+      return;
+    }
+
+    const conflictingEvent = events.find(
+      (existingEvent) =>
+        existingEvent.responsibleUserId === form.responsibleUserId &&
+        existingEvent.status !== 'cancelado' &&
+        new Date(existingEvent.startAt) < new Date(endAt) &&
+        new Date(existingEvent.endAt) > new Date(startAt),
+    );
+
+    if (conflictingEvent) {
+      setValidationAlert(
+        `La persona responsable ya está asignada al evento “${conflictingEvent.name}” en ese horario.`,
+      );
+      return;
+    }
 
     const payload: CreateEventPayload = {
       name: form.name.trim(),
@@ -251,17 +324,10 @@ export function EventForm({
               value={form.endTime}
             />
           </label>
-          <label className="grid gap-2">
-            <span className="text-sm font-semibold">Ubicación</span>
-            <input
-              className="rounded-lg border border-sky-blue px-3 py-2 outline-none focus:border-teal focus:ring-2 focus:ring-sky-blue"
-              maxLength={255}
-              onChange={(event) => updateField('location', event.target.value)}
-              required
-              type="text"
-              value={form.location}
-            />
-          </label>
+          <OpenStreetMapLocationPicker
+            onChange={updateLocation}
+            value={form.location}
+          />
           <label className="grid gap-2">
             <span className="text-sm font-semibold">Tipo</span>
             <select
@@ -340,7 +406,7 @@ export function EventForm({
         <div
           aria-label="Alerta de validación del evento"
           aria-live="assertive"
-          className="login-alert-backdrop fixed inset-0 z-50 grid place-items-center p-6"
+          className="login-alert-backdrop fixed inset-0 z-[1100] grid place-items-center p-6"
           role="alertdialog"
           aria-modal="true"
         >
@@ -372,7 +438,7 @@ export function EventForm({
         <div
           aria-label="Evento creado correctamente"
           aria-live="polite"
-          className="login-alert-backdrop fixed inset-0 z-50 grid place-items-center p-6"
+          className="login-alert-backdrop fixed inset-0 z-[1100] grid place-items-center p-6"
           role="alertdialog"
           aria-modal="true"
         >

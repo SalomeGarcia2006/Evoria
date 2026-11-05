@@ -8,6 +8,7 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { isValidObjectId, type Model } from 'mongoose';
 import type { AuthenticatedUser } from '../auth/auth.types';
+import { AuditsService } from '../audits/audits.service';
 import { Membership } from '../memberships/schemas/membership.schema';
 import {
   Permission,
@@ -26,6 +27,7 @@ export class ProfilesService {
     private readonly permissionModel: Model<Permission>,
     @InjectModel(Membership.name)
     private readonly membershipModel: Model<Membership>,
+    private readonly auditsService: AuditsService,
   ) {}
 
   async create(
@@ -47,7 +49,20 @@ export class ProfilesService {
         isSystem: false,
       });
 
-      return this.toResponse(profile, this.createPermissionsMap(permissions));
+      const response = this.toResponse(
+        profile,
+        this.createPermissionsMap(permissions),
+      );
+      await this.auditsService.record({
+        tenantId,
+        actor: currentUser,
+        module: 'perfiles',
+        action: 'crear',
+        entity: 'perfil',
+        entityId: profile._id,
+        description: `Creó el perfil ${profile.name}.`,
+      });
+      return response;
     } catch (error) {
       if (this.isDuplicateKeyError(error)) {
         throw new ConflictException('Ya existe un perfil con ese nombre.');
@@ -131,6 +146,16 @@ export class ProfilesService {
       throw error;
     }
 
+    await this.auditsService.record({
+      tenantId,
+      actor: currentUser,
+      module: 'perfiles',
+      action: 'editar',
+      entity: 'perfil',
+      entityId: profile._id,
+      description: `Actualizó el perfil ${profile.name}.`,
+    });
+
     return this.toResponse(profile, permissionsById);
   }
 
@@ -152,6 +177,16 @@ export class ProfilesService {
 
     profile.status = 'inactivo';
     await profile.save();
+
+    await this.auditsService.record({
+      tenantId,
+      actor: currentUser,
+      module: 'perfiles',
+      action: 'desactivar',
+      entity: 'perfil',
+      entityId: profile._id,
+      description: `Desactivó el perfil ${profile.name}.`,
+    });
 
     return this.toResponse(
       profile,

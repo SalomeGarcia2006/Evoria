@@ -1,21 +1,21 @@
 import { getAllEvents } from './events.service';
 import { getAllBudgets } from './presupuestos.service';
-import { getResources } from './recursos.service';
+import { getAllResources } from './recursos.service';
 
 async function getInventorySummary() {
-  const first = await getResources({ limit: 100 });
-  const items = [...first.items];
-  for (let page = 2; page <= first.pagination.totalPages; page += 1) {
-    items.push(...(await getResources({ limit: 100, page })).items);
-  }
+  const { items } = await getAllResources();
   return items.reduce(
     (summary, item) => ({
       available:
         summary.available +
         (item.status === 'disponible' ? item.availableQuantity : 0),
       total: summary.total + item.totalQuantity,
+      reserved: summary.reserved + item.reservedQuantity,
+      resources: summary.resources + 1,
+      maintenance:
+        summary.maintenance + (item.status === 'mantenimiento' ? 1 : 0),
     }),
-    { available: 0, total: 0 },
+    { available: 0, total: 0, reserved: 0, resources: 0, maintenance: 0 },
   );
 }
 

@@ -42,6 +42,8 @@ import {
   EventResourceSchema,
 } from '../resources/schemas/event-resource.schema';
 import { ResourcesService } from '../resources/resources.service';
+import { AuditsService } from '../audits/audits.service';
+import { AuditLog, AuditLogSchema } from '../audits/schemas/audit-log.schema';
 import {
   EventProviderService,
   EventProviderServiceSchema,
@@ -68,6 +70,9 @@ test('Mongo aislado: deduplicación, lectura personal y revocación', async () =
     const permissions = connection.model(Permission.name, PermissionSchema);
     const events = connection.model(Event.name, EventSchema);
     const budgets = connection.model(EventBudget.name, EventBudgetSchema);
+    const audits = new AuditsService(
+      connection.model(AuditLog.name, AuditLogSchema),
+    );
     const resources = connection.model(EventResource.name, EventResourceSchema);
     const providerServices = connection.model(
       EventProviderService.name,
@@ -177,6 +182,7 @@ test('Mongo aislado: deduplicación, lectura personal y revocación', async () =
     const user = (id: Types.ObjectId) =>
       ({
         id: id.toString(),
+        name: 'Persona de prueba',
         tenantId: tenant.toString(),
         scope: 'tenant',
       }) as AuthenticatedUser;
@@ -238,12 +244,14 @@ test('Mongo aislado: deduplicación, lectura personal y revocación', async () =
       providerServices,
       providers,
       ledger,
+      audits,
       service,
     );
     const eventService = new EventsService(
       events,
       memberships,
       budgetService,
+      audits,
       service,
     );
     const created = await eventService.create(
@@ -344,6 +352,24 @@ test('Mongo aislado: deduplicación, lectura personal y revocación', async () =
       ),
     );
     await budgetService.approve(created.id, request.id, user(owner));
+    assert.equal(
+      await connection.collection('audit_logs').countDocuments({
+        tenantId: tenant,
+        module: 'eventos',
+        action: 'crear',
+        entityId: new Types.ObjectId(created.id),
+      }),
+      1,
+    );
+    assert.equal(
+      await connection.collection('audit_logs').countDocuments({
+        tenantId: tenant,
+        module: 'presupuestos',
+        action: 'aprobar',
+        entityId: new Types.ObjectId(request.id),
+      }),
+      1,
+    );
     assert.equal(
       await alerts.countDocuments({
         type: 'budget_decided',
@@ -796,6 +822,7 @@ test('Mongo aislado: deduplicación, lectura personal y revocación', async () =
       inventory,
       events,
       ledger,
+      audits,
       service,
     );
     await resourceService.assign(

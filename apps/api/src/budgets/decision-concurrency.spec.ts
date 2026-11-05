@@ -5,6 +5,7 @@ import { Types, type Model } from 'mongoose';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { Event } from '../events/schemas/event.schema';
 import { EventsService } from '../events/events.service';
+import { AuditsService } from '../audits/audits.service';
 import { Membership } from '../memberships/schemas/membership.schema';
 import { InventoryItem } from '../inventory/schemas/inventory-item.schema';
 import { EventProviderService } from '../provider-services/schemas/event-provider-service.schema';
@@ -74,6 +75,7 @@ test('una decisión bloquea un cambio concurrente de responsable o cancelación'
       return { requests: [{ ...request, status: 'aprobada' }] };
     },
   } as unknown as Model<EventBudget>;
+  const audits = { record: async () => undefined } as unknown as AuditsService;
   const service = new BudgetsService(
     budgetModel,
     eventModel,
@@ -82,11 +84,13 @@ test('una decisión bloquea un cambio concurrente de responsable o cancelación'
     {} as Model<EventProviderService>,
     {} as Model<Provider>,
     {} as BudgetLedgerService,
+    audits,
   );
   const events = new EventsService(
     eventModel,
     { exists: async () => true } as unknown as Model<Membership>,
     service,
+    audits,
   );
   const pending = service.approve(eventId, requestId.toString(), user);
   await entered;

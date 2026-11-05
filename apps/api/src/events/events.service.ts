@@ -18,6 +18,7 @@ import { Membership } from '../memberships/schemas/membership.schema';
 import { BudgetsService } from '../budgets/budgets.service';
 import { AlertsService } from '../alerts/alerts.service';
 import type { AuthenticatedUser } from '../auth/auth.types';
+import { AuditsService } from '../audits/audits.service';
 import { CreateEventDto } from './dto/create-event.dto';
 import { FindEventsDto } from './dto/find-events.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
@@ -31,6 +32,7 @@ export class EventsService {
     @InjectModel(Membership.name)
     private readonly membershipModel: Model<Membership>,
     private readonly budgetsService: BudgetsService,
+    private readonly auditsService: AuditsService,
     @Optional() private readonly alerts?: AlertsService,
   ) {}
 
@@ -72,6 +74,16 @@ export class EventsService {
     }
 
     await this.notifyResponsible(event, tenantId);
+    await this.auditsService.record({
+      tenantId,
+      actor: user,
+      module: 'eventos',
+      action: 'crear',
+      entity: 'evento',
+      entityId: event._id,
+      description: `Creó el evento ${event.name}.`,
+    });
+
     return this.toResponse(event);
   }
 
@@ -184,6 +196,15 @@ export class EventsService {
     if (event.status === 'cancelado' && previousStatus !== 'cancelado') {
       await this.notifyCancellation(event, tenantId);
     }
+    await this.auditsService.record({
+      tenantId,
+      actor: user,
+      module: 'eventos',
+      action: 'editar',
+      entity: 'evento',
+      entityId: event._id,
+      description: `Actualizó el evento ${event.name}.`,
+    });
     return this.toResponse(event);
   }
 
@@ -196,6 +217,16 @@ export class EventsService {
     await this.saveUnlocked(event);
 
     if (!wasCancelled) await this.notifyCancellation(event, tenantId);
+
+    await this.auditsService.record({
+      tenantId,
+      actor: user,
+      module: 'eventos',
+      action: 'cancelar',
+      entity: 'evento',
+      entityId: event._id,
+      description: `Canceló el evento ${event.name}.`,
+    });
 
     return this.toResponse(event);
   }

@@ -10,6 +10,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { isValidObjectId, type Model, type Types } from 'mongoose';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { AlertsService } from '../alerts/alerts.service';
+import { AuditsService } from '../audits/audits.service';
 import { CreateInventoryItemDto } from './dto/create-inventory-item.dto';
 import { FindInventoryItemsDto } from './dto/find-inventory-items.dto';
 import { UpdateInventoryItemDto } from './dto/update-inventory-item.dto';
@@ -23,13 +24,15 @@ export class InventoryService {
   constructor(
     @InjectModel(InventoryItem.name)
     private readonly inventoryModel: Model<InventoryItem>,
+    private readonly auditsService: AuditsService,
     @Optional() private readonly alerts?: AlertsService,
   ) {}
 
   async create(dto: CreateInventoryItemDto, user: AuthenticatedUser) {
+    const tenantId = this.getTenantId(user);
     const status = dto.status ?? 'disponible';
     const item = await this.inventoryModel.create({
-      tenantId: this.getTenantId(user),
+      tenantId,
       name: dto.name.trim(),
       type: dto.type.trim(),
       description: this.trimOptional(dto.description),
@@ -45,6 +48,16 @@ export class InventoryService {
       undefined,
       item._id.toString(),
     );
+    await this.auditsService.record({
+      tenantId,
+      actor: user,
+      module: 'inventario',
+      action: 'crear',
+      entity: 'recurso',
+      entityId: item._id,
+      description: `Creó el recurso ${item.name}.`,
+    });
+
     return this.toResponse(item);
   }
 
@@ -103,7 +116,8 @@ export class InventoryService {
     dto: UpdateInventoryItemDto,
     user: AuthenticatedUser,
   ) {
-    const item = await this.findItem(id, this.getTenantId(user));
+    const tenantId = this.getTenantId(user);
+    const item = await this.findItem(id, tenantId);
 
     if (item.status === 'inactivo') {
       throw new ConflictException(
@@ -147,11 +161,21 @@ export class InventoryService {
       undefined,
       item._id.toString(),
     );
+    await this.auditsService.record({
+      tenantId,
+      actor: user,
+      module: 'inventario',
+      action: 'ajustar',
+      entity: 'recurso',
+      entityId: item._id,
+      description: `Actualizó el recurso ${item.name}.`,
+    });
     return this.toResponse(item);
   }
 
   async deactivate(id: string, user: AuthenticatedUser) {
-    const item = await this.findItem(id, this.getTenantId(user));
+    const tenantId = this.getTenantId(user);
+    const item = await this.findItem(id, tenantId);
     if (item.reservedQuantity > 0) {
       throw new ConflictException(
         'No puedes desactivar un ítem con asignaciones activas.',
@@ -166,6 +190,15 @@ export class InventoryService {
       undefined,
       item._id.toString(),
     );
+    await this.auditsService.record({
+      tenantId,
+      actor: user,
+      module: 'inventario',
+      action: 'desactivar',
+      entity: 'recurso',
+      entityId: item._id,
+      description: `Desactivó el recurso ${item.name}.`,
+    });
     return this.toResponse(item);
   }
 

@@ -20,7 +20,7 @@ import { BudgetAmountsView, cop, requestLabels } from './BudgetAmountsView';
 
 export type BudgetAction =
   | { kind: 'initialize' }
-  | { kind: 'request' }
+  | { kind: 'request'; type?: BudgetRequestType }
   | { kind: 'approve' | 'reject'; request: BudgetRequest };
 export function BudgetActionDialog({
   action,
@@ -38,7 +38,9 @@ export function BudgetActionDialog({
   const [amount, setAmount] = useState('');
   const reasonId = useId();
   const [reason, setReason] = useState('');
-  const [type, setType] = useState<BudgetRequestType>('ampliacion');
+  const [type, setType] = useState<BudgetRequestType>(
+    action.kind === 'request' ? (action.type ?? 'ampliacion') : 'ampliacion',
+  );
   const [errors, setErrors] = useState<Record<string, string>>({});
   const feedback = useFeedback();
   const [busy, setBusy] = useState(false);
@@ -84,6 +86,7 @@ export function BudgetActionDialog({
       feedback.guide(
         Object.values(next).join('\n'),
         'Revisa los datos de la solicitud',
+        'error',
       );
       return;
     }
@@ -180,6 +183,7 @@ export function BudgetActionDialog({
                   : 'Monto solicitado (COP)'
               }
               value={amount}
+              required
               inputMode="numeric"
               error={errors.amount}
               onChange={(event) => setAmount(event.target.value)}
@@ -195,6 +199,7 @@ export function BudgetActionDialog({
                 className={inputClass}
                 value={reason}
                 minLength={10}
+                required
                 maxLength={1000}
                 aria-invalid={!!errors.reason}
                 aria-describedby={
@@ -218,6 +223,9 @@ export function BudgetActionDialog({
         )}
         {action.kind === 'request' && (
           <p className="text-sm text-teal">
+            {type === 'ampliacion'
+              ? 'Solicita dinero adicional para el evento. Al aprobarse, se suma al total asignado y al disponible; el presupuesto base conserva su valor.'
+              : 'Registra un gasto que no corresponde a inventario ni a servicios ya asignados. Al aprobarse, consume saldo disponible; no añade dinero al presupuesto.'}{' '}
             El líder responsable decidirá la solicitud. Mientras esté pendiente
             no cambia los totales ni el saldo.
           </p>

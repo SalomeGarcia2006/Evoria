@@ -1,72 +1,198 @@
-﻿'use client';
+'use client';
 import Link from 'next/link';
 import { AppShell } from '../../components/layout/AppShell';
 import { Card } from '../../components/ui/Card';
-import { useAuth } from '../../hooks/useAuth';
-import { FeedbackMessages, useFeedback } from '../../components/ui/Feedback';
 import { Button } from '../../components/ui/Button';
+import { LoadingState } from '../../components/ui/LoadingState';
+import { cop, requestLabels } from '../../components/budgets/BudgetAmountsView';
+import { useAuth } from '../../hooks/useAuth';
+import { useOperationalOverview } from '../../hooks/useOperationalOverview';
+
 export default function AlertasPage() {
-  const feedback = useFeedback();
   const { can } = useAuth();
+  const { data, loading, refresh } = useOperationalOverview(true);
+  const budgets =
+    data?.summary.budgets?.items.filter((item) =>
+      ['borrador', 'planificado', 'en_progreso'].includes(item.eventStatus),
+    ) ?? [];
+  const attention = budgets.filter(
+    (item) => !item.initialized || item.remainingCop <= 0,
+  );
+  const inventory = data?.summary.inventory;
+  const hasSources =
+    can('presupuestos.aprobar') ||
+    can('presupuestos.ver') ||
+    can('inventario.ver');
+  const count =
+    (data?.authorizations?.length ?? 0) +
+    attention.length +
+    (inventory && inventory.maintenance > 0 ? 1 : 0) +
+    (inventory && inventory.resources > 0 && inventory.available === 0 ? 1 : 0);
   return (
     <AppShell title="Alertas">
       <div className="grid gap-6">
-        <FeedbackMessages feedback={feedback} />
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-[.16em] text-teal">
-            Seguimiento
-          </p>
-          <h2 className="mt-2 text-3xl font-bold">Centro de alertas</h2>
-        </div>
-        <div>
-          <Button
-            variant="secondary"
-            onClick={() =>
-              feedback.guide(
-                can('presupuestos.aprobar')
-                  ? 'Abre Autorizaciones pendientes para revisar las solicitudes de los eventos que lideras. Necesitas también permiso para consultar presupuestos y ver el resumen financiero antes de decidir. No puedes aprobar tu propia solicitud.'
-                  : 'Para revisar autorizaciones necesitas el permiso presupuestos.aprobar y ser líder responsable del evento. Solicita al administrador los permisos de consulta y aprobación que correspondan a tu función.',
-                'Cómo revisar autorizaciones',
-              )
-            }
-          >
-            Cómo revisar autorizaciones
-          </Button>
-        </div>
-        {can('presupuestos.aprobar') && (
-          <Card>
-            <h3 className="text-xl font-bold">Autorizaciones de presupuesto</h3>
-            <p className="mt-2 text-sm text-teal">
-              Revisa las solicitudes pendientes de los eventos que lideras y
-              consulta su presupuesto antes de decidir.
+        <header className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[.16em] text-teal">
+              Seguimiento
             </p>
-            <Link
-              className="mt-4 inline-block font-semibold text-teal underline"
-              href="/presupuestos?view=authorizations"
-            >
-              Ver autorizaciones pendientes →
-            </Link>
-          </Card>
-        )}
-        <Card>
-          <h3 className="text-xl font-bold">Otros avisos</h3>
-          <p className="mt-2 text-sm text-teal">
-            Las notificaciones generales estarán disponibles cuando se conecte
-            su consulta en el backend.
-          </p>
-          <Button
-            className="mt-4"
-            variant="ghost"
-            onClick={() =>
-              feedback.guide(
-                'Los avisos generales todavía no están disponibles. Por ahora puedes revisar las autorizaciones de presupuesto si tienes los permisos correspondientes. No necesitas crear ni configurar una alerta para continuar.',
-                'Estado de los avisos',
-              )
-            }
-          >
-            Consultar disponibilidad de avisos
+            <h2 className="mt-2 text-3xl font-bold">Centro de alertas</h2>
+            <p className="mt-2 text-teal">
+              Solicitudes pendientes y situaciones que requieren atención en tu
+              empresa.
+            </p>
+          </div>
+          <Button variant="secondary" onClick={refresh}>
+            Actualizar
           </Button>
-        </Card>
+        </header>
+        {loading ? (
+          <LoadingState label="Consultando alertas…" />
+        ) : (
+          data && (
+            <>
+              {data.errors.map((error) => (
+                <Card key={error}>
+                  <p role="alert" className="text-sm text-red-800">
+                    {error}
+                  </p>
+                  <Button
+                    className="mt-3"
+                    variant="secondary"
+                    onClick={refresh}
+                  >
+                    Reintentar
+                  </Button>
+                </Card>
+              ))}
+              {!hasSources ? (
+                <Card>
+                  Necesitas permisos de consulta de inventario, presupuestos o
+                  aprobación para consultar los avisos de tu empresa.
+                </Card>
+              ) : (
+                <>
+                  <p className="text-sm text-teal">
+                    {count} avisos detectados en la información consultada.
+                  </p>
+                  {count === 0 && data.errors.length === 0 && (
+                    <Card>
+                      <h3 className="text-xl font-bold">Todo al día</h3>
+                      <p className="mt-2 text-sm text-teal">
+                        No hay autorizaciones pendientes ni incidencias en los
+                        presupuestos y recursos que puedes consultar.
+                      </p>
+                    </Card>
+                  )}
+                  <section
+                    aria-label="Avisos actuales"
+                    className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4"
+                  >
+                    {data.authorizations?.map((request) => (
+                      <Card
+                        key={request.id}
+                        density="compact"
+                        className="flex min-w-0 flex-col"
+                      >
+                        <p className="text-xs font-semibold uppercase text-teal">
+                          Autorización pendiente
+                        </p>
+                        <h3 className="mt-2 break-words text-base font-bold">
+                          {request.eventName}
+                        </h3>
+                        <p className="mt-3 font-semibold">
+                          {requestLabels[request.type]} ·{' '}
+                          {cop(request.amountCop)}
+                        </p>
+                        <p
+                          title={request.reason}
+                          className="my-2 line-clamp-3 whitespace-pre-wrap break-words text-xs text-teal"
+                        >
+                          {request.reason}
+                        </p>
+                        <p className="mb-4 text-xs text-teal">
+                          La solicitud todavía no modifica el saldo.
+                        </p>
+                        {can('presupuestos.ver') ? (
+                          <Link
+                            className="mt-auto font-semibold text-teal underline"
+                            href={`/presupuestos?eventId=${encodeURIComponent(request.eventId)}&view=authorizations`}
+                          >
+                            Revisar y decidir →
+                          </Link>
+                        ) : (
+                          <p className="text-sm text-teal">
+                            Necesitas permiso de consulta de presupuestos para
+                            revisar el detalle.
+                          </p>
+                        )}
+                      </Card>
+                    ))}
+                    {attention.map((item) => (
+                      <Card key={item.eventId} density="compact">
+                        <p className="text-xs font-semibold uppercase text-teal">
+                          {item.initialized
+                            ? 'Saldo agotado'
+                            : 'Presupuesto sin iniciar'}
+                        </p>
+                        <h3 className="mt-2 break-words text-base font-bold">
+                          {item.eventName}
+                        </h3>
+                        <p className="mt-3 text-sm text-teal">
+                          {item.initialized
+                            ? `Disponible: ${cop(item.remainingCop)}. Revisa los gastos y las ampliaciones antes de nuevas asignaciones.`
+                            : 'Registra el presupuesto inicial para poder asignar recursos y servicios.'}
+                        </p>
+                        <Link
+                          className="mt-4 inline-block font-semibold text-teal underline"
+                          href={`/presupuestos?eventId=${encodeURIComponent(item.eventId)}`}
+                        >
+                          Revisar presupuesto →
+                        </Link>
+                      </Card>
+                    ))}
+                    {inventory && inventory.maintenance > 0 && (
+                      <Card density="compact">
+                        <h3 className="text-base font-bold">
+                          Recursos en mantenimiento
+                        </h3>
+                        <p className="mt-3 text-sm text-teal">
+                          {inventory.maintenance} recursos requieren revisión
+                          antes de volver a estar disponibles.
+                        </p>
+                        <Link
+                          href="/inventario"
+                          className="mt-4 inline-block font-semibold text-teal underline"
+                        >
+                          Ver recursos →
+                        </Link>
+                      </Card>
+                    )}
+                    {inventory &&
+                      inventory.resources > 0 &&
+                      inventory.available === 0 && (
+                        <Card density="compact">
+                          <h3 className="text-base font-bold">
+                            Sin unidades disponibles
+                          </h3>
+                          <p className="mt-3 text-sm text-teal">
+                            El inventario activo no tiene unidades disponibles
+                            para nuevas reservas.
+                          </p>
+                          <Link
+                            href="/inventario"
+                            className="mt-4 inline-block font-semibold text-teal underline"
+                          >
+                            Revisar inventario →
+                          </Link>
+                        </Card>
+                      )}
+                  </section>
+                </>
+              )}
+            </>
+          )
+        )}
       </div>
     </AppShell>
   );
