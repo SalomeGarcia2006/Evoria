@@ -2,6 +2,7 @@ export type Coordinates = { latitude: number; longitude: number };
 
 const coordinatesPattern = /^(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)$/;
 const addressCache = new Map<string, string>();
+const coordinatesCache = new Map<string, Coordinates>();
 
 export function parseCoordinates(value: string | null): Coordinates | null {
   if (!value) return null;
@@ -34,4 +35,36 @@ export async function getAddressFromCoordinates(
 
   addressCache.set(key, result.display_name);
   return result.display_name;
+}
+
+export async function getCoordinatesFromAddress(
+  address: string,
+): Promise<Coordinates> {
+  const key = address.trim().toLowerCase();
+  const cachedCoordinates = coordinatesCache.get(key);
+  if (cachedCoordinates) return cachedCoordinates;
+
+  const parameters = new URLSearchParams({
+    format: 'jsonv2',
+    limit: '1',
+    q: address,
+  });
+  const response = await fetch(
+    `https://nominatim.openstreetmap.org/search?${parameters}`,
+  );
+  if (!response.ok) throw new Error('No fue posible ubicar la dirección.');
+
+  const [result] = (await response.json()) as Array<{
+    lat?: string;
+    lon?: string;
+  }>;
+  if (!result?.lat || !result.lon)
+    throw new Error('No fue posible ubicar la dirección.');
+
+  const coordinates = {
+    latitude: Number(result.lat),
+    longitude: Number(result.lon),
+  };
+  coordinatesCache.set(key, coordinates);
+  return coordinates;
 }
