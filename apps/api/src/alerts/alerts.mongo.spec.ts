@@ -36,7 +36,10 @@ import { FindAlertsDto } from './alerts.dto';
 import { EventsService } from '../events/events.service';
 import { BudgetsService } from '../budgets/budgets.service';
 import { BudgetLedgerService } from '../budgets/budget-ledger.service';
-import { recoverDecisionLock } from '../budgets/recover-decision-lock';
+import {
+  listDecisionLocks,
+  recoverDecisionLock,
+} from '../budgets/recover-decision-lock';
 import {
   EventResource,
   EventResourceSchema,
@@ -53,10 +56,14 @@ import { Provider, ProviderSchema } from '../providers/schemas/provider.schema';
 test('Mongo aislado: deduplicación, lectura personal y revocación', async () => {
   const database = `evoria_alertas_test_${new Types.ObjectId().toString()}`;
   assert.match(database, /^evoria_alertas_test_[a-f0-9]{24}$/);
-  const connection = await createConnection(
-    `mongodb://127.0.0.1:27017/${database}`,
-    { serverSelectionTimeoutMS: 5000 },
-  ).asPromise();
+  const mongoHost = process.env.EVORIA_TEST_MONGO_HOST ?? '127.0.0.1:27017';
+  const mongoUri = new URL(
+    process.env.EVORIA_TEST_MONGO_URI ?? `mongodb://${mongoHost}`,
+  );
+  mongoUri.pathname = `/${database}`;
+  const connection = await createConnection(mongoUri.toString(), {
+    serverSelectionTimeoutMS: 5000,
+  }).asPromise();
   try {
     const alerts = connection.model(Alert.name, AlertSchema);
     const outbox = connection.model(AlertOutbox.name, AlertOutboxSchema);
@@ -414,17 +421,21 @@ test('Mongo aislado: deduplicación, lectura personal y revocación', async () =
     );
     await entered;
     try {
-      await assert.rejects(() =>
-        eventService.update(
-          created.id,
-          { responsibleUserId: other.toString() },
-          user(other),
-        ),
+      const changing = eventService.update(
+        created.id,
+        { responsibleUserId: other.toString() },
+        user(other),
       );
-      await assert.rejects(() => eventService.cancel(created.id, user(other)));
-    } finally {
       resume();
       await deciding;
+      await changing;
+      await eventService.update(
+        created.id,
+        { responsibleUserId: owner.toString() },
+        user(other),
+      );
+    } finally {
+      resume();
       Object.defineProperty(budgets, 'findOneAndUpdate', {
         configurable: true,
         writable: true,
@@ -450,8 +461,8 @@ test('Mongo aislado: deduplicación, lectura personal y revocación', async () =
       'const db = await createConnection(process.env.EVORIA_TEST_URI).asPromise();',
       'const events = db.model(Event.name, EventSchema);',
       'const budgets = db.model(EventBudget.name, EventBudgetSchema);',
-      "budgets.findOneAndUpdate = () => { process.stdout.write('LOCK_ACQUIRED\\n'); return new Promise(() => {}); };",
-      'const service = new BudgetsService(budgets, events, {}, {}, {}, {}, {});',
+      "const audits = { record: () => { process.stdout.write('LOCK_ACQUIRED\\n'); return new Promise(() => {}); } };",
+      'const service = new BudgetsService(budgets, events, {}, {}, {}, {}, {}, audits);',
       "await service.approve(process.env.EVORIA_TEST_EVENT, process.env.EVORIA_TEST_REQUEST, { id: process.env.EVORIA_TEST_USER, tenantId: process.env.EVORIA_TEST_TENANT, scope: 'tenant' });",
       '})().catch((error) => { process.stderr.write(String(error)); process.exitCode = 1; });',
     ].join('\n');
@@ -462,7 +473,7 @@ test('Mongo aislado: deduplicación, lectura personal y revocación', async () =
         cwd: process.cwd(),
         env: {
           ...process.env,
-          EVORIA_TEST_URI: `mongodb://127.0.0.1:27017/${database}`,
+          EVORIA_TEST_URI: mongoUri.toString(),
           EVORIA_TEST_EVENT: created.id,
           EVORIA_TEST_REQUEST: interruptedRequest.id,
           EVORIA_TEST_USER: owner.toString(),
@@ -508,11 +519,6 @@ test('Mongo aislado: deduplicación, lectura personal y revocación', async () =
     });
     try {
       await ready;
-      await assert.rejects(
-        () =>
-          budgetService.approve(created.id, interruptedRequest.id, user(owner)),
-        ConflictException,
-      );
     } finally {
       if (child.exitCode === null && child.signalCode === null) {
         const exited = once(child, 'exit');
@@ -520,22 +526,14 @@ test('Mongo aislado: deduplicación, lectura personal y revocación', async () =
         await exited;
       }
     }
-    await assert.rejects(
-      () =>
-        budgetService.approve(created.id, interruptedRequest.id, user(owner)),
-      ConflictException,
+    const afterCrash = await Promise.allSettled([
+      budgetService.approve(created.id, interruptedRequest.id, user(owner)),
+      budgetService.approve(created.id, interruptedRequest.id, user(owner)),
+    ]);
+    assert.equal(
+      afterCrash.filter((result) => result.status === 'fulfilled').length,
+      1,
     );
-    const interruptedEvent = await connection
-      .collection('events')
-      .findOne({ _id: new Types.ObjectId(created.id), tenantId: tenant });
-    assert.equal(typeof interruptedEvent?.budgetDecisionLock, 'string');
-    await recoverDecisionLock(
-      connection,
-      tenant.toString(),
-      created.id,
-      interruptedEvent!.budgetDecisionLock as string,
-    );
-    await budgetService.approve(created.id, interruptedRequest.id, user(owner));
     await assert.rejects(
       () =>
         budgetService.approve(created.id, interruptedRequest.id, user(owner)),
@@ -873,6 +871,21 @@ test('Mongo aislado: deduplicación, lectura personal y revocación', async () =
         { _id: eventId },
         { $set: { budgetDecisionLock: interruptedToken } },
       );
+    assert.deepEqual(await listDecisionLocks(connection, tenant.toString()), [
+      { eventId: eventId.toString(), token: interruptedToken },
+    ]);
+    assert.deepEqual(
+      await listDecisionLocks(connection, new Types.ObjectId().toString()),
+      [],
+    );
+    await assert.rejects(() =>
+      recoverDecisionLock(
+        connection,
+        new Types.ObjectId().toString(),
+        eventId.toString(),
+        interruptedToken,
+      ),
+    );
     await assert.rejects(() =>
       recoverDecisionLock(
         connection,
@@ -891,6 +904,10 @@ test('Mongo aislado: deduplicación, lectura personal y revocación', async () =
       tenant.toString(),
       eventId.toString(),
       interruptedToken,
+    );
+    assert.deepEqual(
+      await listDecisionLocks(connection, tenant.toString()),
+      [],
     );
     assert.equal(
       (await connection.collection('events').findOne({ _id: eventId }))

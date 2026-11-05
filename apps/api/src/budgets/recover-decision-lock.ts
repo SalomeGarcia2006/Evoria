@@ -1,5 +1,27 @@
 import { Types, type Connection } from 'mongoose';
 
+export async function listDecisionLocks(
+  connection: Connection,
+  tenantId: string,
+) {
+  if (!Types.ObjectId.isValid(tenantId))
+    throw new Error('El identificador de empresa no es válido.');
+  const records = await connection
+    .collection('events')
+    .find(
+      {
+        tenantId: new Types.ObjectId(tenantId),
+        budgetDecisionLock: { $type: 'string' },
+      },
+      { projection: { _id: 1, budgetDecisionLock: 1 } },
+    )
+    .toArray();
+  return records.map((record) => ({
+    eventId: record._id.toString(),
+    token: record.budgetDecisionLock,
+  }));
+}
+
 export async function recoverDecisionLock(
   connection: Connection,
   tenantId: string,

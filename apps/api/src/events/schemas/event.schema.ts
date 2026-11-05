@@ -48,6 +48,9 @@ export class Event {
   @Prop({ type: String, default: undefined, select: false })
   budgetDecisionLock?: string;
 
+  @Prop({ type: Number, default: 0 })
+  budgetDecisionRevision?: number;
+
   @Prop({ type: 'ObjectId', ref: 'User', required: true, index: true })
   createdBy!: Types.ObjectId;
 

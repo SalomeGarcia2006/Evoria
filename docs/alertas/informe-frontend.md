@@ -55,19 +55,38 @@ Todos necesitan además `alertas.ver`. Los umbrales iniciales son 80 % de presup
 
 Las alertas, la cola de reintentos y las condiciones tienen índices únicos por empresa, destinatario y clave. La API crea esos índices al iniciar. La cola se reintenta aproximadamente cada 15 segundos y una conciliación paginada revisa eventos, presupuestos e inventario persistidos. La retención es indefinida y no hay limpieza automática. No se implementaron correo ni tiempo real.
 
-Las generaciones de un umbral quedan pendientes en la condición hasta que se incorporan a la cola; por ello, si se guardó la condición y falla la cola, el cruce se reintenta incluso si el valor ya se recuperó. La operación principal y la escritura de esa condición siguen siendo documentos distintos. Si también falla la escritura de la condición y el valor se recupera antes de conciliar, el cruce no puede reconstruirse. La prueba de Mongo aislado conserva ambos casos. Para garantizar todos los cruces habría que guardar una bitácora o salida de eventos en la misma escritura atómica que modifica inventario o presupuesto, o bien disponer de MongoDB con réplicas y usar transacciones que incluyan esa salida. La entrega actual no garantiza todos los cambios transitorios. La primera conciliación también puede crear alertas para solicitudes y decisiones ya existentes cuyos destinatarios aún tengan los permisos correspondientes.
+Las generaciones de un umbral quedan pendientes en la condición hasta que se incorporan a la cola. Las operaciones de inventario, asignaciones, servicios de proveedor, inicialización y decisión de presupuesto registran la condición en la misma transacción que el cambio correspondiente. Si falla la escritura de la condición, la operación se revierte; si falla la entrega después de confirmar, puede reintentarse aunque el valor se recupere. Las escrituras directas en MongoDB, scripts antiguos o módulos que omitan estas rutas no adquieren esa garantía. La conciliación puede crear alertas para solicitudes y decisiones antiguas cuyos destinatarios conserven los permisos.
 
-Las decisiones usan un bloqueo persistente en el evento, sin caducidad automática. Si el proceso se interrumpe, detener y confirmar la terminación de **todas** las instancias de API antes de recuperar el bloqueo; una instancia detenida temporalmente no es suficiente. Consultar el token actual `budgetDecisionLock` del evento por un canal administrativo y ejecutar con la configuración MongoDB del entorno:
+Las nuevas decisiones actualizan el evento y el presupuesto en una transacción, que también registra su alerta y auditoría. Así, el cambio de responsable o la cancelación compiten por el mismo documento del evento; la transacción comprueba de nuevo las condiciones al reintentarse. Una interrupción deja una transacción abandonada que MongoDB aborta, no un nuevo token persistente. El controlador de MongoDB reintenta confirmaciones inciertas, pero si finalmente se pierde el resultado el cliente debe consultar la solicitud antes de repetir: no existe una clave de idempotencia HTTP para reconstruir la respuesta.
+
+Los tokens `budgetDecisionLock` creados por versiones anteriores se siguen respetando y deben revisarse antes de migrar. Solo después de detener y confirmar la terminación de **todas** las instancias de la versión anterior, consultar el token y ejecutar por un canal administrativo:
 
 ```sh
 npm run build --workspace=@evoria/api
 npm run recover:budget-lock --workspace=@evoria/api -- <empresa-id> <evento-id> <token-actual> --confirm-all-api-instances-stopped
 ```
 
-El comando solo elimina el token que coincide. Su seguridad depende de que no quede ningún proceso anterior activo; no hay recuperación automática por tiempo. La prueba en Mongo aislado interrumpe un proceso mientras decide, comprueba que otro no puede decidir y ejecuta la recuperación después de confirmar que el proceso terminó. Para recuperación automática segura habría que reunir la autoridad sobre el responsable, la cancelación, la generación de fencing y la decisión en una misma escritura atómica, o coordinar esos documentos mediante transacciones en una réplica; una mera caducidad del bloqueo no garantiza exclusión. Los permisos `alertas.ver` y `alertas.editar` ya existen en el seed de control de acceso.
+El comando solo elimina el token que coincide; no debe ejecutarse mientras una instancia antigua pueda seguir actuando. Las transacciones requieren una réplica; el arranque local y la migración están en [migracion-replica.md](migracion-replica.md), y la réplica aislada de prueba en [prueba-replica-aislada.md](prueba-replica-aislada.md). Los permisos `alertas.ver` y `alertas.editar` ya existen en el seed de control de acceso.
+
+### Si se pierde la respuesta de una decisión
+
+Conserve `eventId` y `requestId`. Después de recuperar la conexión y la sesión,
+consulte `GET /api/events/:eventId/budget` con `presupuestos.ver` y busque ese
+identificador en `data.requests`. Si está `aprobada` o `rechazada`, muestre el
+estado real, `decidedBy`, `decidedAt` y el motivo cuando exista; no vuelva a
+decidirla. Una alerta leída no cambia ese estado. Si la respuesta es 401, 403,
+404 o no incluye la solicitud, no asuma que quedó pendiente: recupere el acceso
+o solicite a una persona autorizada que compruebe el historial.
+
+Si aún está `pendiente`, la operación anterior podría seguir en curso. Actualice
+el estado y, si corresponde, reintente solo la misma decisión; dos intentos no
+pueden aplicar dos veces una solicitud. Un 409 no confirma por sí solo qué
+ocurrió: vuelva a consultar el historial y compruebe quién decidió y cuál fue
+el resultado. La API no proporciona una clave HTTP que reconstruya la respuesta
+perdida; el identificador de solicitud y su estado son la fuente de verdad.
 
 ## Pruebas
 
-`npm run test:alerts --workspace=@evoria/api` ejecuta pruebas unitarias. `npm run test:alerts:mongo --workspace=@evoria/api` requiere MongoDB local en `127.0.0.1:27017`; crea bases exclusivas `evoria_alertas_test_<id>` y las elimina al terminar. Incluye el recorrido de servicios con MongoDB real y una prueba HTTP con sesiones, permisos y lectura personal. No cubre un despliegue con múltiples instancias ni simula todos los fallos posibles de red.
+`npm run test:alerts --workspace=@evoria/api` ejecuta pruebas unitarias. `npm run test:alerts:mongo --workspace=@evoria/api` y `npm run test:alerts:transactions --workspace=@evoria/api` requieren una réplica MongoDB aislada y crean bases exclusivas de prueba que eliminan al terminar. Incluyen recorridos de servicios y HTTP, fallos de entrega, decisiones concurrentes, interrupción y lectura personal. La configuración y las variables para ejecutarlas están en [prueba-replica-aislada.md](prueba-replica-aislada.md). No cubren un despliegue con múltiples instancias ni todos los fallos posibles de red.
 
 La propuesta anterior de presupuestos contiene reglas que deben contrastarse con el código actual. En particular, la devolución de inventario libera su costo del saldo en la implementación vigente.

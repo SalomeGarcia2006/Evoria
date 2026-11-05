@@ -88,46 +88,55 @@ export class ProviderServicesService {
     const serviceName = dto.serviceName.trim();
     this.validateServiceName(serviceName);
     this.validateDates(dto.startDate, dto.startTime, dto.endDate, dto.endTime);
-    await this.budgetLedger.reserveProviderCost(
-      tenantId,
-      eventId,
-      dto.agreedAmountCop,
-    );
+    const session = await this.serviceModel.db.startSession();
     let service: EventProviderServiceDocument;
     try {
-      service = await this.serviceModel.create({
-        tenantId,
-        eventId,
-        providerId: dto.providerId,
-        serviceName,
-        description: this.trimOptional(dto.description),
-        startDate: dto.startDate,
-        startTime: dto.startTime ?? null,
-        endDate: dto.endDate ?? null,
-        endTime: dto.endTime ?? null,
-        agreedAmountCop: dto.agreedAmountCop,
-        status: 'confirmado',
-        assignedBy: user.id,
-        cancelledAt: null,
+      service = await session.withTransaction(async () => {
+        await this.budgetLedger.reserveProviderCost(
+          tenantId,
+          eventId,
+          dto.agreedAmountCop,
+          session,
+        );
+        const [created] = await this.serviceModel.create(
+          [
+            {
+              tenantId,
+              eventId,
+              providerId: dto.providerId,
+              serviceName,
+              description: this.trimOptional(dto.description),
+              startDate: dto.startDate,
+              startTime: dto.startTime ?? null,
+              endDate: dto.endDate ?? null,
+              endTime: dto.endTime ?? null,
+              agreedAmountCop: dto.agreedAmountCop,
+              status: 'confirmado',
+              assignedBy: user.id,
+              cancelledAt: null,
+            },
+          ],
+          { session },
+        );
+        await this.alerts?.checkBudget(tenantId, eventId, session);
+        await this.auditsService.record(
+          {
+            tenantId,
+            actor: user,
+            module: 'servicios_proveedor',
+            action: 'crear',
+            entity: 'servicio_proveedor',
+            entityId: created._id,
+            description: `Asignó el servicio ${created.serviceName} de ${provider.name} al evento.`,
+          },
+          session,
+        );
+        return created;
       });
-    } catch (error) {
-      await this.budgetLedger.releaseProviderCost(
-        tenantId,
-        eventId,
-        dto.agreedAmountCop,
-      );
-      throw error;
+    } finally {
+      await session.endSession();
     }
     await this.alerts?.refreshThresholds(tenantId, eventId);
-    await this.auditsService.record({
-      tenantId,
-      actor: user,
-      module: 'servicios_proveedor',
-      action: 'crear',
-      entity: 'servicio_proveedor',
-      entityId: service._id,
-      description: `Asignó el servicio ${service.serviceName} de ${provider.name} al evento.`,
-    });
     return this.toResponse(service, provider);
   }
 
@@ -174,97 +183,121 @@ export class ProviderServicesService {
     const agreedAmountCop = dto.agreedAmountCop ?? existing.agreedAmountCop;
     const increase = Math.max(0, agreedAmountCop - existing.agreedAmountCop);
     const decrease = Math.max(0, existing.agreedAmountCop - agreedAmountCop);
-    await this.budgetLedger.reserveProviderCost(tenantId, eventId, increase);
+    const session = await this.serviceModel.db.startSession();
     let service: EventProviderServiceDocument | null;
     try {
-      service = await this.serviceModel.findOneAndUpdate(
-        {
-          _id: id,
+      service = await session.withTransaction(async () => {
+        await this.budgetLedger.reserveProviderCost(
           tenantId,
           eventId,
-          status: 'confirmado',
-          agreedAmountCop: existing.agreedAmountCop,
-        },
-        {
-          $set: {
-            providerId,
-            serviceName,
-            description:
-              dto.description === undefined
-                ? existing.description
-                : this.trimOptional(dto.description),
-            startDate,
-            startTime: startTime ?? null,
-            endDate: endDate ?? null,
-            endTime: endTime ?? null,
-            agreedAmountCop,
+          increase,
+          session,
+        );
+        service = await this.serviceModel.findOneAndUpdate(
+          {
+            _id: id,
+            tenantId,
+            eventId,
+            status: 'confirmado',
+            agreedAmountCop: existing.agreedAmountCop,
           },
-        },
-        { new: true, runValidators: true },
-      );
-      if (!service)
-        throw new ConflictException('El servicio ya no está confirmado.');
-    } catch (error) {
-      await this.budgetLedger.releaseProviderCost(tenantId, eventId, increase);
-      throw error;
-    }
-    if (decrease > 0) {
-      await this.budgetLedger.releaseProviderCost(tenantId, eventId, decrease);
+          {
+            $set: {
+              providerId,
+              serviceName,
+              description:
+                dto.description === undefined
+                  ? existing.description
+                  : this.trimOptional(dto.description),
+              startDate,
+              startTime: startTime ?? null,
+              endDate: endDate ?? null,
+              endTime: endTime ?? null,
+              agreedAmountCop,
+            },
+          },
+          { new: true, runValidators: true, session },
+        );
+        if (!service)
+          throw new ConflictException('El servicio ya no está confirmado.');
+        if (decrease > 0) {
+          await this.budgetLedger.releaseProviderCost(
+            tenantId,
+            eventId,
+            decrease,
+            session,
+          );
+        }
+        await this.alerts?.checkBudget(tenantId, eventId, session);
+        await this.auditsService.record(
+          {
+            tenantId,
+            actor: user,
+            module: 'servicios_proveedor',
+            action: 'editar',
+            entity: 'servicio_proveedor',
+            entityId: service._id,
+            description: `Editó el servicio ${service.serviceName} de ${provider.name}.`,
+          },
+          session,
+        );
+        return service;
+      });
+    } finally {
+      await session.endSession();
     }
     if (!service)
       throw new ConflictException('El servicio ya no está confirmado.');
     await this.alerts?.refreshThresholds(tenantId, eventId);
-    await this.auditsService.record({
-      tenantId,
-      actor: user,
-      module: 'servicios_proveedor',
-      action: 'editar',
-      entity: 'servicio_proveedor',
-      entityId: service._id,
-      description: `Editó el servicio ${service.serviceName} de ${provider.name}.`,
-    });
     return this.toResponse(service, provider);
   }
 
   async cancel(eventId: string, id: string, user: AuthenticatedUser) {
     const tenantId = this.getTenantId(user);
     await this.findEvent(eventId, tenantId);
-    await this.findService(eventId, id, tenantId);
-    const service = await this.serviceModel.findOneAndUpdate(
-      { _id: id, tenantId, eventId, status: 'confirmado' },
-      { $set: { status: 'cancelado', cancelledAt: new Date() } },
-      { new: true },
-    );
-    if (!service) throw new ConflictException('El servicio ya está cancelado.');
-    if (await this.budgetLedger.hasBudget(tenantId, eventId)) {
-      try {
-        await this.budgetLedger.releaseProviderCost(
-          tenantId,
-          eventId,
-          service.agreedAmountCop,
-        );
-      } catch (error) {
-        await this.serviceModel.updateOne(
-          { _id: service._id, tenantId, eventId, status: 'cancelado' },
-          { $set: { status: 'confirmado', cancelledAt: null } },
-        );
-        throw error;
-      }
-    }
+    const existing = await this.findService(eventId, id, tenantId);
     const provider = await this.findProvider(
-      service.providerId.toString(),
+      existing.providerId.toString(),
       tenantId,
     );
+    const session = await this.serviceModel.db.startSession();
+    let service: EventProviderServiceDocument;
+    try {
+      service = await session.withTransaction(async () => {
+        const service = await this.serviceModel.findOneAndUpdate(
+          { _id: id, tenantId, eventId, status: 'confirmado' },
+          { $set: { status: 'cancelado', cancelledAt: new Date() } },
+          { new: true, session },
+        );
+        if (!service)
+          throw new ConflictException('El servicio ya está cancelado.');
+        if (await this.budgetLedger.hasBudget(tenantId, eventId, session)) {
+          await this.budgetLedger.releaseProviderCost(
+            tenantId,
+            eventId,
+            service.agreedAmountCop,
+            session,
+          );
+          await this.alerts?.checkBudget(tenantId, eventId, session);
+        }
+        await this.auditsService.record(
+          {
+            tenantId,
+            actor: user,
+            module: 'servicios_proveedor',
+            action: 'cancelar',
+            entity: 'servicio_proveedor',
+            entityId: service._id,
+            description: `Canceló el servicio ${service.serviceName} de ${provider.name}.`,
+          },
+          session,
+        );
+        return service;
+      });
+    } finally {
+      await session.endSession();
+    }
     await this.alerts?.refreshThresholds(tenantId, eventId);
-    await this.auditsService.record({
-      tenantId,
-      actor: user,
-      module: 'servicios_proveedor',
-      action: 'cancelar',
-      entity: 'servicio_proveedor',
-      entityId: service._id,
-      description: `Canceló el servicio ${service.serviceName} de ${provider.name}.`,
-    });
     return this.toResponse(service, provider);
   }
 

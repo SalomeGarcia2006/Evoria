@@ -8,7 +8,12 @@ import {
   type OnModuleDestroy,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { isValidObjectId, type Model, Types } from 'mongoose';
+import {
+  isValidObjectId,
+  type ClientSession,
+  type Model,
+  Types,
+} from 'mongoose';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { Event } from '../events/schemas/event.schema';
 import { EventBudget } from '../budgets/schemas/event-budget.schema';
@@ -84,9 +89,11 @@ export class AlertsService implements OnModuleInit, OnModuleDestroy {
   private async granted(
     tenantId: string,
     recipientId: string,
+    session?: ClientSession,
   ): Promise<Set<string>> {
     const membership = await this.memberships
       .findOne({ tenantId, userId: recipientId, status: 'activo' })
+      .session(session ?? null)
       .lean();
     if (!membership) return new Set();
     const profile = await this.profiles
@@ -96,10 +103,12 @@ export class AlertsService implements OnModuleInit, OnModuleDestroy {
         scope: 'tenant',
         status: 'activo',
       })
+      .session(session ?? null)
       .lean();
     if (!profile) return new Set();
     const permissions = await this.permissions
       .find({ _id: { $in: profile.permissionIds }, status: 'activo' })
+      .session(session ?? null)
       .select('key')
       .lean();
     return new Set(permissions.map((permission) => permission.key));
@@ -137,6 +146,29 @@ export class AlertsService implements OnModuleInit, OnModuleDestroy {
     }
     await this.deliver(input);
     await this.outbox.updateOne(key, { $set: { deliveredAt: new Date() } });
+  }
+
+  // La autorización de lectura se comprueba al entregar; esta escritura debe
+  // compartir la transacción de la operación que originó la alerta.
+  async enqueue(input: NewAlert, session: ClientSession): Promise<void> {
+    const key = {
+      tenantId: input.tenantId,
+      recipientId: input.recipientId,
+      dedupeKey: input.dedupeKey,
+    };
+    await this.outbox.updateOne(
+      key,
+      {
+        $setOnInsert: {
+          ...key,
+          payload: input,
+          nextAttemptAt: new Date(),
+          deliveredAt: null,
+          attempts: 0,
+        },
+      },
+      { upsert: true, session },
+    );
   }
 
   private async deliver(input: NewAlert): Promise<void> {
@@ -403,39 +435,51 @@ export class AlertsService implements OnModuleInit, OnModuleDestroy {
       : fallback;
   }
 
-  private async observe(input: NewAlert): Promise<void> {
+  private async observe(
+    input: NewAlert,
+    session?: ClientSession,
+  ): Promise<void> {
     const key = {
       tenantId: input.tenantId,
       recipientId: input.recipientId,
       key: input.dedupeKey,
     };
     for (let attempt = 0; attempt < 5; attempt += 1) {
-      const previous = await this.conditions.findOne(key).lean();
+      const previous = await this.conditions
+        .findOne(key)
+        .session(session ?? null)
+        .lean();
       if (!previous) {
         try {
-          const created = await this.conditions.create({
-            ...key,
-            active: true,
-            generation: 1,
-            payload: input,
-          });
-          await this.flushCondition(created._id);
+          const [created] = await this.conditions.create(
+            [
+              {
+                ...key,
+                active: true,
+                generation: 1,
+                payload: input,
+              },
+            ],
+            session ? { session } : {},
+          );
+          if (!session) await this.flushCondition(created._id);
           return;
         } catch (error) {
-          if (this.isDuplicate(error)) continue;
+          if (!session && this.isDuplicate(error)) continue;
           throw error;
         }
       }
       if (previous.active) {
-        await this.flushCondition(previous._id);
+        if (!session) await this.flushCondition(previous._id);
         return;
       }
       const changed = await this.conditions.updateOne(
         { _id: previous._id, active: false, generation: previous.generation },
         { $set: { active: true, payload: input }, $inc: { generation: 1 } },
+        { session },
       );
       if (changed.modifiedCount === 1) {
-        await this.flushCondition(previous._id);
+        if (!session) await this.flushCondition(previous._id);
         return;
       }
     }
@@ -460,12 +504,20 @@ export class AlertsService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  async checkBudget(tenantId: string, eventId: string): Promise<void> {
+  async checkBudget(
+    tenantId: string,
+    eventId: string,
+    session?: ClientSession,
+  ): Promise<void> {
     const key = `budget-limit:${eventId}`;
-    const [event, budget] = await Promise.all([
-      this.events.findOne({ _id: eventId, tenantId }).lean(),
-      this.budgets.findOne({ tenantId, eventId }).lean(),
-    ]);
+    const event = await this.events
+      .findOne({ _id: eventId, tenantId })
+      .session(session ?? null)
+      .lean();
+    const budget = await this.budgets
+      .findOne({ tenantId, eventId })
+      .session(session ?? null)
+      .lean();
     const recipientId = event?.responsibleUserId?.toString();
     const assigned = budget
       ? budget.baseAmountCop + budget.approvedIncreaseCop
@@ -487,33 +539,40 @@ export class AlertsService implements OnModuleInit, OnModuleDestroy {
       await this.conditions.updateMany(
         { tenantId, key, active: true },
         { $set: { active: false } },
+        { session },
       );
       return;
     }
     await this.conditions.updateMany(
       { tenantId, key, recipientId: { $ne: recipientId }, active: true },
       { $set: { active: false } },
+      { session },
     );
-    await this.observe({
-      tenantId,
-      recipientId,
-      type: 'budget_limit',
-      title: 'Presupuesto cercano al límite',
-      message: 'El presupuesto de tu evento se acerca al límite.',
-      severity: 'warning',
-      eventId,
-      dedupeKey: key,
-      permissions: ['eventos.ver', 'presupuestos.ver'],
-    });
+    await this.observe(
+      {
+        tenantId,
+        recipientId,
+        type: 'budget_limit',
+        title: 'Presupuesto cercano al límite',
+        message: 'El presupuesto de tu evento se acerca al límite.',
+        severity: 'warning',
+        eventId,
+        dedupeKey: key,
+        permissions: ['eventos.ver', 'presupuestos.ver'],
+      },
+      session,
+    );
   }
 
   async checkInventory(
     tenantId: string,
     inventoryItemId: string,
+    session?: ClientSession,
   ): Promise<void> {
     const key = `inventory-low:${inventoryItemId}`;
     const item = await this.inventory
       .findOne({ _id: inventoryItemId, tenantId })
+      .session(session ?? null)
       .lean();
     if (
       !item ||
@@ -527,16 +586,18 @@ export class AlertsService implements OnModuleInit, OnModuleDestroy {
       await this.conditions.updateMany(
         { tenantId, key, active: true },
         { $set: { active: false } },
+        { session },
       );
       return;
     }
     const memberships = await this.memberships
       .find({ tenantId, status: 'activo' })
+      .session(session ?? null)
       .select('userId')
       .lean();
     for (const membership of memberships) {
       const recipientId = membership.userId.toString();
-      const granted = await this.granted(tenantId, recipientId);
+      const granted = await this.granted(tenantId, recipientId, session);
       if (
         !['alertas.ver', 'inventario.ver', 'inventario.editar'].every(
           (permission) => granted.has(permission),
@@ -544,18 +605,23 @@ export class AlertsService implements OnModuleInit, OnModuleDestroy {
       )
         continue;
       try {
-        await this.observe({
-          tenantId,
-          recipientId,
-          type: 'inventory_low',
-          title: 'Inventario bajo',
-          message: 'Un recurso de inventario tiene pocas unidades disponibles.',
-          severity: 'warning',
-          inventoryItemId,
-          dedupeKey: key,
-          permissions: ['inventario.ver', 'inventario.editar'],
-        });
+        await this.observe(
+          {
+            tenantId,
+            recipientId,
+            type: 'inventory_low',
+            title: 'Inventario bajo',
+            message:
+              'Un recurso de inventario tiene pocas unidades disponibles.',
+            severity: 'warning',
+            inventoryItemId,
+            dedupeKey: key,
+            permissions: ['inventario.ver', 'inventario.editar'],
+          },
+          session,
+        );
       } catch (error) {
+        if (session) throw error;
         this.logger.error('No se pudo encolar el umbral de inventario.', error);
       }
     }

@@ -7,7 +7,12 @@ import {
   Optional,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { isValidObjectId, type Model, type Types } from 'mongoose';
+import {
+  isValidObjectId,
+  type ClientSession,
+  type Model,
+  type Types,
+} from 'mongoose';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { AlertsService } from '../alerts/alerts.service';
 import { AuditsService } from '../audits/audits.service';
@@ -31,32 +36,55 @@ export class InventoryService {
   async create(dto: CreateInventoryItemDto, user: AuthenticatedUser) {
     const tenantId = this.getTenantId(user);
     const status = dto.status ?? 'disponible';
-    const item = await this.inventoryModel.create({
-      tenantId,
-      name: dto.name.trim(),
-      type: dto.type.trim(),
-      description: this.trimOptional(dto.description),
-      unitCost: dto.unitCost,
-      totalQuantity: dto.totalQuantity,
-      availableQuantity: status === 'disponible' ? dto.totalQuantity : 0,
-      reservedQuantity: 0,
-      status,
-    });
+    const session = await this.inventoryModel.db.startSession();
+    let item: InventoryItemDocument;
+    try {
+      item = await session.withTransaction(async () => {
+        const [created] = await this.inventoryModel.create(
+          [
+            {
+              tenantId,
+              name: dto.name.trim(),
+              type: dto.type.trim(),
+              description: this.trimOptional(dto.description),
+              unitCost: dto.unitCost,
+              totalQuantity: dto.totalQuantity,
+              availableQuantity:
+                status === 'disponible' ? dto.totalQuantity : 0,
+              reservedQuantity: 0,
+              status,
+            },
+          ],
+          { session },
+        );
+        await this.alerts?.checkInventory(
+          tenantId,
+          created._id.toString(),
+          session,
+        );
+        await this.auditsService.record(
+          {
+            tenantId,
+            actor: user,
+            module: 'inventario',
+            action: 'crear',
+            entity: 'recurso',
+            entityId: created._id,
+            description: `Creó el recurso ${created.name}.`,
+          },
+          session,
+        );
+        return created;
+      });
+    } finally {
+      await session.endSession();
+    }
 
     await this.alerts?.refreshThresholds(
       this.getTenantId(user),
       undefined,
       item._id.toString(),
     );
-    await this.auditsService.record({
-      tenantId,
-      actor: user,
-      module: 'inventario',
-      action: 'crear',
-      entity: 'recurso',
-      entityId: item._id,
-      description: `Creó el recurso ${item.name}.`,
-    });
 
     return this.toResponse(item);
   }
@@ -117,88 +145,115 @@ export class InventoryService {
     user: AuthenticatedUser,
   ) {
     const tenantId = this.getTenantId(user);
-    const item = await this.findItem(id, tenantId);
+    const session = await this.inventoryModel.db.startSession();
+    let item: InventoryItemDocument;
+    try {
+      item = await session.withTransaction(async () => {
+        const item = await this.findItem(id, tenantId, session);
 
-    if (item.status === 'inactivo') {
-      throw new ConflictException(
-        'No puedes ajustar un ítem de inventario inactivo.',
-      );
+        if (item.status === 'inactivo') {
+          throw new ConflictException(
+            'No puedes ajustar un ítem de inventario inactivo.',
+          );
+        }
+        if (
+          dto.totalQuantity !== undefined &&
+          dto.totalQuantity < item.reservedQuantity
+        ) {
+          throw new BadRequestException(
+            'La cantidad total no puede ser menor que la cantidad reservada.',
+          );
+        }
+        if (
+          dto.status !== undefined &&
+          dto.status !== 'disponible' &&
+          item.reservedQuantity > 0
+        ) {
+          throw new ConflictException(
+            'No puedes cambiar el estado mientras existan asignaciones activas.',
+          );
+        }
+
+        if (dto.name !== undefined) item.name = dto.name.trim();
+        if (dto.type !== undefined) item.type = dto.type.trim();
+        if (dto.description !== undefined)
+          item.description = this.trimOptional(dto.description);
+        if (dto.unitCost !== undefined) item.unitCost = dto.unitCost;
+        if (dto.totalQuantity !== undefined)
+          item.totalQuantity = dto.totalQuantity;
+        if (dto.status !== undefined) item.status = dto.status;
+
+        item.availableQuantity =
+          item.status === 'disponible'
+            ? item.totalQuantity - item.reservedQuantity
+            : 0;
+
+        await item.save({ session });
+        await this.alerts?.checkInventory(tenantId, id, session);
+        await this.auditsService.record(
+          {
+            tenantId,
+            actor: user,
+            module: 'inventario',
+            action: 'ajustar',
+            entity: 'recurso',
+            entityId: item._id,
+            description: `Actualizó el recurso ${item.name}.`,
+          },
+          session,
+        );
+        return item;
+      });
+    } finally {
+      await session.endSession();
     }
-    if (
-      dto.totalQuantity !== undefined &&
-      dto.totalQuantity < item.reservedQuantity
-    ) {
-      throw new BadRequestException(
-        'La cantidad total no puede ser menor que la cantidad reservada.',
-      );
-    }
-    if (
-      dto.status !== undefined &&
-      dto.status !== 'disponible' &&
-      item.reservedQuantity > 0
-    ) {
-      throw new ConflictException(
-        'No puedes cambiar el estado mientras existan asignaciones activas.',
-      );
-    }
-
-    if (dto.name !== undefined) item.name = dto.name.trim();
-    if (dto.type !== undefined) item.type = dto.type.trim();
-    if (dto.description !== undefined)
-      item.description = this.trimOptional(dto.description);
-    if (dto.unitCost !== undefined) item.unitCost = dto.unitCost;
-    if (dto.totalQuantity !== undefined) item.totalQuantity = dto.totalQuantity;
-    if (dto.status !== undefined) item.status = dto.status;
-
-    item.availableQuantity =
-      item.status === 'disponible'
-        ? item.totalQuantity - item.reservedQuantity
-        : 0;
-
-    await item.save();
     await this.alerts?.refreshThresholds(
       this.getTenantId(user),
       undefined,
       item._id.toString(),
     );
-    await this.auditsService.record({
-      tenantId,
-      actor: user,
-      module: 'inventario',
-      action: 'ajustar',
-      entity: 'recurso',
-      entityId: item._id,
-      description: `Actualizó el recurso ${item.name}.`,
-    });
     return this.toResponse(item);
   }
 
   async deactivate(id: string, user: AuthenticatedUser) {
     const tenantId = this.getTenantId(user);
-    const item = await this.findItem(id, tenantId);
-    if (item.reservedQuantity > 0) {
-      throw new ConflictException(
-        'No puedes desactivar un ítem con asignaciones activas.',
-      );
-    }
+    const session = await this.inventoryModel.db.startSession();
+    let item: InventoryItemDocument;
+    try {
+      item = await session.withTransaction(async () => {
+        const item = await this.findItem(id, tenantId, session);
+        if (item.reservedQuantity > 0) {
+          throw new ConflictException(
+            'No puedes desactivar un ítem con asignaciones activas.',
+          );
+        }
 
-    item.status = 'inactivo';
-    item.availableQuantity = 0;
-    await item.save();
+        item.status = 'inactivo';
+        item.availableQuantity = 0;
+        await item.save({ session });
+        await this.alerts?.checkInventory(tenantId, id, session);
+        await this.auditsService.record(
+          {
+            tenantId,
+            actor: user,
+            module: 'inventario',
+            action: 'desactivar',
+            entity: 'recurso',
+            entityId: item._id,
+            description: `Desactivó el recurso ${item.name}.`,
+          },
+          session,
+        );
+        return item;
+      });
+    } finally {
+      await session.endSession();
+    }
     await this.alerts?.refreshThresholds(
       this.getTenantId(user),
       undefined,
       item._id.toString(),
     );
-    await this.auditsService.record({
-      tenantId,
-      actor: user,
-      module: 'inventario',
-      action: 'desactivar',
-      entity: 'recurso',
-      entityId: item._id,
-      description: `Desactivó el recurso ${item.name}.`,
-    });
     return this.toResponse(item);
   }
 
@@ -212,6 +267,7 @@ export class InventoryService {
   private async findItem(
     id: string,
     tenantId: string,
+    session?: ClientSession,
   ): Promise<InventoryItemDocument> {
     if (!isValidObjectId(id)) {
       throw new BadRequestException(
@@ -219,7 +275,9 @@ export class InventoryService {
       );
     }
 
-    const item = await this.inventoryModel.findOne({ _id: id, tenantId });
+    const item = await this.inventoryModel
+      .findOne({ _id: id, tenantId })
+      .session(session ?? null);
     if (!item) throw new NotFoundException('El ítem de inventario no existe.');
     return item;
   }

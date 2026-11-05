@@ -49,19 +49,26 @@ test('el detalle no revela una alerta de otra persona o empresa y respeta la rev
     alerts,
     {
       findOne: () => ({
-        lean: async () => (active ? { profileId: new Types.ObjectId() } : null),
+        session: () => ({
+          lean: async () =>
+            active ? { profileId: new Types.ObjectId() } : null,
+        }),
       }),
     } as unknown as Model<Membership>,
     {
-      findOne: () => ({ lean: async () => ({ permissionIds: [] }) }),
+      findOne: () => ({
+        session: () => ({ lean: async () => ({ permissionIds: [] }) }),
+      }),
     } as unknown as Model<Profile>,
     {
       find: () => ({
-        select: () => ({
-          lean: async () =>
-            ['alertas.ver', 'eventos.ver', 'presupuestos.ver'].map((key) => ({
-              key,
-            })),
+        session: () => ({
+          select: () => ({
+            lean: async () =>
+              ['alertas.ver', 'eventos.ver', 'presupuestos.ver'].map((key) => ({
+                key,
+              })),
+          }),
         }),
       }),
     } as unknown as Model<Permission>,

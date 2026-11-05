@@ -69,6 +69,16 @@ export class EventsService {
         user.id,
       );
     } catch (error) {
+      // Una confirmación incierta puede haber guardado el presupuesto. No
+      // borrar el evento hasta que un operador pueda comprobar el resultado.
+      if (
+        typeof error === 'object' &&
+        error !== null &&
+        'hasErrorLabel' in error &&
+        typeof error.hasErrorLabel === 'function' &&
+        error.hasErrorLabel('UnknownTransactionCommitResult')
+      )
+        throw error;
       await event.deleteOne();
       throw error;
     }

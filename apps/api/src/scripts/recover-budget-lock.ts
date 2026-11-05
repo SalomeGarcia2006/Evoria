@@ -1,7 +1,7 @@
 import { getConnectionToken } from '@nestjs/mongoose';
 import { NestFactory } from '@nestjs/core';
 import { Types, type Connection } from 'mongoose';
-import { AppModule } from '../app.module';
+import { BudgetLockMaintenanceModule } from './budget-lock-maintenance.module';
 import { recoverDecisionLock } from '../budgets/recover-decision-lock';
 
 async function main(): Promise<void> {
@@ -17,7 +17,9 @@ async function main(): Promise<void> {
       'Uso: recover-budget-lock <empresa-id> <evento-id> <token-actual> --confirm-all-api-instances-stopped',
     );
   }
-  const app = await NestFactory.createApplicationContext(AppModule);
+  const app = await NestFactory.createApplicationContext(
+    BudgetLockMaintenanceModule,
+  );
   try {
     const connection = app.get<Connection>(getConnectionToken());
     await recoverDecisionLock(connection, tenantId, eventId, token);

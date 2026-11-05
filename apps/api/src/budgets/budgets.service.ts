@@ -8,7 +8,12 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { isValidObjectId, type Model, Types } from 'mongoose';
+import {
+  isValidObjectId,
+  type ClientSession,
+  type Model,
+  Types,
+} from 'mongoose';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { AlertsService } from '../alerts/alerts.service';
 import { AuditsService } from '../audits/audits.service';
@@ -285,33 +290,35 @@ export class BudgetsService {
         { $set: { costAmountCop: snapshot.amountCop } },
       );
     }
+    const session = await this.budgetModel.db.startSession();
     try {
-      const budget = await this.budgetModel.create({
-        tenantId,
-        eventId,
-        baseAmountCop,
-        approvedIncreaseCop: 0,
-        inventorySpentCop,
-        providerSpentCop,
-        extraSpentCop: 0,
-        requests: [],
-        createdBy,
-      });
-      if (event.baseBudget !== baseAmountCop) {
-        try {
+      const budget = await session.withTransaction(async () => {
+        const [created] = await this.budgetModel.create(
+          [
+            {
+              tenantId,
+              eventId,
+              baseAmountCop,
+              approvedIncreaseCop: 0,
+              inventorySpentCop,
+              providerSpentCop,
+              extraSpentCop: 0,
+              requests: [],
+              createdBy,
+            },
+          ],
+          { session },
+        );
+        if (event.baseBudget !== baseAmountCop) {
           await this.eventModel.updateOne(
             { _id: eventId, tenantId },
             { $set: { baseBudget: baseAmountCop } },
+            { session },
           );
-        } catch (error) {
-          await this.budgetModel.deleteOne({
-            _id: budget._id,
-            tenantId,
-            eventId,
-          });
-          throw error;
         }
-      }
+        await this.alerts?.checkBudget(tenantId, eventId, session);
+        return created;
+      });
       return {
         eventId,
         initialized: true,
@@ -322,6 +329,8 @@ export class BudgetsService {
         throw new ConflictException('El evento ya tiene presupuesto inicial.');
       }
       throw error;
+    } finally {
+      await session.endSession();
     }
   }
 
@@ -513,20 +522,38 @@ export class BudgetsService {
   }
 
   async approve(eventId: string, requestId: string, user: AuthenticatedUser) {
-    return this.withDecisionLock(eventId, user, () =>
-      this.approveLocked(eventId, requestId, user),
+    const decided = await this.withDecisionTransaction(
+      eventId,
+      user,
+      (session) => this.approveLocked(eventId, requestId, user, session),
     );
+    const tenantId = this.getTenantId(user);
+    await this.notify({
+      tenantId,
+      recipientId: decided.requestedBy.toString(),
+      type: 'budget_decided',
+      title: 'Solicitud aprobada',
+      message: 'Tu solicitud de presupuesto fue aprobada.',
+      eventId,
+      requestId,
+      dedupeKey: `decision:${requestId}`,
+      permissions: ['eventos.ver', 'presupuestos.ver'],
+    });
+    await this.alerts?.refreshThresholds(tenantId, eventId);
+    return this.toRequest(eventId, decided);
   }
 
   private async approveLocked(
     eventId: string,
     requestId: string,
     user: AuthenticatedUser,
+    session: ClientSession,
   ) {
     const { tenantId, request } = await this.findDecidableRequest(
       eventId,
       requestId,
       user,
+      session,
     );
     const now = new Date();
     const filter: Record<string, unknown> = {
@@ -550,7 +577,7 @@ export class BudgetsService {
             ? { approvedIncreaseCop: request.amountCop }
             : { extraSpentCop: request.amountCop },
       },
-      { new: true },
+      { new: true, session },
     );
     if (!budget) {
       throw new ConflictException(
@@ -564,28 +591,35 @@ export class BudgetsService {
     );
     if (!decided)
       throw new ConflictException('No se pudo consultar la decisión.');
-    await this.notify({
-      tenantId,
-      recipientId: decided.requestedBy.toString(),
-      type: 'budget_decided',
-      title: 'Solicitud aprobada',
-      message: 'Tu solicitud de presupuesto fue aprobada.',
-      eventId,
-      requestId,
-      dedupeKey: `decision:${requestId}`,
-      permissions: ['eventos.ver', 'presupuestos.ver'],
-    });
-    await this.alerts?.refreshThresholds(tenantId, eventId);
-    await this.auditsService.record({
-      tenantId,
-      actor: user,
-      module: 'presupuestos',
-      action: 'aprobar',
-      entity: 'solicitud_presupuesto',
-      entityId: decided._id,
-      description: 'Aprobó una solicitud de cambio de presupuesto.',
-    });
-    return this.toRequest(eventId, decided);
+    await this.alerts?.enqueue(
+      {
+        tenantId,
+        recipientId: decided.requestedBy.toString(),
+        type: 'budget_decided',
+        title: 'Solicitud aprobada',
+        message: 'Tu solicitud de presupuesto fue aprobada.',
+        severity: 'info',
+        eventId,
+        requestId,
+        dedupeKey: `decision:${requestId}`,
+        permissions: ['eventos.ver', 'presupuestos.ver'],
+      },
+      session,
+    );
+    await this.alerts?.checkBudget(tenantId, eventId, session);
+    await this.auditsService.record(
+      {
+        tenantId,
+        actor: user,
+        module: 'presupuestos',
+        action: 'aprobar',
+        entity: 'solicitud_presupuesto',
+        entityId: decided._id,
+        description: 'Aprobó una solicitud de cambio de presupuesto.',
+      },
+      session,
+    );
+    return decided;
   }
 
   async reject(
@@ -594,9 +628,25 @@ export class BudgetsService {
     reason: string,
     user: AuthenticatedUser,
   ) {
-    return this.withDecisionLock(eventId, user, () =>
-      this.rejectLocked(eventId, requestId, reason, user),
+    const decided = await this.withDecisionTransaction(
+      eventId,
+      user,
+      (session) => this.rejectLocked(eventId, requestId, reason, user, session),
     );
+    const tenantId = this.getTenantId(user);
+    await this.notify({
+      tenantId,
+      recipientId: decided.requestedBy.toString(),
+      type: 'budget_decided',
+      title: 'Solicitud rechazada',
+      message:
+        'Tu solicitud fue rechazada; consulta el motivo en el presupuesto.',
+      eventId,
+      requestId,
+      dedupeKey: `decision:${requestId}`,
+      permissions: ['eventos.ver', 'presupuestos.ver'],
+    });
+    return this.toRequest(eventId, decided);
   }
 
   private async rejectLocked(
@@ -604,11 +654,13 @@ export class BudgetsService {
     requestId: string,
     reason: string,
     user: AuthenticatedUser,
+    session: ClientSession,
   ) {
     const { tenantId } = await this.findDecidableRequest(
       eventId,
       requestId,
       user,
+      session,
     );
     const rejectionReason = reason.trim();
     if (rejectionReason.length < 10) {
@@ -630,7 +682,7 @@ export class BudgetsService {
           'requests.$.rejectionReason': rejectionReason,
         },
       },
-      { new: true },
+      { new: true, session },
     );
     if (!budget) throw new ConflictException('La solicitud ya fue decidida.');
     const decided = budget.requests.find(
@@ -638,28 +690,35 @@ export class BudgetsService {
     );
     if (!decided)
       throw new ConflictException('No se pudo consultar la decisión.');
-    await this.notify({
-      tenantId,
-      recipientId: decided.requestedBy.toString(),
-      type: 'budget_decided',
-      title: 'Solicitud rechazada',
-      message:
-        'Tu solicitud fue rechazada; consulta el motivo en el presupuesto.',
-      eventId,
-      requestId,
-      dedupeKey: `decision:${requestId}`,
-      permissions: ['eventos.ver', 'presupuestos.ver'],
-    });
-    await this.auditsService.record({
-      tenantId,
-      actor: user,
-      module: 'presupuestos',
-      action: 'rechazar',
-      entity: 'solicitud_presupuesto',
-      entityId: decided._id,
-      description: 'Rechazó una solicitud de cambio de presupuesto.',
-    });
-    return this.toRequest(eventId, decided);
+    await this.alerts?.enqueue(
+      {
+        tenantId,
+        recipientId: decided.requestedBy.toString(),
+        type: 'budget_decided',
+        title: 'Solicitud rechazada',
+        message:
+          'Tu solicitud fue rechazada; consulta el motivo en el presupuesto.',
+        severity: 'info',
+        eventId,
+        requestId,
+        dedupeKey: `decision:${requestId}`,
+        permissions: ['eventos.ver', 'presupuestos.ver'],
+      },
+      session,
+    );
+    await this.auditsService.record(
+      {
+        tenantId,
+        actor: user,
+        module: 'presupuestos',
+        action: 'rechazar',
+        entity: 'solicitud_presupuesto',
+        entityId: decided._id,
+        description: 'Rechazó una solicitud de cambio de presupuesto.',
+      },
+      session,
+    );
+    return decided;
   }
 
   private async notify(input: {
@@ -684,10 +743,10 @@ export class BudgetsService {
     }
   }
 
-  private async withDecisionLock<T>(
+  private async withDecisionTransaction<T>(
     eventId: string,
     user: AuthenticatedUser,
-    action: () => Promise<T>,
+    action: (session: ClientSession) => Promise<T>,
   ): Promise<T> {
     const tenantId = this.getTenantId(user);
     if (!isValidObjectId(eventId)) {
@@ -695,45 +754,43 @@ export class BudgetsService {
         'El identificador del evento no es válido.',
       );
     }
-    const token = new Types.ObjectId().toString();
-    const locked = await this.eventModel.findOneAndUpdate(
-      {
-        _id: eventId,
-        tenantId,
-        responsibleUserId: user.id,
-        status: { $ne: 'cancelado' },
-        budgetDecisionLock: { $exists: false },
-      },
-      { $set: { budgetDecisionLock: token } },
-      { new: true, timestamps: false },
-    );
-    if (!locked) {
-      const event = await this.findEvent(eventId, tenantId);
-      if (event.status === 'cancelado')
-        throw new ConflictException(
-          'No se pueden decidir solicitudes de un evento cancelado.',
-        );
-      if (event.responsibleUserId?.toString() !== user.id)
-        throw new ForbiddenException(
-          'Solo el líder asignado al evento puede decidir esta solicitud.',
-        );
-      throw new ConflictException('Hay otra decisión en curso para el evento.');
-    }
+    const session = await this.eventModel.db.startSession();
     try {
-      return await action();
+      return await session.withTransaction(async () => {
+        // Escribir el evento causa conflicto con cambios concurrentes de
+        // responsable o estado; solo leerlo dejaría un snapshot obsoleto.
+        const locked = await this.eventModel.findOneAndUpdate(
+          {
+            _id: eventId,
+            tenantId,
+            responsibleUserId: user.id,
+            status: { $ne: 'cancelado' },
+            budgetDecisionLock: { $exists: false },
+          },
+          { $inc: { budgetDecisionRevision: 1 } },
+          { new: true, timestamps: false, session },
+        );
+        if (!locked) {
+          const event = await this.eventModel
+            .findOne({ _id: eventId, tenantId })
+            .session(session);
+          if (!event) throw new NotFoundException('El evento no existe.');
+          if (event.status === 'cancelado')
+            throw new ConflictException(
+              'No se pueden decidir solicitudes de un evento cancelado.',
+            );
+          if (event.responsibleUserId?.toString() !== user.id)
+            throw new ForbiddenException(
+              'Solo el líder asignado al evento puede decidir esta solicitud.',
+            );
+          throw new ConflictException(
+            'El evento tiene un bloqueo de presupuesto anterior.',
+          );
+        }
+        return action(session);
+      });
     } finally {
-      try {
-        await this.eventModel.updateOne(
-          { _id: eventId, tenantId, budgetDecisionLock: token },
-          { $unset: { budgetDecisionLock: 1 } },
-          { timestamps: false },
-        );
-      } catch (error) {
-        this.logger.error(
-          `No se pudo liberar el bloqueo del evento ${eventId}`,
-          error,
-        );
-      }
+      await session.endSession();
     }
   }
 
@@ -741,6 +798,7 @@ export class BudgetsService {
     eventId: string,
     requestId: string,
     user: AuthenticatedUser,
+    session: ClientSession,
   ) {
     const tenantId = this.getTenantId(user);
     if (!isValidObjectId(requestId)) {
@@ -748,7 +806,10 @@ export class BudgetsService {
         'El identificador de la solicitud no es válido.',
       );
     }
-    const event = await this.findEvent(eventId, tenantId);
+    const event = await this.eventModel
+      .findOne({ _id: eventId, tenantId })
+      .session(session);
+    if (!event) throw new NotFoundException('El evento no existe.');
     if (event.status === 'cancelado') {
       throw new ConflictException(
         'No se pueden decidir solicitudes de un evento cancelado.',
@@ -759,7 +820,9 @@ export class BudgetsService {
         'Solo el líder asignado al evento puede decidir esta solicitud.',
       );
     }
-    const budget = await this.budgetModel.findOne({ tenantId, eventId });
+    const budget = await this.budgetModel
+      .findOne({ tenantId, eventId })
+      .session(session);
     if (!budget) throw new NotFoundException('El presupuesto no existe.');
     const request = budget.requests.find(
       (item) => item._id.toString() === requestId,
