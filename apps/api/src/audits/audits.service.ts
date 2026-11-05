@@ -1,6 +1,6 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import type { Model, Types } from 'mongoose';
+import type { ClientSession, Model, Types } from 'mongoose';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { FindAuditLogsDto } from './dto/find-audit-logs.dto';
 import { AuditLog } from './schemas/audit-log.schema';
@@ -22,8 +22,11 @@ export class AuditsService {
     private readonly auditLogModel: Model<AuditLog>,
   ) {}
 
-  async record(input: CreateAuditLogInput): Promise<void> {
-    await this.auditLogModel.create({
+  async record(
+    input: CreateAuditLogInput,
+    session?: ClientSession,
+  ): Promise<void> {
+    const entry = {
       tenantId: input.tenantId,
       actorUserId: input.actor.id,
       actorName: input.actor.name,
@@ -32,7 +35,9 @@ export class AuditsService {
       entity: input.entity,
       entityId: input.entityId,
       description: input.description,
-    });
+    };
+    if (session) await this.auditLogModel.create([entry], { session });
+    else await this.auditLogModel.create(entry);
   }
 
   async findAll(query: FindAuditLogsDto, user: AuthenticatedUser) {

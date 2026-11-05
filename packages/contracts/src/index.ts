@@ -4,6 +4,14 @@ export interface HealthResponse {
 }
 
 export type { ApiResponse } from './api';
+export { ALERT_TYPES } from './alerts';
+export type {
+  AlertItem,
+  AlertList,
+  AlertQuery,
+  AlertSeverity,
+  AlertType,
+} from './alerts';
 export type { AuthScope, AuthSession, LoginRequest } from './auth';
 export type {
   DashboardBudgetSummary,

@@ -1,6 +1,6 @@
 import { ConflictException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import type { Model } from 'mongoose';
+import type { ClientSession, Model } from 'mongoose';
 import { EventBudget } from './schemas/event-budget.schema';
 
 @Injectable()
@@ -14,36 +14,72 @@ export class BudgetLedgerService {
     tenantId: string,
     eventId: string,
     amountCop: number,
+    session?: ClientSession,
   ) {
-    await this.reserve(tenantId, eventId, amountCop, 'inventorySpentCop');
+    await this.reserve(
+      tenantId,
+      eventId,
+      amountCop,
+      'inventorySpentCop',
+      session,
+    );
   }
 
   async releaseInventoryCost(
     tenantId: string,
     eventId: string,
     amountCop: number,
+    session?: ClientSession,
   ) {
-    await this.release(tenantId, eventId, amountCop, 'inventorySpentCop');
+    await this.release(
+      tenantId,
+      eventId,
+      amountCop,
+      'inventorySpentCop',
+      session,
+    );
   }
 
   async reserveProviderCost(
     tenantId: string,
     eventId: string,
     amountCop: number,
+    session?: ClientSession,
   ) {
-    await this.reserve(tenantId, eventId, amountCop, 'providerSpentCop');
+    await this.reserve(
+      tenantId,
+      eventId,
+      amountCop,
+      'providerSpentCop',
+      session,
+    );
   }
 
   async releaseProviderCost(
     tenantId: string,
     eventId: string,
     amountCop: number,
+    session?: ClientSession,
   ) {
-    await this.release(tenantId, eventId, amountCop, 'providerSpentCop');
+    await this.release(
+      tenantId,
+      eventId,
+      amountCop,
+      'providerSpentCop',
+      session,
+    );
   }
 
-  async hasBudget(tenantId: string, eventId: string): Promise<boolean> {
-    return Boolean(await this.budgetModel.exists({ tenantId, eventId }));
+  async hasBudget(
+    tenantId: string,
+    eventId: string,
+    session?: ClientSession,
+  ): Promise<boolean> {
+    return Boolean(
+      await this.budgetModel
+        .exists({ tenantId, eventId })
+        .session(session ?? null),
+    );
   }
 
   private async reserve(
@@ -51,6 +87,7 @@ export class BudgetLedgerService {
     eventId: string,
     amountCop: number,
     field: 'inventorySpentCop' | 'providerSpentCop',
+    session?: ClientSession,
   ) {
     if (!Number.isSafeInteger(amountCop) || amountCop < 0) {
       throw new ConflictException(
@@ -64,10 +101,10 @@ export class BudgetLedgerService {
         ...(amountCop > 0 ? { $expr: this.hasAvailable(amountCop) } : {}),
       },
       { $inc: { [field]: amountCop } },
-      { new: true },
+      { new: true, session },
     );
     if (budget) return;
-    if (!(await this.hasBudget(tenantId, eventId))) {
+    if (!(await this.hasBudget(tenantId, eventId, session))) {
       throw new ConflictException(
         'El evento aún no tiene presupuesto inicial.',
       );
@@ -82,11 +119,13 @@ export class BudgetLedgerService {
     eventId: string,
     amountCop: number,
     field: 'inventorySpentCop' | 'providerSpentCop',
+    session?: ClientSession,
   ) {
     if (amountCop === 0) return;
     const result = await this.budgetModel.updateOne(
       { tenantId, eventId, [field]: { $gte: amountCop } },
       { $inc: { [field]: -amountCop } },
+      { session },
     );
     if (result.matchedCount !== 1) {
       throw new ConflictException(

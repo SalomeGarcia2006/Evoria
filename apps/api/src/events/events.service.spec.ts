@@ -113,6 +113,34 @@ test('si falla la inicialización, se retira el evento creado', async () => {
   assert.equal(deleted, true);
 });
 
+test('una confirmación incierta no borra el evento que puede tener presupuesto', async () => {
+  let deleted = false;
+  const eventModel = {
+    create: async () => ({
+      _id: new Types.ObjectId(),
+      deleteOne: async () => {
+        deleted = true;
+      },
+    }),
+  } as unknown as Model<Event>;
+  const budgets = {
+    initializeForEvent: async () => {
+      throw {
+        hasErrorLabel: (label: string) =>
+          label === 'UnknownTransactionCommitResult',
+      };
+    },
+  } as unknown as BudgetsService;
+  const service = new EventsService(
+    eventModel,
+    {} as Model<Membership>,
+    budgets,
+    audits,
+  );
+  await assert.rejects(() => service.create(eventDto(9000000), user));
+  assert.equal(deleted, false);
+});
+
 test('editar un evento no permite cambiar el presupuesto base sin autorización', async () => {
   let saves = 0;
   const event = {

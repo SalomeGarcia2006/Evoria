@@ -1,0 +1,29 @@
+name: evoria-alertas-test
+
+# Instancia desechable solo para pruebas desde el equipo anfitrión.
+# No comparte el volumen ni el puerto de la base de desarrollo.
+services:
+  mongo-alertas-test:
+    image: mongo:9.0.2-noble
+    command:
+      - mongod
+      - --replSet
+      - evoriaAlertTest
+      - --port
+      - '27129'
+      - --bind_ip_all
+      - --setParameter
+      - transactionLifetimeLimitSeconds=5
+      - --setParameter
+      - enableTestCommands=1
+    ports:
+      - '127.0.0.1:27129:27129'
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          mongosh --quiet --port 27129 --eval
+          "try { if (!db.hello().isWritablePrimary) { try { rs.initiate({_id:'evoriaAlertTest',members:[{_id:0,host:'127.0.0.1:27129'}]}) } catch (_) {} ; quit(1) } } catch (_) { quit(1) }"
+      interval: 3s
+      timeout: 5s
+      retries: 30

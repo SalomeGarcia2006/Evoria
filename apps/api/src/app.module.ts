@@ -5,6 +5,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { AlertsModule } from './alerts/alerts.module';
 import { AuditsModule } from './audits/audits.module';
 import { AuthModule } from './auth/auth.module';
 import { BudgetsModule } from './budgets/budgets.module';
@@ -20,7 +21,7 @@ import { SchedulesModule } from './schedules/schedules.module';
 import { TenantsModule } from './tenants/tenants.module';
 import { UsersModule } from './users/users.module';
 
-function getMongoUri(configService: ConfigService): string {
+export function getMongoUri(configService: ConfigService): string {
   const configuredUri = configService.get<string>('MONGODB_URI');
   if (configuredUri) return configuredUri;
 
@@ -33,8 +34,14 @@ function getMongoUri(configService: ConfigService): string {
   const database = encodeURIComponent(
     configService.get<string>('MONGO_DATABASE', 'evoria'),
   );
+  const host = configService.get<string>('MONGO_HOST', 'localhost');
+  const port = configService.get<string>('MONGO_PORT', '27017');
+  const replicaSet = encodeURIComponent(
+    configService.get<string>('MONGO_REPLICA_SET', 'evoria-rs'),
+  );
+  const direct = configService.get<string>('MONGO_DIRECT_CONNECTION', 'true');
 
-  return `mongodb://${username}:${password}@localhost:27017/${database}?authSource=admin`;
+  return `mongodb://${username}:${password}@${host}:${port}/${database}?authSource=admin&replicaSet=${replicaSet}&directConnection=${direct}`;
 }
 
 @Module({
@@ -60,6 +67,7 @@ function getMongoUri(configService: ConfigService): string {
     }),
     AuditsModule,
     AuthModule,
+    AlertsModule,
     BudgetsModule,
     DashboardModule,
     EventsModule,
