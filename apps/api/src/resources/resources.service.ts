@@ -4,11 +4,13 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { isValidObjectId, type Model, type Types } from 'mongoose';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { BudgetLedgerService } from '../budgets/budget-ledger.service';
+import { AlertsService } from '../alerts/alerts.service';
 import { Event } from '../events/schemas/event.schema';
 import {
   InventoryItem,
@@ -29,6 +31,7 @@ export class ResourcesService {
     private readonly inventoryModel: Model<InventoryItem>,
     @InjectModel(Event.name) private readonly eventModel: Model<Event>,
     private readonly budgetLedger: BudgetLedgerService,
+    @Optional() private readonly alerts?: AlertsService,
   ) {}
 
   async assign(
@@ -90,6 +93,11 @@ export class ResourcesService {
         { new: true, upsert: true, setDefaultsOnInsert: true },
       );
 
+      await this.alerts?.refreshThresholds(
+        tenantId,
+        eventId,
+        dto.inventoryItemId,
+      );
       return this.toResponse(assignment, inventoryItem);
     } catch (error) {
       await this.restoreInventory(
@@ -237,6 +245,7 @@ export class ResourcesService {
       }
     }
 
+    await this.alerts?.refreshThresholds(tenantId, eventId, inventoryItemId);
     return this.toResponse(assignment, inventoryItem);
   }
 

@@ -4,10 +4,12 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { isValidObjectId, type Model, type Types } from 'mongoose';
 import type { AuthenticatedUser } from '../auth/auth.types';
+import { AlertsService } from '../alerts/alerts.service';
 import { CreateInventoryItemDto } from './dto/create-inventory-item.dto';
 import { FindInventoryItemsDto } from './dto/find-inventory-items.dto';
 import { UpdateInventoryItemDto } from './dto/update-inventory-item.dto';
@@ -21,6 +23,7 @@ export class InventoryService {
   constructor(
     @InjectModel(InventoryItem.name)
     private readonly inventoryModel: Model<InventoryItem>,
+    @Optional() private readonly alerts?: AlertsService,
   ) {}
 
   async create(dto: CreateInventoryItemDto, user: AuthenticatedUser) {
@@ -37,6 +40,11 @@ export class InventoryService {
       status,
     });
 
+    await this.alerts?.refreshThresholds(
+      this.getTenantId(user),
+      undefined,
+      item._id.toString(),
+    );
     return this.toResponse(item);
   }
 
@@ -134,6 +142,11 @@ export class InventoryService {
         : 0;
 
     await item.save();
+    await this.alerts?.refreshThresholds(
+      this.getTenantId(user),
+      undefined,
+      item._id.toString(),
+    );
     return this.toResponse(item);
   }
 
@@ -148,6 +161,11 @@ export class InventoryService {
     item.status = 'inactivo';
     item.availableQuantity = 0;
     await item.save();
+    await this.alerts?.refreshThresholds(
+      this.getTenantId(user),
+      undefined,
+      item._id.toString(),
+    );
     return this.toResponse(item);
   }
 

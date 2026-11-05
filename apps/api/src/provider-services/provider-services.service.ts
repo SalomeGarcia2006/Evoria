@@ -4,11 +4,13 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { isValidObjectId, type Model, type Types } from 'mongoose';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { BudgetLedgerService } from '../budgets/budget-ledger.service';
+import { AlertsService } from '../alerts/alerts.service';
 import { Event } from '../events/schemas/event.schema';
 import {
   Provider,
@@ -30,6 +32,7 @@ export class ProviderServicesService {
     @InjectModel(Provider.name) private readonly providerModel: Model<Provider>,
     @InjectModel(Event.name) private readonly eventModel: Model<Event>,
     private readonly budgetLedger: BudgetLedgerService,
+    @Optional() private readonly alerts?: AlertsService,
   ) {}
 
   async findAll(
@@ -104,6 +107,7 @@ export class ProviderServicesService {
         assignedBy: user.id,
         cancelledAt: null,
       });
+      await this.alerts?.refreshThresholds(tenantId, eventId);
       return this.toResponse(service, provider);
     } catch (error) {
       await this.budgetLedger.releaseProviderCost(
@@ -197,6 +201,7 @@ export class ProviderServicesService {
     }
     if (!service)
       throw new ConflictException('El servicio ya no está confirmado.');
+    await this.alerts?.refreshThresholds(tenantId, eventId);
     return this.toResponse(service, provider);
   }
 
@@ -229,6 +234,7 @@ export class ProviderServicesService {
       service.providerId.toString(),
       tenantId,
     );
+    await this.alerts?.refreshThresholds(tenantId, eventId);
     return this.toResponse(service, provider);
   }
 

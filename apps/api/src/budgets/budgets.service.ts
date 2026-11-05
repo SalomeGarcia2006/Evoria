@@ -3,11 +3,14 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
+  Optional,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { isValidObjectId, type Model, Types } from 'mongoose';
 import type { AuthenticatedUser } from '../auth/auth.types';
+import { AlertsService } from '../alerts/alerts.service';
 import { Event } from '../events/schemas/event.schema';
 import { InventoryItem } from '../inventory/schemas/inventory-item.schema';
 import { EventProviderService } from '../provider-services/schemas/event-provider-service.schema';
@@ -23,6 +26,7 @@ import {
 
 @Injectable()
 export class BudgetsService {
+  private readonly logger = new Logger(BudgetsService.name);
   constructor(
     @InjectModel(EventBudget.name)
     private readonly budgetModel: Model<EventBudget>,
@@ -35,6 +39,7 @@ export class BudgetsService {
     private readonly providerServiceModel: Model<EventProviderService>,
     @InjectModel(Provider.name) private readonly providerModel: Model<Provider>,
     private readonly ledger: BudgetLedgerService,
+    @Optional() private readonly alerts?: AlertsService,
   ) {}
 
   async overview(query: FindBudgetsDto, user: AuthenticatedUser) {
@@ -362,6 +367,23 @@ export class BudgetsService {
     );
     if (!created)
       throw new ConflictException('No se pudo registrar la solicitud.');
+    if (event.responsibleUserId) {
+      await this.notify({
+        tenantId,
+        recipientId: event.responsibleUserId.toString(),
+        type: 'budget_pending',
+        title: 'Solicitud pendiente',
+        message: 'Hay una solicitud de presupuesto pendiente de tu decisión.',
+        eventId,
+        requestId: requestId.toString(),
+        dedupeKey: `pending:${requestId.toString()}:${event.responsibleUserId.toString()}`,
+        permissions: [
+          'eventos.ver',
+          'presupuestos.ver',
+          'presupuestos.aprobar',
+        ],
+      });
+    }
     return this.toRequest(eventId, created);
   }
 
@@ -399,7 +421,82 @@ export class BudgetsService {
     );
   }
 
+  async notifyPendingForResponsible(
+    tenantId: string,
+    eventId: string,
+    responsibleId: string,
+  ) {
+    if (!this.alerts) return;
+    const budget = await this.budgetModel.findOne({ tenantId, eventId }).lean();
+    if (!budget) return;
+    for (const request of budget.requests) {
+      if (
+        request.status !== 'pendiente' ||
+        request.requestedBy.toString() === responsibleId
+      )
+        continue;
+      const requestId = request._id.toString();
+      await this.notify({
+        tenantId,
+        recipientId: responsibleId,
+        type: 'budget_pending',
+        title: 'Solicitud pendiente',
+        message: 'Hay una solicitud de presupuesto pendiente de tu decisión.',
+        eventId,
+        requestId,
+        dedupeKey: `pending:${requestId}:${responsibleId}`,
+        permissions: [
+          'eventos.ver',
+          'presupuestos.ver',
+          'presupuestos.aprobar',
+        ],
+      });
+    }
+  }
+
+  async notifyCancelledRequests(
+    tenantId: string,
+    eventId: string,
+    responsibleId: string | null,
+  ) {
+    if (!this.alerts) return;
+    const budget = await this.budgetModel.findOne({ tenantId, eventId }).lean();
+    if (!budget) return;
+    for (const request of budget.requests) {
+      if (request.status !== 'pendiente') continue;
+      const requestId = request._id.toString();
+      const recipients = new Set([
+        request.requestedBy.toString(),
+        ...(responsibleId ? [responsibleId] : []),
+      ]);
+      for (const recipientId of recipients) {
+        await this.notify({
+          tenantId,
+          recipientId,
+          type: 'event_cancelled',
+          title: 'Evento cancelado',
+          message:
+            'El evento fue cancelado y su solicitud pendiente no puede aprobarse.',
+          eventId,
+          requestId,
+          dedupeKey: `cancelled:${requestId}:${recipientId}`,
+          permissions: ['eventos.ver', 'presupuestos.ver'],
+        });
+      }
+    }
+  }
+
   async approve(eventId: string, requestId: string, user: AuthenticatedUser) {
+    return this.withDecisionLock(eventId, user, () =>
+      this.approveLocked(eventId, requestId, user),
+    );
+  }
+
+  private async approveLocked(
+    eventId: string,
+    requestId: string,
+    user: AuthenticatedUser,
+  ) {
     const { tenantId, request } = await this.findDecidableRequest(
       eventId,
       requestId,
@@ -441,10 +538,33 @@ export class BudgetsService {
     );
     if (!decided)
       throw new ConflictException('No se pudo consultar la decisión.');
+    await this.notify({
+      tenantId,
+      recipientId: decided.requestedBy.toString(),
+      type: 'budget_decided',
+      title: 'Solicitud aprobada',
+      message: 'Tu solicitud de presupuesto fue aprobada.',
+      eventId,
+      requestId,
+      dedupeKey: `decision:${requestId}`,
+      permissions: ['eventos.ver', 'presupuestos.ver'],
+    });
+    await this.alerts?.refreshThresholds(tenantId, eventId);
     return this.toRequest(eventId, decided);
   }
 
   async reject(
+    eventId: string,
+    requestId: string,
+    reason: string,
+    user: AuthenticatedUser,
+  ) {
+    return this.withDecisionLock(eventId, user, () =>
+      this.rejectLocked(eventId, requestId, reason, user),
+    );
+  }
+
+  private async rejectLocked(
     eventId: string,
     requestId: string,
     reason: string,
@@ -483,7 +603,94 @@ export class BudgetsService {
     );
     if (!decided)
       throw new ConflictException('No se pudo consultar la decisión.');
+    await this.notify({
+      tenantId,
+      recipientId: decided.requestedBy.toString(),
+      type: 'budget_decided',
+      title: 'Solicitud rechazada',
+      message:
+        'Tu solicitud fue rechazada; consulta el motivo en el presupuesto.',
+      eventId,
+      requestId,
+      dedupeKey: `decision:${requestId}`,
+      permissions: ['eventos.ver', 'presupuestos.ver'],
+    });
     return this.toRequest(eventId, decided);
+  }
+
+  private async notify(input: {
+    tenantId: string;
+    recipientId: string;
+    type: string;
+    title: string;
+    message: string;
+    eventId: string;
+    requestId: string;
+    dedupeKey: string;
+    permissions: string[];
+  }) {
+    if (!this.alerts) return;
+    try {
+      await this.alerts.emit({ ...input, severity: 'info' });
+    } catch (error) {
+      this.logger.error(
+        'No se pudo registrar la alerta de presupuesto.',
+        error,
+      );
+    }
+  }
+
+  private async withDecisionLock<T>(
+    eventId: string,
+    user: AuthenticatedUser,
+    action: () => Promise<T>,
+  ): Promise<T> {
+    const tenantId = this.getTenantId(user);
+    if (!isValidObjectId(eventId)) {
+      throw new BadRequestException(
+        'El identificador del evento no es válido.',
+      );
+    }
+    const token = new Types.ObjectId().toString();
+    const locked = await this.eventModel.findOneAndUpdate(
+      {
+        _id: eventId,
+        tenantId,
+        responsibleUserId: user.id,
+        status: { $ne: 'cancelado' },
+        budgetDecisionLock: { $exists: false },
+      },
+      { $set: { budgetDecisionLock: token } },
+      { new: true, timestamps: false },
+    );
+    if (!locked) {
+      const event = await this.findEvent(eventId, tenantId);
+      if (event.status === 'cancelado')
+        throw new ConflictException(
+          'No se pueden decidir solicitudes de un evento cancelado.',
+        );
+      if (event.responsibleUserId?.toString() !== user.id)
+        throw new ForbiddenException(
+          'Solo el líder asignado al evento puede decidir esta solicitud.',
+        );
+      throw new ConflictException('Hay otra decisión en curso para el evento.');
+    }
+    try {
+      return await action();
+    } finally {
+      try {
+        await this.eventModel.updateOne(
+          { _id: eventId, tenantId, budgetDecisionLock: token },
+          { $unset: { budgetDecisionLock: 1 } },
+          { timestamps: false },
+        );
+      } catch (error) {
+        this.logger.error(
+          `No se pudo liberar el bloqueo del evento ${eventId}`,
+          error,
+        );
+      }
+    }
   }
 
   private async findDecidableRequest(

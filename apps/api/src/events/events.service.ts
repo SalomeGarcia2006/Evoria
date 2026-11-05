@@ -4,11 +4,19 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  Optional,
+  Logger,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { isValidObjectId, type Model, type Types } from 'mongoose';
+import {
+  Error as MongooseError,
+  isValidObjectId,
+  type Model,
+  type Types,
+} from 'mongoose';
 import { Membership } from '../memberships/schemas/membership.schema';
 import { BudgetsService } from '../budgets/budgets.service';
+import { AlertsService } from '../alerts/alerts.service';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { CreateEventDto } from './dto/create-event.dto';
 import { FindEventsDto } from './dto/find-events.dto';
@@ -17,11 +25,13 @@ import { Event, type EventDocument } from './schemas/event.schema';
 
 @Injectable()
 export class EventsService {
+  private readonly logger = new Logger(EventsService.name);
   constructor(
     @InjectModel(Event.name) private readonly eventModel: Model<Event>,
     @InjectModel(Membership.name)
     private readonly membershipModel: Model<Membership>,
     private readonly budgetsService: BudgetsService,
+    @Optional() private readonly alerts?: AlertsService,
   ) {}
 
   async create(createEventDto: CreateEventDto, user: AuthenticatedUser) {
@@ -44,6 +54,9 @@ export class EventsService {
       baseBudget: createEventDto.baseBudget,
       status: createEventDto.status,
       responsibleUserId: createEventDto.responsibleUserId ?? null,
+      responsibleAssignedAt: createEventDto.responsibleUserId
+        ? new Date()
+        : null,
     });
 
     try {
@@ -58,6 +71,7 @@ export class EventsService {
       throw error;
     }
 
+    await this.notifyResponsible(event, tenantId);
     return this.toResponse(event);
   }
 
@@ -103,6 +117,8 @@ export class EventsService {
   ) {
     const tenantId = this.getTenantId(user);
     const event = await this.findEvent(id, tenantId);
+    const previousResponsible = event.responsibleUserId?.toString() ?? null;
+    const previousStatus = event.status;
 
     if (event.status === 'cancelado') {
       throw new ConflictException('No puedes editar un evento cancelado.');
@@ -134,6 +150,11 @@ export class EventsService {
         tenantId,
       );
       event.set('responsibleUserId', updateEventDto.responsibleUserId ?? null);
+      if ((updateEventDto.responsibleUserId ?? null) !== previousResponsible) {
+        event.responsibleAssignedAt = updateEventDto.responsibleUserId
+          ? new Date()
+          : null;
+      }
     }
 
     if (name !== undefined) event.name = name;
@@ -151,14 +172,30 @@ export class EventsService {
     if (updateEventDto.endAt) event.endAt = new Date(updateEventDto.endAt);
     if (updateEventDto.status) event.status = updateEventDto.status;
 
-    await event.save();
+    event.$where = {
+      budgetDecisionLock: { $exists: false },
+      status: { $ne: 'cancelado' },
+    };
+    await this.saveUnlocked(event);
+    if (event.responsibleUserId?.toString() !== previousResponsible) {
+      await this.notifyResponsible(event, tenantId);
+      await this.alerts?.refreshThresholds(tenantId, event._id.toString());
+    }
+    if (event.status === 'cancelado' && previousStatus !== 'cancelado') {
+      await this.notifyCancellation(event, tenantId);
+    }
     return this.toResponse(event);
   }
 
   async cancel(id: string, user: AuthenticatedUser) {
-    const event = await this.findEvent(id, this.getTenantId(user));
+    const tenantId = this.getTenantId(user);
+    const event = await this.findEvent(id, tenantId);
+    const wasCancelled = event.status === 'cancelado';
     event.status = 'cancelado';
-    await event.save();
+    event.$where = { budgetDecisionLock: { $exists: false } };
+    await this.saveUnlocked(event);
+
+    if (!wasCancelled) await this.notifyCancellation(event, tenantId);
 
     return this.toResponse(event);
   }
@@ -169,6 +206,63 @@ export class EventsService {
     }
 
     return user.tenantId;
+  }
+
+  private async saveUnlocked(event: EventDocument): Promise<void> {
+    try {
+      await event.save();
+    } catch (error) {
+      if (error instanceof MongooseError.DocumentNotFoundError) {
+        throw new ConflictException(
+          'El evento cambió o tiene una decisión de presupuesto en curso.',
+        );
+      }
+      throw error;
+    }
+  }
+
+  private async notifyResponsible(event: EventDocument, tenantId: string) {
+    const recipientId = event.responsibleUserId?.toString();
+    if (!recipientId || !this.alerts) return;
+    try {
+      await this.alerts.emit({
+        tenantId,
+        recipientId,
+        type: 'event_responsibility',
+        title: 'Responsable de evento',
+        message: 'Te asignaron como responsable de un evento.',
+        severity: 'info',
+        eventId: event._id.toString(),
+        dedupeKey: `responsibility:${event._id.toString()}:${recipientId}:${event.responsibleAssignedAt?.getTime() ?? 0}`,
+        permissions: ['eventos.ver'],
+      });
+      await this.budgetsService.notifyPendingForResponsible(
+        tenantId,
+        event._id.toString(),
+        recipientId,
+      );
+    } catch (error) {
+      this.logger.error(
+        'No se pudo registrar la alerta de responsable.',
+        error,
+      );
+    }
+  }
+
+  private async notifyCancellation(event: EventDocument, tenantId: string) {
+    if (!this.alerts) return;
+    try {
+      await this.budgetsService.notifyCancelledRequests(
+        tenantId,
+        event._id.toString(),
+        event.responsibleUserId?.toString() ?? null,
+      );
+    } catch (error) {
+      this.logger.error(
+        'No se pudo registrar la alerta de cancelación.',
+        error,
+      );
+    }
   }
 
   private async findEvent(

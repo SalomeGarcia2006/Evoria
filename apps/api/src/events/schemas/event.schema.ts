@@ -41,6 +41,13 @@ export class Event {
   @Prop({ type: 'ObjectId', ref: 'User', default: null, index: true })
   responsibleUserId!: Types.ObjectId | null;
 
+  @Prop({ type: Date, default: null })
+  responsibleAssignedAt!: Date | null;
+
+  // No expira automáticamente: una recuperación insegura permitiría dos decisores.
+  @Prop({ type: String, default: undefined, select: false })
+  budgetDecisionLock?: string;
+
   @Prop({ type: 'ObjectId', ref: 'User', required: true, index: true })
   createdBy!: Types.ObjectId;
 
