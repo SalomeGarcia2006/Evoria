@@ -1,9 +1,10 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { defaultRouteFor } from '../../lib/access-control';
 import { useAuth } from '../../hooks/useAuth';
+import type { AuthUser } from '../../types/auth';
 
 export function LoginForm() {
   const router = useRouter();
@@ -15,25 +16,40 @@ export function LoginForm() {
   const [isAlertVisible, setIsAlertVisible] = useState(false);
   const [failedAttempts, setFailedAttempts] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [successfulLogin, setSuccessfulLogin] = useState<AuthUser | null>(null);
+  const isLoginFlow = useRef(false);
 
   useEffect(() => {
-    if (!isLoading && user) {
+    if (!isLoading && user && !isLoginFlow.current) {
       router.replace(defaultRouteFor(user.permissions));
     }
   }, [isLoading, router, user]);
+
+  useEffect(() => {
+    if (!successfulLogin) return;
+
+    const timeout = window.setTimeout(() => {
+      isLoginFlow.current = false;
+      router.replace(defaultRouteFor(successfulLogin.permissions));
+    }, 2500);
+
+    return () => window.clearTimeout(timeout);
+  }, [router, successfulLogin]);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
     setIsSubmitting(true);
+    isLoginFlow.current = true;
 
     try {
       const user = await signIn({ email, password });
       setError(null);
       setIsAlertVisible(false);
       setFailedAttempts(0);
-      router.replace(defaultRouteFor(user.permissions));
+      setSuccessfulLogin(user);
     } catch (submitError) {
+      isLoginFlow.current = false;
       const nextAttempt = Math.min(failedAttempts + 1, 5);
       const backendMessage =
         submitError instanceof Error ? submitError.message : '';
@@ -184,6 +200,27 @@ export function LoginForm() {
             >
               Entendido
             </button>
+          </div>
+        </div>
+      ) : null}
+      {successfulLogin ? (
+        <div
+          aria-label="Inicio de sesión exitoso"
+          aria-live="polite"
+          className="login-alert-backdrop fixed inset-0 z-[1100] grid place-items-center p-6"
+          role="status"
+        >
+          <div className="event-success-modal">
+            <div className="event-success-icon" aria-hidden="true">
+              ✓
+            </div>
+            <p className="event-success-title">
+              ¡Hola, {successfulLogin.name}!
+            </p>
+            <p className="event-success-message">
+              {successfulLogin.role ? `${successfulLogin.role}. ` : ''}
+              Bienvenido/a, inicio de sesión exitoso.
+            </p>
           </div>
         </div>
       ) : null}

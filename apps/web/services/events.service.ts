@@ -109,6 +109,20 @@ export async function createEvent(
   return response.data;
 }
 
+export async function updateEventStatus(
+  id: string,
+  status: EventStatus,
+): Promise<EventItem> {
+  const response = await apiRequest<ApiResponse<EventItem>>(`/events/${id}`, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status }),
+  });
+
+  return response.data;
+}
+
 export async function cancelEvent(id: string): Promise<EventItem> {
   const response = await apiRequest<ApiResponse<EventItem>>(`/events/${id}`, {
     method: 'DELETE',
