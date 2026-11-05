@@ -1,7 +1,11 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { getAddressFromCoordinates } from '../../services/locations.service';
+import {
+  getAddressFromCoordinates,
+  getCoordinatesFromAddress,
+  parseCoordinates,
+} from '../../services/locations.service';
 
 const bogota: [number, number] = [4.711, -74.0721];
 
@@ -19,12 +23,14 @@ export function OpenStreetMapLocationPicker({
   onChange: (value: string) => void;
 }) {
   const mapContainer = useRef<HTMLDivElement>(null);
+  // shortcut: el formulario se vuelve a montar al editar otro evento; basta con ubicar el valor inicial una vez.
+  const [initialValue] = useState(value);
   const selectLocation = useRef<
     (latitude: number, longitude: number, address?: string) => void
   >(() => undefined);
   const searchCache = useRef(new Map<string, SearchResult[]>());
   const lastSearchAt = useRef(0);
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(initialValue);
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isResolvingLocation, setIsResolvingLocation] = useState(false);
@@ -92,6 +98,26 @@ export function OpenStreetMapLocationPicker({
           })
           .addTo(map);
 
+        const savedCoordinates = parseCoordinates(initialValue);
+        if (savedCoordinates) {
+          setSelectedLocation(
+            savedCoordinates.latitude,
+            savedCoordinates.longitude,
+            initialValue,
+          );
+        } else if (initialValue) {
+          void getCoordinatesFromAddress(initialValue)
+            .then(({ latitude, longitude }) => {
+              setSelectedLocation(latitude, longitude, initialValue);
+            })
+            .catch(() => {
+              if (isActive)
+                setLocationError(
+                  'No fue posible ubicar la dirección guardada en el mapa.',
+                );
+            });
+        }
+
         map.on('click', (event) => {
           setSelectedLocation(event.latlng.lat, event.latlng.lng);
         });
@@ -106,7 +132,7 @@ export function OpenStreetMapLocationPicker({
       isActive = false;
       removeMap?.();
     };
-  }, [onChange]);
+  }, [initialValue, onChange]);
 
   async function searchPlaces() {
     const search = query.trim();

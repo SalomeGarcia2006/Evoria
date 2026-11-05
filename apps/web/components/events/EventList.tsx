@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
@@ -12,7 +13,6 @@ import {
   updateEventStatus,
 } from '../../services/events.service';
 import { Button } from '../ui/Button';
-import { DataTable, type DataTableColumn } from '../ui/DataTable';
 import { ErrorMessage } from '../ui/ErrorMessage';
 import { LoadingState } from '../ui/LoadingState';
 import { EventLocation } from './EventLocation';
@@ -38,11 +38,24 @@ const EDITABLE_STATUSES = EVENT_STATUSES.filter(
   (status) => status !== 'cancelado',
 );
 
+type EventFilter = 'all' | 'en_progreso' | 'finalizado';
+
 function formatDate(value: string): string {
   return new Intl.DateTimeFormat('es-CO', {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(new Date(value));
+}
+
+function formatDateBadge(value: string): { day: string; month: string } {
+  const date = new Date(value);
+  return {
+    day: new Intl.DateTimeFormat('es-CO', { day: '2-digit' }).format(date),
+    month: new Intl.DateTimeFormat('es-CO', { month: 'short' })
+      .format(date)
+      .replace('.', '')
+      .toUpperCase(),
+  };
 }
 
 export function EventList({
@@ -65,6 +78,7 @@ export function EventList({
   const [viewEvent, setViewEvent] = useState<EventItem | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<EventStatus>('borrador');
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [selectedFilter, setSelectedFilter] = useState<EventFilter>('all');
 
   useEffect(() => {
     let isMounted = true;
@@ -177,56 +191,25 @@ export function EventList({
     }
   }
 
-  const columns: DataTableColumn<EventItem>[] = [
-    {
-      key: 'name',
-      header: 'Nombre',
-      render: (event) => <span className="font-semibold">{event.name}</span>,
-    },
-    {
-      key: 'date',
-      header: 'Fecha',
-      render: (event) => (
-        <span className="whitespace-nowrap">{formatDate(event.startAt)}</span>
-      ),
-    },
-    {
-      key: 'location',
-      header: 'Ubicación',
-      render: (event) => (
-        <span className="block max-w-md break-words">
-          <EventLocation value={event.location} />
-        </span>
-      ),
-    },
-    {
-      key: 'status',
-      header: 'Estado',
-      render: (event) => (
-        <span
-          className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${STATUS_CLASSES[event.status]}`}
-        >
-          {STATUS_LABELS[event.status]}
-        </span>
-      ),
-    },
-    {
-      key: 'actions',
-      header: 'Acciones',
-      render: (event) => (
-        <div className="flex gap-2 whitespace-nowrap">
-          <Button
-            className="px-3 py-1.5 text-xs"
-            onClick={() => openViewDialog(event)}
-            type="button"
-            variant="secondary"
-          >
-            Ver
-          </Button>
-        </div>
-      ),
-    },
-  ];
+  const inProgressCount = events.filter(
+    (event) => event.status === 'en_progreso',
+  ).length;
+  const finishedCount = events.filter(
+    (event) => event.status === 'finalizado',
+  ).length;
+  const filteredEvents = events.filter(
+    (event) => selectedFilter === 'all' || event.status === selectedFilter,
+  );
+  const upcomingEvent = [...events]
+    .filter(
+      (event) =>
+        event.status !== 'cancelado' &&
+        event.status !== 'finalizado' &&
+        new Date(event.startAt) >= new Date(),
+    )
+    .sort(
+      (first, second) => Date.parse(first.startAt) - Date.parse(second.startAt),
+    )[0];
 
   return (
     <section className="grid gap-4">
@@ -252,11 +235,152 @@ export function EventList({
           ) : null}
         </div>
       ) : (
-        <DataTable
-          columns={columns}
-          rowKey={(event) => event.id}
-          rows={events}
-        />
+        <>
+          <section className="events-list-panel">
+            <div className="events-list-panel__toolbar">
+              <div
+                className="events-list-panel__filters"
+                aria-label="Resumen de eventos"
+              >
+                <button
+                  className={`events-list-panel__filter ${selectedFilter === 'all' ? 'is-active' : ''}`}
+                  onClick={() => setSelectedFilter('all')}
+                  type="button"
+                >
+                  Todos ({events.length})
+                </button>
+                <button
+                  className={`events-list-panel__filter ${selectedFilter === 'en_progreso' ? 'is-active' : ''}`}
+                  onClick={() => setSelectedFilter('en_progreso')}
+                  type="button"
+                >
+                  En ejecución ({inProgressCount})
+                </button>
+                <button
+                  className={`events-list-panel__filter ${selectedFilter === 'finalizado' ? 'is-active' : ''}`}
+                  onClick={() => setSelectedFilter('finalizado')}
+                  type="button"
+                >
+                  Finalizados ({finishedCount})
+                </button>
+              </div>
+              <span className="text-sm text-muted">
+                {filteredEvents.length}{' '}
+                {filteredEvents.length === 1 ? 'evento' : 'eventos'}
+              </span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="events-table">
+                <thead>
+                  <tr>
+                    <th>Evento</th>
+                    <th>Fecha y hora</th>
+                    <th>Ubicación</th>
+                    <th>Estado</th>
+                    <th aria-label="Acciones" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredEvents.map((event) => (
+                    <tr key={event.id}>
+                      <td>
+                        <span className="font-semibold text-navy">
+                          {event.name}
+                        </span>
+                      </td>
+                      <td>
+                        <div className="events-table__detail">
+                          <span className="events-table__icon">
+                            <Image
+                              alt=""
+                              aria-hidden="true"
+                              height={20}
+                              src="/icons/FECHA.svg"
+                              width={20}
+                            />
+                          </span>
+                          <span>{formatDate(event.startAt)}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <div className="events-table__detail min-w-52">
+                          <span className="events-table__icon">
+                            <Image
+                              alt=""
+                              aria-hidden="true"
+                              height={20}
+                              src="/icons/ubicacion.svg"
+                              width={20}
+                            />
+                          </span>
+                          <span className="break-words">
+                            <EventLocation value={event.location} />
+                          </span>
+                        </div>
+                      </td>
+                      <td>
+                        <span
+                          className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${STATUS_CLASSES[event.status]}`}
+                        >
+                          {STATUS_LABELS[event.status]}
+                        </span>
+                      </td>
+                      <td className="text-right">
+                        <Button
+                          className="whitespace-nowrap px-4 py-2 text-xs"
+                          onClick={() => openViewDialog(event)}
+                          type="button"
+                          variant="secondary"
+                        >
+                          Ver detalles
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                  {filteredEvents.length === 0 ? (
+                    <tr>
+                      <td
+                        className="py-8 text-center text-sm text-muted"
+                        colSpan={5}
+                      >
+                        No hay eventos en este estado.
+                      </td>
+                    </tr>
+                  ) : null}
+                </tbody>
+              </table>
+            </div>
+            <p className="events-list-panel__footer">
+              Mostrando {filteredEvents.length} de {events.length}{' '}
+              {events.length === 1 ? 'evento' : 'eventos'}
+            </p>
+          </section>
+          {upcomingEvent ? (
+            <section className="events-upcoming">
+              <h2 className="text-xl font-bold">Próximo en tu agenda</h2>
+              <div className="events-upcoming__item">
+                <div className="events-upcoming__date">
+                  <strong>{formatDateBadge(upcomingEvent.startAt).day}</strong>
+                  <span>{formatDateBadge(upcomingEvent.startAt).month}</span>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold">{upcomingEvent.name}</p>
+                  <p className="mt-1 break-words text-sm text-muted">
+                    <EventLocation value={upcomingEvent.location} />
+                  </p>
+                </div>
+                <Button
+                  className="whitespace-nowrap"
+                  onClick={() => openViewDialog(upcomingEvent)}
+                  type="button"
+                  variant="ghost"
+                >
+                  Consultar evento →
+                </Button>
+              </div>
+            </section>
+          ) : null}
+        </>
       )}
       <dialog
         aria-labelledby="event-view-dialog-title"

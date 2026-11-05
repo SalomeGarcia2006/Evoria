@@ -32,13 +32,14 @@ export default function EventosPage() {
   }
 
   return (
-    <AppShell title="Eventos">
-      <div className="grid gap-6">
-        <div className="flex flex-wrap items-center justify-between gap-4">
+    <AppShell hideTitle title="Eventos">
+      <div className="events-page grid gap-6">
+        <section className="events-hero">
           <div>
-            <h1 className="text-2xl font-bold">Eventos</h1>
-            <p className="mt-1 text-sm text-muted">
-              Consulta y administra los eventos de tu empresa.
+            <h1 className="text-4xl font-bold">Eventos</h1>
+            <p className="mt-2 max-w-xl text-base text-muted">
+              Organiza cada detalle de tus próximos encuentros desde un solo
+              lugar.
             </p>
           </div>
           <PermissionGate permission="eventos.crear">
@@ -46,7 +47,20 @@ export default function EventosPage() {
               + Nuevo evento
             </Button>
           </PermissionGate>
-        </div>
+        </section>
+        <section className="events-banner">
+          <span className="events-banner__icon" aria-hidden="true">
+            <span>✓</span>
+          </span>
+          <div>
+            <h2 className="text-xl font-bold">
+              Todo listo para tu próximo evento
+            </h2>
+            <p className="mt-1 text-sm text-muted">
+              Consulta fechas, ubicaciones y avances desde un solo lugar.
+            </p>
+          </div>
+        </section>
         <EventList
           onCreate={openCreateForm}
           onEdit={openEditForm}
