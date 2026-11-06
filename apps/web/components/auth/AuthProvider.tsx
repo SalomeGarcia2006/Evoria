@@ -18,8 +18,6 @@ import {
 } from '../../services/auth.service';
 import type { AuthUser } from '../../types/auth';
 
-const DEVELOPER_EMAIL = 'administrador@evoria.com';
-
 export type AuthContextValue = {
   user: AuthUser | null;
   isAuthenticated: boolean;
@@ -78,9 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<AuthContextValue>(() => {
-    // shortcut: only the seeded developer gets the complete UI, replace when the API exposes a dedicated UI role.
-    const hasDeveloperUi =
-      user?.isDeveloper && user.email.toLowerCase() === DEVELOPER_EMAIL;
+    const hasDeveloperUi = user?.isDeveloper === true;
 
     return {
       user,

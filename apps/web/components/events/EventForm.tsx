@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   createEvent,
   getAllEvents,
+  updateEvent,
   type CreateEventPayload,
   type EventItem,
 } from '../../services/events.service';
@@ -45,31 +46,45 @@ function getTomorrowDate(): string {
   return formatDateForInput(tomorrow);
 }
 
+function formatTimeForInput(date: Date): string {
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+}
+
+function formFromEvent(event?: EventItem) {
+  const startAt = event ? new Date(event.startAt) : null;
+  const endAt = event ? new Date(event.endAt) : null;
+
+  return {
+    name: event?.name ?? '',
+    description: event?.description ?? '',
+    startDate: startAt ? formatDateForInput(startAt) : '',
+    endDate: endAt ? formatDateForInput(endAt) : '',
+    startTime: startAt ? formatTimeForInput(startAt) : '09:00',
+    endTime: endAt ? formatTimeForInput(endAt) : '18:00',
+    location: event?.location ?? '',
+    type: event?.type ?? '',
+    baseBudget: event ? String(event.baseBudget) : '',
+    responsibleUserId: event?.responsibleUserId ?? '',
+  };
+}
+
 function normalizeEventText(value: string | null | undefined): string {
   return (value ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
 export function EventForm({
+  initialEvent,
   onCancel,
   onSuccess,
 }: {
+  initialEvent?: EventItem;
   onCancel?: () => void;
   onSuccess?: () => void;
 }) {
   const router = useRouter();
+  const isEditing = Boolean(initialEvent);
   const minimumStartDate = getTomorrowDate();
-  const [form, setForm] = useState({
-    name: '',
-    description: '',
-    startDate: '',
-    endDate: '',
-    startTime: '09:00',
-    endTime: '18:00',
-    location: '',
-    type: '',
-    baseBudget: '',
-    responsibleUserId: '',
-  });
+  const [form, setForm] = useState(() => formFromEvent(initialEvent));
   const [users, setUsers] = useState<CompanyUser[]>([]);
   const [usersError, setUsersError] = useState(false);
   const [events, setEvents] = useState<EventItem[]>([]);
@@ -139,7 +154,7 @@ export function EventForm({
       return;
     }
 
-    if (form.startDate < minimumStartDate) {
+    if (!isEditing && form.startDate < minimumStartDate) {
       setValidationAlert(
         'La fecha de inicio debe ser posterior a la fecha de hoy.',
       );
@@ -178,8 +193,9 @@ export function EventForm({
     if (
       events.some(
         (existingEvent) =>
+          existingEvent.id !== initialEvent?.id &&
           normalizeEventText(existingEvent.name) ===
-          normalizeEventText(form.name),
+            normalizeEventText(form.name),
       )
     ) {
       setValidationAlert('Ya existe un evento con ese nombre.');
@@ -189,8 +205,9 @@ export function EventForm({
     if (
       events.some(
         (existingEvent) =>
+          existingEvent.id !== initialEvent?.id &&
           normalizeEventText(existingEvent.description) ===
-          normalizeEventText(form.description),
+            normalizeEventText(form.description),
       )
     ) {
       setValidationAlert('Ya existe un evento con esa descripción.');
@@ -200,6 +217,7 @@ export function EventForm({
     const conflictingEvent = events.find(
       (existingEvent) =>
         existingEvent.responsibleUserId === form.responsibleUserId &&
+        existingEvent.id !== initialEvent?.id &&
         existingEvent.status !== 'cancelado' &&
         new Date(existingEvent.startAt) < new Date(endAt) &&
         new Date(existingEvent.endAt) > new Date(startAt),
@@ -226,7 +244,8 @@ export function EventForm({
     setIsSubmitting(true);
 
     try {
-      await createEvent(payload);
+      if (initialEvent) await updateEvent(initialEvent.id, payload);
+      else await createEvent(payload);
       setSuccessAlert(true);
     } catch (submitError) {
       setError(
@@ -286,7 +305,7 @@ export function EventForm({
             <span className="text-sm font-semibold">Fecha de inicio</span>
             <input
               className="rounded-lg border border-sky-blue px-3 py-2 outline-none focus:border-teal focus:ring-2 focus:ring-sky-blue"
-              min={minimumStartDate}
+              min={isEditing ? undefined : minimumStartDate}
               onChange={(event) => updateField('startDate', event.target.value)}
               required
               type="date"
@@ -447,10 +466,14 @@ export function EventForm({
               ✓
             </div>
             <p className="event-success-title">
-              ¡Listo, evento creado exitosamente!
+              {isEditing
+                ? '¡Listo, evento actualizado exitosamente!'
+                : '¡Listo, evento creado exitosamente!'}
             </p>
             <p className="event-success-message">
-              El evento se creó correctamente.
+              {isEditing
+                ? 'Los cambios del evento se guardaron correctamente.'
+                : 'El evento se creó correctamente.'}
             </p>
             <button
               className="event-success-button"

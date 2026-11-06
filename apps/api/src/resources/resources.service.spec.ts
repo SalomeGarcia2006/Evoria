@@ -65,6 +65,22 @@ function fixture(
     },
   } as unknown as Model<EventResource>;
   const inventoryModel = {
+    db: {
+      startSession: async () => ({
+        withTransaction: async (fn: () => Promise<unknown>) => {
+          const beforeAssignment = { ...assignment };
+          const beforeItem = { ...item };
+          try {
+            return await fn();
+          } catch (error) {
+            Object.assign(assignment, beforeAssignment);
+            Object.assign(item, beforeItem);
+            throw error;
+          }
+        },
+        endSession: async () => undefined,
+      }),
+    },
     findOneAndUpdate: async (
       filter: {
         reservedQuantity?: { $gte: number };
