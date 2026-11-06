@@ -74,7 +74,10 @@ export function BudgetPanel({
           setResult((previous) => ({
             owner: user,
             key,
-            data: previous?.owner === user ? previous.data : undefined,
+            data:
+              previous?.owner === user && previous.key.startsWith(`${eventId}:`)
+                ? previous.data
+                : undefined,
             error: apiErrorMessage(error),
           }));
       });
@@ -103,7 +106,10 @@ export function BudgetPanel({
       active = false;
     };
   }, [allowed, canApprove, eventId, key, user, notify, onLoaded]);
-  const current = result?.owner === user ? result : undefined;
+  const current =
+    result?.owner === user && result.key.startsWith(`${eventId}:`)
+      ? result
+      : undefined;
   const budget = current?.data;
   const loading = current?.key !== key;
   const unavailable = loading || !!current?.error;
@@ -148,7 +154,7 @@ export function BudgetPanel({
   return (
     <div className="grid min-w-0 gap-5">
       <FeedbackMessages feedback={feedback} />
-      {loading && <LoadingState label="Actualizando presupuesto…" />}
+      {loading && !budget && <LoadingState label="Actualizando presupuesto…" />}
       {current?.error && (
         <p className="rounded-xl bg-red-50 p-4 text-sm text-red-800">
           {current.error}

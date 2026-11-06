@@ -91,11 +91,19 @@ export function InventoryView({
           </Link>
         </PermissionGate>
         <FeedbackMessages feedback={feedback} />
+        {error && recursos.length > 0 && (
+          <Card>
+            <p className="text-red-800">{error}</p>
+            <Button className="mt-4" variant="secondary" onClick={retry}>
+              Reintentar
+            </Button>
+          </Card>
+        )}
         {!can('inventario.ver') ? (
           <Card>No tienes permiso para consultar el inventario.</Card>
         ) : isLoading ? (
           <LoadingState label="Cargando recursos…" />
-        ) : error ? (
+        ) : error && recursos.length === 0 ? (
           <Card>
             <p className="text-red-800">{error}</p>
             <Button

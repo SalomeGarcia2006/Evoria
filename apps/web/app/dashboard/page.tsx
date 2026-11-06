@@ -31,6 +31,7 @@ export default function DashboardPage() {
   const { user, can } = useAuth();
   const [state, setState] = useState<{
     owner: typeof user;
+    revision: number;
     data: Awaited<ReturnType<typeof getDashboard>>;
   } | null>(null);
   const [revision, setRevision] = useState(0);
@@ -39,7 +40,7 @@ export default function DashboardPage() {
     let active = true;
     getDashboard(can).then((data) => {
       if (active) {
-        setState({ owner: user, data });
+        setState({ owner: user, revision, data });
         if (data.errors.length)
           notify(
             `No se pudo completar el resumen. ${data.errors.join('\n')} Puedes reintentar con Actualizar.`,
@@ -135,10 +136,9 @@ export default function DashboardPage() {
           <div className="flex flex-wrap items-center gap-3">
             <Button
               className="dashboard-hero__button"
-              disabled={!data}
+              disabled={!data || state?.revision !== revision}
               onClick={() => {
                 feedback.dismiss();
-                setState(null);
                 setRevision((value) => value + 1);
               }}
             >

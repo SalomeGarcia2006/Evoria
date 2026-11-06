@@ -6,6 +6,7 @@
 @import '../styles/forms.css';
 @import '../styles/tables.css';
 @import '../styles/responsive.css';
+@import '../styles/selects.css';
 
 @theme {
   --color-navy: #14213d;
@@ -58,7 +59,7 @@ a:focus-visible,
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
-  outline: 3px solid rgb(106 76 255 / 42%);
+  outline: 3px solid var(--evoria-focus);
   outline-offset: 3px;
 }
 
@@ -82,7 +83,7 @@ textarea {
 
 input::placeholder,
 textarea::placeholder {
-  color: color-mix(in srgb, var(--evoria-muted) 72%, white);
+  color: var(--evoria-muted);
 }
 
 select:focus,
@@ -467,8 +468,8 @@ textarea:focus {
   padding: clamp(1.5rem, 4vw, 2.75rem);
   border-radius: 1.75rem;
   background:
-    radial-gradient(circle at 91% 8%, rgb(255 93 115 / 88%), transparent 27%),
-    radial-gradient(circle at 52% 115%, rgb(18 181 166 / 72%), transparent 38%),
+    radial-gradient(circle at 91% 8%, rgb(119 37 80 / 88%), transparent 27%),
+    radial-gradient(circle at 52% 115%, rgb(5 94 87 / 72%), transparent 38%),
     var(--evoria-banner);
   box-shadow: var(--evoria-shadow);
 }
@@ -588,4 +589,165 @@ textarea:focus {
     margin-top: -1.5rem;
     padding-inline: 0.5rem;
   }
+}
+
+/* Shared application surfaces keep the same semantic roles in both themes. */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --color-navy: #eef3ff;
+  --color-muted: #b2bfd3;
+  --color-sky-blue: #35445c;
+  --color-beige: #101827;
+  --color-red-50: #3a1e29;
+  --color-red-100: #512536;
+  --color-red-200: #8a4054;
+  --color-red-700: #ffabb9;
+  --color-red-800: #ffc3cc;
+  --color-amber-50: #392f1b;
+  --color-amber-100: #4a381a;
+  --color-amber-300: #967342;
+  --color-amber-800: #ffdc99;
+  --color-amber-900: #ffe6b5;
+  --color-emerald-50: #173b38;
+  --color-emerald-100: #20504a;
+  --color-emerald-200: #39766c;
+  --color-emerald-800: #9ce8da;
+  --color-emerald-900: #c2f5e9;
+  --color-blue-100: #312c50;
+  --color-blue-800: #d2c7ff;
+  --evoria-bg: #101827;
+  --evoria-surface: #1b283b;
+  --evoria-ink: #eef3ff;
+  --evoria-muted: #b2bfd3;
+  --evoria-border: #35445c;
+  --evoria-sidebar: #0b1220;
+  --evoria-control-border: #91a0b5;
+  --evoria-focus: #c0b3ff;
+  --evoria-select-hover: #34445c;
+  --evoria-select-selected: #433d68;
+  --evoria-select-selected-hover: #524a7d;
+  --evoria-select-selected-ink: #f2efff;
+  --evoria-shadow: 0 14px 30px rgb(0 0 0 / 25%);
+}
+
+/* Interactive colors are separate from decorative borders and brand accents. */
+.evoria-button-primary {
+  background: var(--evoria-action);
+}
+button.border-sky-blue {
+  border-color: var(--evoria-control-border);
+}
+.text-teal {
+  color: #076c65;
+}
+.text-violet {
+  color: #4d2cba;
+}
+:where(
+  input:not([type='checkbox']):not([type='radio']):not([type='range']),
+  select,
+  textarea
+) {
+  border-color: var(--evoria-control-border);
+}
+@supports not ((appearance: base-select) and selector(::picker(select))) {
+  select option {
+    background: var(--evoria-surface);
+    color: var(--evoria-ink);
+  }
+}
+input:disabled,
+select:disabled,
+textarea:disabled,
+.evoria-button:disabled {
+  opacity: 1;
+  color: var(--evoria-muted);
+  background: var(--evoria-bg);
+  border: 1px solid var(--evoria-control-border);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+.login-input-container {
+  border-color: var(--evoria-control-border);
+}
+.login-input-container input {
+  border: 0;
+  background: transparent;
+}
+.login-brand p,
+.event-success-message {
+  color: #076c65;
+}
+.event-success-icon {
+  color: #087a70;
+  border-color: #087a70;
+}
+.dashboard-hero__button {
+  color: #492aa3;
+}
+.permission-switch-track {
+  background: #69778c;
+}
+.peer:checked ~ .permission-switch-track {
+  background: #076c65;
+}
+.permission-switch-thumb {
+  background: #fff;
+}
+
+[data-theme='dark'] .bg-white {
+  background-color: var(--evoria-surface);
+}
+[data-theme='dark'] .bg-white\/70 {
+  background-color: rgb(27 40 59 / 70%);
+}
+[data-theme='dark'] .dashboard-hero__button {
+  background: #fff;
+  color: #492aa3;
+}
+[data-theme='dark'] .text-teal {
+  color: #65ded0;
+}
+[data-theme='dark'] .text-violet {
+  color: #d0c5ff;
+}
+[data-theme='dark'] .brightness-0 {
+  filter: brightness(0) invert(1);
+  opacity: 1;
+}
+[data-theme='dark'] .text-slate-500 {
+  color: #b2bfd3;
+}
+[data-theme='dark'] .bg-navy {
+  background-color: #101a33;
+}
+[data-theme='dark'] .backdrop\:bg-navy\/50::backdrop {
+  background-color: rgb(0 0 0 / 65%);
+}
+[data-theme='dark'] .backdrop\:bg-navy\/60::backdrop {
+  background-color: rgb(0 0 0 / 70%);
+}
+[data-theme='dark']
+  :is(
+    .login-card,
+    .login-brand-logo,
+    .login-alert-modal,
+    .event-success-modal
+  ) {
+  background: var(--evoria-surface);
+}
+[data-theme='dark'] :is(.login-error, .login-alert-kicker) {
+  color: #ffabb9;
+}
+[data-theme='dark'] .event-success-icon {
+  color: #9ce8da;
+  border-color: #9ce8da;
+}
+[data-theme='dark'] .login-brand p,
+[data-theme='dark'] .event-success-message {
+  color: #65ded0;
+}
+[data-theme='dark'] input::placeholder,
+[data-theme='dark'] textarea::placeholder {
+  color: #a0aec2;
 }

@@ -67,7 +67,11 @@ function BudgetsWorkspaceContent() {
       })
       .catch((error: unknown) => {
         if (active) {
-          setResult({ revision, error: apiErrorMessage(error) });
+          setResult((previous) => ({
+            revision,
+            items: previous?.items,
+            error: apiErrorMessage(error),
+          }));
           notify(apiErrorMessage(error), 'error');
         }
       });
@@ -85,7 +89,11 @@ function BudgetsWorkspaceContent() {
       })
       .catch((error: unknown) => {
         if (active) {
-          setInbox({ revision, error: apiErrorMessage(error) });
+          setInbox((previous) => ({
+            revision,
+            items: previous?.items,
+            error: apiErrorMessage(error),
+          }));
           notify(apiErrorMessage(error), 'error');
         }
       });
@@ -94,9 +102,9 @@ function BudgetsWorkspaceContent() {
     };
   }, [user, approve, revision, notify]);
 
-  const events = result?.revision === revision ? result.items : undefined;
+  const events = result?.items;
   const error = result?.revision === revision ? result.error : undefined;
-  const pending = inbox?.revision === revision ? inbox : undefined;
+  const pending = inbox;
   function refresh() {
     feedback.dismiss();
     setRevision((value) => value + 1);
@@ -157,7 +165,15 @@ function BudgetsWorkspaceContent() {
                 Abre una tarjeta para gestionar el presupuesto de ese evento.
               </p>
             </div>
-            {error ? (
+            {error && events && (
+              <Card>
+                <p className="text-sm text-red-800">{error}</p>
+                <Button className="mt-4" variant="secondary" onClick={refresh}>
+                  Reintentar eventos
+                </Button>
+              </Card>
+            )}
+            {error && !events ? (
               <Card>
                 <p className="text-sm text-red-800">{error}</p>
                 <Button className="mt-4" variant="secondary" onClick={refresh}>
@@ -276,9 +292,10 @@ function BudgetsWorkspaceContent() {
                 decidir.
               </p>
             )}
-            {pending?.error ? (
+            {pending?.error && (
               <p className="text-sm text-red-800">{pending.error}</p>
-            ) : !pending?.items ? (
+            )}
+            {pending?.error && !pending.items ? null : !pending?.items ? (
               <LoadingState label="Cargando autorizaciones…" />
             ) : !pending.items.length ? (
               <p className="py-4 text-muted">

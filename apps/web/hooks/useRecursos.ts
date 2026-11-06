@@ -25,9 +25,10 @@ export function useRecursos(
     data?: RecursosServiceResult;
     error?: string;
     key: string;
+    context?: string;
   }>({ key: '' });
   const [attempt, setAttempt] = useState(0);
-  const key = JSON.stringify([
+  const context = JSON.stringify([
     user?.id,
     user?.tenant?.id,
     allowed,
@@ -36,9 +37,9 @@ export function useRecursos(
     status,
     page,
     limit,
-    attempt,
     allPages,
   ]);
+  const key = JSON.stringify([context, attempt]);
   useEffect(() => {
     if (!user || !allowed) return;
     let active = true;
@@ -47,26 +48,40 @@ export function useRecursos(
       : getResources({ search, type, status, page, limit })
     )
       .then((data) => {
-        if (active) setResult({ data, key });
+        if (active) setResult({ data, key, context });
       })
       .catch((error: unknown) => {
         if (active)
-          setResult({
+          setResult((previous) => ({
             key,
+            context,
+            data: previous.context === context ? previous.data : undefined,
             error:
               error instanceof Error
                 ? error.message
                 : 'No fue posible cargar los recursos.',
-          });
+          }));
       });
     return () => {
       active = false;
     };
-  }, [search, type, status, page, limit, key, allPages, user, allowed]);
+  }, [
+    search,
+    type,
+    status,
+    page,
+    limit,
+    key,
+    context,
+    allPages,
+    user,
+    allowed,
+  ]);
+  const data = result.context === context ? result.data : undefined;
   return {
-    recursos: result.key === key ? (result.data?.items ?? []) : [],
-    pagination: result.key === key ? result.data?.pagination : undefined,
-    isLoading: result.key !== key,
+    recursos: data?.items ?? [],
+    pagination: data?.pagination,
+    isLoading: !data && result.key !== key,
     error: result.key === key ? result.error : undefined,
     retry: () => setAttempt((value) => value + 1),
   };

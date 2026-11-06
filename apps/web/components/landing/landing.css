@@ -1888,6 +1888,122 @@
   color: var(--indigo-700);
   text-decoration: underline;
 }
+
+/* Landing has its own palette; keep its surfaces and copy paired by theme. */
+.evoria-landing {
+  --accent: #a52c45;
+  --gradient-primary: linear-gradient(135deg, #075f59, #492aa3);
+}
+.evoria-landing
+  :is(
+    .btn-primary,
+    .nav-links .nav-login,
+    .about-icon,
+    .module-icon,
+    .team-avatar,
+    .contact-icon
+  ) {
+  background: var(--gradient-primary);
+  color: #fff;
+}
+.evoria-landing :is(.solution-tag, .ps-bullet.solution) {
+  color: #076b5a;
+}
+.evoria-landing
+  :is(
+    .usecase-actor,
+    .contact-label,
+    .form-group input::placeholder,
+    .form-group textarea::placeholder
+  ) {
+  color: #52627b;
+}
+.evoria-landing :is(.footer-brand p, .footer-bottom p, .footer-links a) {
+  color: #bdc9dc;
+}
+.evoria-landing .stat-label {
+  color: #e2e8f0;
+}
+.evoria-landing :is(.form-group input, .form-group textarea) {
+  border-color: #778398;
+}
+
+[data-theme='dark'] .evoria-landing {
+  --slate-50: #101827;
+  --slate-100: #e2e8f0;
+  --slate-400: #b2bfd3;
+  --slate-500: #b2bfd3;
+  --slate-600: #c3cfdf;
+  --slate-700: #dbe5f3;
+  --slate-800: #e6eef9;
+  --slate-900: #f1f5ff;
+  --accent: #ffb3bf;
+}
+[data-theme='dark'] .evoria-landing :is(.navbar, .navbar.scrolled, .nav-links) {
+  background: rgb(16 24 39 / 97%);
+  border-color: #52637c;
+}
+[data-theme='dark']
+  .evoria-landing
+  :is(.about, .problem-solution, .modules, .usecases, .team, .contact) {
+  background: #101827;
+}
+[data-theme='dark']
+  .evoria-landing
+  :is(.about, .problem-solution, .modules, .team, .contact)::before,
+[data-theme='dark'] .evoria-landing .contact::after {
+  opacity: 0;
+}
+[data-theme='dark']
+  .evoria-landing
+  :is(
+    .about-card,
+    .ps-card,
+    .module-card,
+    .usecase-card,
+    .team-card,
+    .contact-form,
+    .contact-item,
+    .ps-icon
+  ) {
+  background: #1b283b;
+  border-color: #52637c;
+}
+[data-theme='dark']
+  .evoria-landing
+  :is(.form-group input, .form-group textarea) {
+  background: #101827;
+  color: #eef3ff;
+  border-color: #91a0b5;
+}
+[data-theme='dark']
+  .evoria-landing
+  :is(
+    .usecase-actor,
+    .contact-label,
+    .form-group input::placeholder,
+    .form-group textarea::placeholder
+  ) {
+  color: #b2bfd3;
+}
+[data-theme='dark'] .evoria-landing :is(.solution-tag, .ps-bullet.solution) {
+  color: #9ce8da;
+}
+[data-theme='dark'] .evoria-landing :is(.problem-tag, .ps-bullet.problem) {
+  color: #ffb3bf;
+}
+[data-theme='dark'] .evoria-landing .footer {
+  background: #0b1220;
+  color: #bdc9dc;
+}
+[data-theme='dark']
+  .evoria-landing
+  :is(.footer-brand p, .footer-bottom p, .footer-links a) {
+  color: #bdc9dc;
+}
+[data-theme='dark'] .evoria-landing .contact-hint a {
+  color: #d0c5ff;
+}
 @media (max-width: 768px) {
   .evoria-landing section[id] {
     scroll-margin-top: 72px;

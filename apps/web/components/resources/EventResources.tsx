@@ -26,6 +26,13 @@ export function EventResources({
   cancelled = false,
   editable = false,
   budgetReady = true,
+  visibleBudgetReady = budgetReady,
+  budgetMissing = false,
+  updating = false,
+  refreshRevision = 0,
+  committedRevision = refreshRevision,
+  onRefreshingChange,
+  onRefreshResult,
   onChanged,
   onBusyChange,
   inDialog = false,
@@ -34,6 +41,17 @@ export function EventResources({
   cancelled?: boolean;
   editable?: boolean;
   budgetReady?: boolean;
+  visibleBudgetReady?: boolean;
+  budgetMissing?: boolean;
+  updating?: boolean;
+  refreshRevision?: number;
+  committedRevision?: number;
+  onRefreshingChange?: (refreshing: boolean) => void;
+  onRefreshResult?: (result: {
+    revision: number;
+    errors: string[];
+    inventoryChecked: boolean;
+  }) => void;
   onChanged?: () => void;
   onBusyChange?: (busy: boolean) => void;
   inDialog?: boolean;
@@ -47,8 +65,31 @@ export function EventResources({
     can('inventario.ver') &&
     budgetReady &&
     !cancelled;
-  const [assignments, setAssignments] = useState<EventResourceAssignment[]>([]);
-  const [inventory, setInventory] = useState<Recurso[]>([]);
+  const showAssignForm =
+    editable &&
+    canView &&
+    can('asignaciones.crear') &&
+    can('inventario.ver') &&
+    visibleBudgetReady &&
+    !cancelled;
+  const [assignmentData, setAssignmentData] = useState<{
+    items: EventResourceAssignment[];
+    previous: EventResourceAssignment[];
+    revision: number;
+  }>({ items: [], previous: [], revision: 0 });
+  const [inventoryData, setInventoryData] = useState<{
+    items: Recurso[];
+    previous: Recurso[];
+    revision: number;
+  }>({ items: [], previous: [], revision: 0 });
+  const assignments =
+    assignmentData.revision > committedRevision
+      ? assignmentData.previous
+      : assignmentData.items;
+  const inventory =
+    inventoryData.revision > committedRevision
+      ? inventoryData.previous
+      : inventoryData.items;
   const [selectedId, setSelectedId] = useState('');
   const [quantity, setQuantity] = useState('1');
   const [loading, setLoading] = useState(true);
@@ -58,9 +99,9 @@ export function EventResources({
   const [inventoryError, setInventoryError] = useState('');
   const [inventoryLoadedKey, setInventoryLoadedKey] = useState('');
   const feedback = useFeedback();
-  const { notify } = feedback;
   const [revision, setRevision] = useState(0);
-  const inventoryKey = `${eventId}:${revision}:${canAssign}`;
+  const [completedRefresh, setCompletedRefresh] = useState(-1);
+  const inventoryKey = `${eventId}:${revision}:${refreshRevision}:${canAssign}`;
   const inventoryLoading = canAssign && inventoryLoadedKey !== inventoryKey;
   const selected = inventory.find((item) => item.id === selectedId);
 
@@ -69,17 +110,63 @@ export function EventResources({
   }, [busy, onBusyChange]);
 
   useEffect(() => {
+    onRefreshingChange?.(
+      (canView && completedRefresh !== refreshRevision) || inventoryLoading,
+    );
+    return () => onRefreshingChange?.(false);
+  }, [
+    canView,
+    completedRefresh,
+    refreshRevision,
+    inventoryLoading,
+    onRefreshingChange,
+  ]);
+
+  useEffect(() => {
+    if (
+      !onRefreshResult ||
+      !canView ||
+      completedRefresh !== refreshRevision ||
+      inventoryLoading
+    )
+      return;
+    onRefreshResult({
+      revision: refreshRevision,
+      inventoryChecked: canAssign,
+      errors: [
+        loadError && `Asignaciones: ${loadError}`,
+        canAssign && inventoryError && `Inventario: ${inventoryError}`,
+      ].filter((value): value is string => !!value),
+    });
+  }, [
+    onRefreshResult,
+    canView,
+    canAssign,
+    completedRefresh,
+    refreshRevision,
+    inventoryLoading,
+    loadError,
+    inventoryError,
+  ]);
+
+  useEffect(() => {
     if (!canView) return;
     let active = true;
     getEventResources(eventId)
       .then((items) => {
         if (active) {
-          setAssignments(items);
+          setAssignmentData((previous) => ({
+            items,
+            previous:
+              previous.revision === refreshRevision
+                ? previous.previous
+                : previous.items,
+            revision: refreshRevision,
+          }));
           setLoadError('');
         }
       })
       .catch((error: unknown) => {
-        if (active && editable) notify(apiErrorMessage(error), 'error');
         if (active)
           setLoadError(
             error instanceof Error
@@ -88,12 +175,15 @@ export function EventResources({
           );
       })
       .finally(() => {
-        if (active) setLoading(false);
+        if (active) {
+          setLoading(false);
+          setCompletedRefresh(refreshRevision);
+        }
       });
     return () => {
       active = false;
     };
-  }, [canView, eventId, revision, editable, notify]);
+  }, [canView, eventId, revision, refreshRevision]);
 
   useEffect(() => {
     if (!canAssign) return;
@@ -101,15 +191,20 @@ export function EventResources({
     getAvailableInventory()
       .then((items) => {
         if (active) {
-          setInventory(items);
+          setInventoryData((previous) => ({
+            items,
+            previous:
+              previous.revision === refreshRevision
+                ? previous.previous
+                : previous.items,
+            revision: refreshRevision,
+          }));
           setInventoryError('');
           setInventoryLoadedKey(inventoryKey);
         }
       })
       .catch((error: unknown) => {
-        if (active) notify(apiErrorMessage(error), 'error');
         if (active) {
-          setInventory([]);
           setInventoryLoadedKey(inventoryKey);
           setInventoryError(
             error instanceof Error
@@ -121,12 +216,12 @@ export function EventResources({
     return () => {
       active = false;
     };
-  }, [canAssign, eventId, revision, notify, inventoryKey]);
+  }, [canAssign, eventId, revision, refreshRevision, inventoryKey]);
 
   async function assign(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const amount = Number(quantity);
-    if (busy || !canAssign) return;
+    if (busy || updating || inventoryLoading || !canAssign) return;
     if (
       !selected ||
       !Number.isInteger(amount) ||
@@ -167,7 +262,14 @@ export function EventResources({
   }
 
   async function release(item: EventResourceAssignment) {
-    if (!editable || !canView || !can('asignaciones.eliminar') || busy) return;
+    if (
+      !editable ||
+      !canView ||
+      !can('asignaciones.eliminar') ||
+      busy ||
+      updating
+    )
+      return;
     if (
       !(await feedback.confirm(
         'Liberar recurso',
@@ -223,7 +325,7 @@ export function EventResources({
           pero no asignar más unidades.
         </p>
       ) : null}
-      {editable && !cancelled && !budgetReady && (
+      {editable && !cancelled && budgetMissing && (
         <p className="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
           Para reservar unidades, primero consulta e inicia el presupuesto del
           evento en Presupuestos.
@@ -245,7 +347,7 @@ export function EventResources({
           </Button>
         </div>
       ) : null}
-      {loadError ? (
+      {loadError && !updating ? (
         <div className="my-4">
           {editable ? (
             <p className="rounded-xl bg-red-50 p-4 text-sm text-red-800">
@@ -266,7 +368,7 @@ export function EventResources({
           </Button>
         </div>
       ) : null}
-      {inventoryError ? (
+      {inventoryError && !updating ? (
         <div className="my-4">
           <p className="rounded-xl bg-red-50 p-4 text-sm text-red-800">
             {inventoryError}
@@ -280,7 +382,7 @@ export function EventResources({
           </Button>
         </div>
       ) : null}
-      {canAssign ? (
+      {showAssignForm ? (
         <form
           noValidate
           onSubmit={assign}
@@ -296,7 +398,7 @@ export function EventResources({
               className={inputClass}
               value={selectedId}
               required
-              disabled={busy || loading || inventoryLoading}
+              disabled={busy || updating || loading || inventoryLoading}
               onChange={(event) => setSelectedId(event.target.value)}
             >
               <option value="">Selecciona un recurso</option>
@@ -316,7 +418,7 @@ export function EventResources({
               max={selected?.availableQuantity}
               step={1}
               required
-              disabled={busy || loading || inventoryLoading}
+              disabled={busy || updating || loading || inventoryLoading}
               value={quantity}
               onChange={(event) => setQuantity(event.target.value)}
             />
@@ -328,11 +430,18 @@ export function EventResources({
                 : undefined
             }
             type="submit"
-            disabled={busy || loading || inventoryLoading || !selected}
+            disabled={
+              busy ||
+              updating ||
+              loading ||
+              inventoryLoading ||
+              !!inventoryError ||
+              !selected
+            }
           >
             {busy ? 'Procesando…' : 'Asignar recurso'}
           </Button>
-          {inventoryLoading && (
+          {inventoryLoading && !inventoryLoadedKey && (
             <div
               className={inDialog ? 'sm:col-span-2 xl:col-span-3' : 'w-full'}
             >
@@ -362,7 +471,8 @@ export function EventResources({
       ) : null}
       {loading ? (
         <LoadingState label="Cargando asignaciones…" />
-      ) : loadError ? null : assignments.length === 0 ? (
+      ) : assignments.length === 0 && loadError ? null : assignments.length ===
+        0 ? (
         inDialog ? (
           <EmptyState
             title="Todavía no hay reservas"
@@ -407,7 +517,7 @@ export function EventResources({
                       className="mt-3"
                       type="button"
                       variant="secondary"
-                      disabled={busy || loading}
+                      disabled={busy || updating || loading}
                       onClick={() => void release(item)}
                     >
                       Liberar recurso

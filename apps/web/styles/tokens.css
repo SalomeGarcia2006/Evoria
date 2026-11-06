@@ -9,7 +9,13 @@
   --evoria-violet: #6a4cff;
   --evoria-coral: #ff5d73;
   --evoria-amber: #ffb020;
-  --evoria-action: linear-gradient(135deg, #12b5a6, #6a4cff);
+  --evoria-action: linear-gradient(135deg, #075f59, #492aa3);
+  --evoria-control-border: #778398;
+  --evoria-focus: #5032bb;
+  --evoria-select-hover: #e8edf7;
+  --evoria-select-selected: #e4e0ff;
+  --evoria-select-selected-hover: #d7d0ff;
+  --evoria-select-selected-ink: #392184;
   --evoria-banner: linear-gradient(120deg, #2a1b7a, #6a4cff);
   --evoria-shadow: 0 14px 30px rgb(20 33 61 / 10%);
   --evoria-space: 1.5rem;

@@ -37,13 +37,15 @@ function ProvidersContent() {
   const [revision, setRevision] = useState(0);
   const [result, setResult] = useState<{
     key: string;
+    queryKey: string;
     data?: ProviderList;
     error?: string;
   }>();
   const [panel, setPanel] = useState<Provider | 'create' | null>(null);
   const [deactivating, setDeactivating] = useState<Provider | null>(null);
   const [notice, setNotice] = useState('');
-  const key = JSON.stringify([search, category, status, page, revision]);
+  const queryKey = JSON.stringify([search, category, status, page]);
+  const key = JSON.stringify([queryKey, revision]);
   useEffect(() => {
     if (!allowed) return;
     let active = true;
@@ -56,22 +58,24 @@ function ProvidersContent() {
         limit: 10,
       })
         .then((data) => {
-          if (active) setResult({ key, data });
+          if (active) setResult({ key, queryKey, data });
         })
         .catch((error: unknown) => {
           if (active)
-            setResult({
+            setResult((previous) => ({
               key,
+              queryKey,
+              data: previous?.queryKey === queryKey ? previous.data : undefined,
               error: apiErrorMessage(error),
-            });
+            }));
         });
     }, 250);
     return () => {
       active = false;
       clearTimeout(timer);
     };
-  }, [allowed, search, category, status, page, key]);
-  const data = result?.key === key ? result.data : undefined;
+  }, [allowed, search, category, status, page, key, queryKey]);
+  const data = result?.queryKey === queryKey ? result.data : undefined;
   const error = result?.key === key ? result.error : undefined;
   function saved(message: string) {
     setPanel(null);
@@ -147,7 +151,15 @@ function ProvidersContent() {
               </select>
             </label>
           </div>
-          {error ? (
+          {error && data && (
+            <>
+              <ErrorMessage message={error} />
+              <Button onClick={() => setRevision((value) => value + 1)}>
+                Reintentar
+              </Button>
+            </>
+          )}
+          {error && !data ? (
             <>
               <ErrorMessage message={error} />
               <Button onClick={() => setRevision((value) => value + 1)}>

@@ -45,16 +45,18 @@ function AssignmentsContent() {
         if (current) setResult({ attempt, events });
       })
       .catch((error: unknown) => {
-        if (current) setResult({ attempt, error: apiErrorMessage(error) });
+        if (current)
+          setResult((previous) => ({
+            attempt,
+            events: previous?.events,
+            error: apiErrorMessage(error),
+          }));
       });
     return () => {
       current = false;
     };
   }, [attempt, canSeeEvents]);
-  const events =
-    result?.attempt === attempt
-      ? result.events?.filter((event) => isActiveEvent(event.status))
-      : undefined;
+  const events = result?.events?.filter((event) => isActiveEvent(event.status));
   const error = result?.attempt === attempt ? result.error : undefined;
   const onEventLoaded = useCallback((event: EventItem) => {
     setResult((previous) =>
@@ -98,6 +100,17 @@ function AssignmentsContent() {
             </Button>
           )}
         </header>
+        {error && events && (
+          <Card>
+            <ErrorMessage message={error} />
+            <Button
+              className="mt-4"
+              onClick={() => setAttempt((value) => value + 1)}
+            >
+              Reintentar eventos
+            </Button>
+          </Card>
+        )}
         {!canSeeEvents ? (
           <Card>
             <p role="status">
@@ -105,7 +118,7 @@ function AssignmentsContent() {
               evento y consultar sus asignaciones.
             </p>
           </Card>
-        ) : error ? (
+        ) : error && !events ? (
           <Card>
             <ErrorMessage message={error} />
             <Button
