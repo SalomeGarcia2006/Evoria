@@ -211,7 +211,21 @@ test('recursos: campos obligatorios, error sin pérdida de datos y éxitos con e
   await expect(
     page.getByRole('alertdialog').locator('.login-alert-modal'),
   ).toBeVisible();
+  expect(
+    state.calls.filter(
+      (call) => call.path === '/inventory' && call.method === 'POST',
+    ),
+  ).toHaveLength(0);
   await acknowledgeFeedback(page, 'Completa el nombre y el tipo');
+  await expect(dialog.getByLabel('Nombre del recurso')).toHaveAttribute(
+    'aria-invalid',
+    'true',
+  );
+  await expect(dialog.getByLabel('Cantidad total')).toHaveAttribute(
+    'aria-invalid',
+    'true',
+  );
+  await expect(page.getByRole('alertdialog')).toHaveCount(0);
   await dialog.getByLabel('Nombre del recurso').fill('Mesas');
   await dialog.getByLabel('Tipo', { exact: true }).fill('Mobiliario');
   await dialog.getByLabel('Cantidad total').fill('3');

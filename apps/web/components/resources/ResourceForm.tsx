@@ -22,6 +22,7 @@ export function ResourceForm({
   onSavingChange?: (isSaving: boolean) => void;
 }) {
   const [isSaving, setIsSaving] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const feedback = useFeedback();
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -31,16 +32,25 @@ export function ResourceForm({
     const type = String(data.get('type') ?? '').trim();
     const unitCost = Number(data.get('unitCost'));
     const totalQuantity = Number(data.get('totalQuantity'));
+    const next: Record<string, string> = {};
+    if (name.length < 2 || name.length > 120)
+      next.name = 'Ingresa un nombre de 2 a 120 caracteres.';
+    if (type.length < 2 || type.length > 80)
+      next.type = 'Ingresa un tipo de 2 a 80 caracteres.';
     if (
       !String(data.get('unitCost') ?? '').trim() ||
-      !String(data.get('totalQuantity') ?? '').trim() ||
-      name.length < 2 ||
-      type.length < 2 ||
       !Number.isFinite(unitCost) ||
-      unitCost < 0 ||
-      !Number.isInteger(totalQuantity) ||
+      unitCost < 0
+    )
+      next.unitCost = 'Ingresa un costo no negativo.';
+    if (
+      !String(data.get('totalQuantity') ?? '').trim() ||
+      !Number.isSafeInteger(totalQuantity) ||
       totalQuantity < (resource?.reservedQuantity ?? 0)
-    ) {
+    )
+      next.totalQuantity = `Ingresa una cantidad entera de al menos ${resource?.reservedQuantity ?? 0}.`;
+    setErrors(next);
+    if (Object.keys(next).length) {
       feedback.guide(
         `Completa el nombre y el tipo con al menos dos caracteres. Indica un costo no negativo y una cantidad total entera de al menos ${resource?.reservedQuantity ?? 0} unidades para cubrir las reservas existentes.`,
         'Revisa los datos del recurso',
@@ -90,7 +100,14 @@ export function ResourceForm({
             required
             minLength={2}
             maxLength={120}
+            aria-invalid={!!errors.name}
+            aria-describedby={errors.name ? 'resource-name-error' : undefined}
           />
+          {errors.name && (
+            <span id="resource-name-error" className="text-red-700">
+              {errors.name}
+            </span>
+          )}
         </label>
         <label className="grid gap-2 text-sm font-semibold">
           Tipo
@@ -102,7 +119,14 @@ export function ResourceForm({
             required
             minLength={2}
             maxLength={80}
+            aria-invalid={!!errors.type}
+            aria-describedby={errors.type ? 'resource-type-error' : undefined}
           />
+          {errors.type && (
+            <span id="resource-type-error" className="text-red-700">
+              {errors.type}
+            </span>
+          )}
         </label>
         <label className="grid gap-2 text-sm font-semibold">
           Estado
@@ -134,7 +158,16 @@ export function ResourceForm({
             step={1}
             required
             defaultValue={resource?.totalQuantity}
+            aria-invalid={!!errors.totalQuantity}
+            aria-describedby={
+              errors.totalQuantity ? 'resource-quantity-error' : undefined
+            }
           />
+          {errors.totalQuantity && (
+            <span id="resource-quantity-error" className="text-red-700">
+              {errors.totalQuantity}
+            </span>
+          )}
         </label>
         <label className="grid gap-2 text-sm font-semibold">
           Costo unitario (COP)
@@ -146,7 +179,16 @@ export function ResourceForm({
             step="0.01"
             required
             defaultValue={resource?.unitCost}
+            aria-invalid={!!errors.unitCost}
+            aria-describedby={
+              errors.unitCost ? 'resource-cost-error' : undefined
+            }
           />
+          {errors.unitCost && (
+            <span id="resource-cost-error" className="text-red-700">
+              {errors.unitCost}
+            </span>
+          )}
         </label>
         <label className="grid gap-2 text-sm font-semibold sm:col-span-2">
           Descripción

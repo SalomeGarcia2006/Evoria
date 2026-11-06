@@ -76,14 +76,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<AuthContextValue>(() => {
-    const hasDeveloperUi = user?.isDeveloper === true;
-
     return {
       user,
       isAuthenticated: user !== null,
       isLoading,
-      can: (permission) =>
-        hasDeveloperUi || (user?.permissions.includes(permission) ?? false),
+      can: (permission) => user?.permissions.includes(permission) ?? false,
       selectTenant: async (tenantId) => {
         const session = await changeTenant(tenantId);
         ++sessionRequestId.current;

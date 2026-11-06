@@ -111,6 +111,7 @@ async function setup(page, options = {}) {
     if (path === '/auth/me')
       return send({
         scope: 'tenant',
+        isDeveloper: options.isDeveloper === true,
         user: { id: state.actor, name: state.actor, email: 'qa@example.test' },
         profile: { name: 'QA' },
         tenant: { id: 't1', name: 'Empresa financiera' },
@@ -714,6 +715,31 @@ test('evento cancelado: conserva detalle sin solicitudes ni decisiones nuevas', 
   expect(overflow).toBe(false);
 });
 
+test('desarrollador usa los permisos efectivos de la empresa', async ({
+  page,
+}) => {
+  const state = await setup(page, {
+    isDeveloper: true,
+    permissions: ['presupuestos.ver'],
+  });
+  await page.goto('/presupuestos');
+  await expect(
+    page.getByRole('button', { name: 'Ver presupuesto de Evento financiero' }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: /Autorizaciones pendientes/ }),
+  ).toHaveCount(0);
+  expect(
+    state.calls.filter((call) => call.path === '/budgets/authorizations'),
+  ).toHaveLength(0);
+  await page
+    .getByRole('button', { name: 'Ver presupuesto de Evento financiero' })
+    .click();
+  await expect(
+    page.getByRole('button', { name: 'Añadir presupuesto' }),
+  ).toHaveCount(0);
+});
+
 test('solicitud valida COP y motivo, conserva formulario ante 403 y oculta autoaprobación', async ({
   page,
 }) => {
@@ -723,6 +749,15 @@ test('solicitud valida COP y motivo, conserva formulario ante 403 y oculta autoa
   await openBudget(page);
   await page.getByRole('button', { name: 'Añadir presupuesto' }).click();
   const dialog = page.getByRole('dialog');
+  await dialog.getByRole('button', { name: 'Enviar solicitud' }).click();
+  await expect(page.getByRole('alertdialog')).toContainText('Revisa los datos');
+  expect(
+    state.calls.filter(
+      (call) => call.path.endsWith('/requests') && call.method === 'POST',
+    ),
+  ).toHaveLength(0);
+  await acknowledgeFeedback(page);
+  await expect(page.getByRole('alertdialog')).toHaveCount(0);
   await dialog.getByLabel('Monto solicitado (COP)').fill('2.5');
   await dialog.getByLabel('Motivo', { exact: true }).fill('corto');
   await dialog.getByRole('button', { name: 'Enviar solicitud' }).click();

@@ -19,6 +19,7 @@ export function useFeedback() {
     (message: string, title = 'Cómo continuar', tone: Tone = 'info') => {
       resolve.current?.(false);
       resolve.current = null;
+      setNotice(null);
       setPrompt({ title, message, tone });
     },
     [],
