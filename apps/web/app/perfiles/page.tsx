@@ -8,10 +8,12 @@ import { Card } from '../../components/ui/Card';
 import { DataTable } from '../../components/ui/DataTable';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { PermissionGate } from '../../components/auth/PermissionGate';
+import { useAuth } from '../../hooks/useAuth';
 import {
   createProfile as createApiProfile,
   getPermissionModules,
   getProfiles,
+  updateProfile as updateApiProfile,
   type ApiProfile,
   type PermissionModule,
 } from '../../services/profiles-api.service';
@@ -59,6 +61,7 @@ function PermissionSwitch({
 }
 
 export default function PerfilesPage() {
+  const { can } = useAuth();
   const [profiles, setProfiles] = useState<ApiProfile[]>([]);
   const [permissionModules, setPermissionModules] = useState<
     PermissionModule[]
@@ -71,6 +74,7 @@ export default function PerfilesPage() {
   const [newProfilePermissionKeys, setNewProfilePermissionKeys] = useState<
     string[]
   >([]);
+  const [editingProfile, setEditingProfile] = useState<ApiProfile | null>(null);
 
   useEffect(() => {
     Promise.all([getProfiles(), getPermissionModules()])
@@ -88,6 +92,7 @@ export default function PerfilesPage() {
   }, []);
 
   function openCreateForm() {
+    setEditingProfile(null);
     setNewProfileName('');
     setModuleSearch('');
     setNewProfilePermissionKeys(
@@ -100,17 +105,46 @@ export default function PerfilesPage() {
     profileDialog.current?.showModal();
   }
 
+  function openEditForm(profile: ApiProfile) {
+    setEditingProfile(profile);
+    setNewProfileName(profile.name);
+    setModuleSearch('');
+    setNewProfilePermissionKeys(
+      profile.permissions.map((permission) => permission.key),
+    );
+    profileDialog.current?.showModal();
+  }
+
+  function closeProfileDialog() {
+    profileDialog.current?.close();
+    setEditingProfile(null);
+  }
+
   const visibleModules = permissionModules.filter((module) =>
     module.name.toLowerCase().includes(moduleSearch.toLowerCase()),
   );
+  const allPermissionKeys = permissionModules.flatMap((module) =>
+    module.permissions.map((permission) => permission.key),
+  );
+  const allPermissionsSelected =
+    allPermissionKeys.length > 0 &&
+    allPermissionKeys.every((key) => newProfilePermissionKeys.includes(key));
 
-  async function createProfile(event: React.FormEvent<HTMLFormElement>) {
+  function toggleAllPermissions() {
+    setNewProfilePermissionKeys(
+      allPermissionsSelected ? [] : allPermissionKeys,
+    );
+  }
+
+  async function saveProfile(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const name = newProfileName.trim();
     if (
       !name ||
       profiles.some(
-        (profile) => profile.name.toLowerCase() === name.toLowerCase(),
+        (profile) =>
+          profile.id !== editingProfile?.id &&
+          profile.name.toLowerCase() === name.toLowerCase(),
       )
     )
       return;
@@ -118,20 +152,29 @@ export default function PerfilesPage() {
     setIsSaving(true);
     setError('');
     try {
-      const profile = await createApiProfile({
-        name,
-        description: `Perfil ${name}`,
-        permissionKeys: newProfilePermissionKeys,
-      });
-      setProfiles((current) => [...current, profile]);
+      const profile = editingProfile
+        ? await updateApiProfile(editingProfile.id, {
+            name,
+            permissionKeys: newProfilePermissionKeys,
+          })
+        : await createApiProfile({
+            name,
+            description: `Perfil ${name}`,
+            permissionKeys: newProfilePermissionKeys,
+          });
+      setProfiles((current) =>
+        editingProfile
+          ? current.map((item) => (item.id === profile.id ? profile : item))
+          : [...current, profile],
+      );
       setNewProfileName('');
       setNewProfilePermissionKeys([]);
-      profileDialog.current?.close();
+      closeProfileDialog();
     } catch (saveError) {
       setError(
         saveError instanceof Error
           ? saveError.message
-          : 'No fue posible crear el perfil.',
+          : `No fue posible ${editingProfile ? 'editar' : 'crear'} el perfil.`,
       );
     } finally {
       setIsSaving(false);
@@ -168,7 +211,7 @@ export default function PerfilesPage() {
           </p>
         ) : null}
 
-        <PermissionGate permission="perfiles.crear">
+        {can('perfiles.crear') || can('perfiles.editar') ? (
           <dialog
             aria-labelledby="profile-dialog-title"
             className="m-auto h-[calc(100dvh-2rem)] w-11/12 max-w-7xl flex-col overflow-hidden rounded-2xl border border-sky-blue bg-white p-0 text-navy shadow-2xl backdrop:bg-navy/60 open:flex"
@@ -176,15 +219,19 @@ export default function PerfilesPage() {
           >
             <div className="shrink-0 flex flex-col gap-1 border-b border-sky-blue p-6 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-sm text-muted">Nuevo perfil</p>
+                <p className="text-sm text-muted">
+                  {editingProfile ? 'Editar perfil' : 'Nuevo perfil'}
+                </p>
                 <h2 className="text-2xl font-bold" id="profile-dialog-title">
-                  Configura sus permisos
+                  {editingProfile
+                    ? 'Actualiza sus permisos'
+                    : 'Configura sus permisos'}
                 </h2>
               </div>
               <Button
                 aria-label="Cerrar formulario"
                 className="px-3 text-xl leading-none"
-                onClick={() => profileDialog.current?.close()}
+                onClick={closeProfileDialog}
                 type="button"
                 variant="ghost"
               >
@@ -193,12 +240,12 @@ export default function PerfilesPage() {
             </div>
             <form
               className="flex min-h-0 flex-1 flex-col p-8"
-              onSubmit={createProfile}
+              onSubmit={saveProfile}
             >
               <label className="grid max-w-md shrink-0 gap-2 text-sm font-semibold">
                 Nombre del perfil
                 <input
-                  aria-label="Nombre del nuevo perfil"
+                  aria-label="Nombre del perfil"
                   className="rounded-lg border border-sky-blue px-3 py-2 font-normal outline-none focus:border-teal focus:ring-2 focus:ring-sky-blue"
                   onChange={(event) => setNewProfileName(event.target.value)}
                   placeholder="Ej. Gestor de eventos"
@@ -214,22 +261,41 @@ export default function PerfilesPage() {
                       Activa o desactiva los permisos según el rol o perfil.
                     </p>
                   </div>
-                  <label className="relative block">
-                    <span className="sr-only">Buscar módulo</span>
-                    <input
-                      className="w-full rounded-lg border border-sky-blue bg-white py-2 pl-3 pr-9 text-sm font-normal outline-none focus:border-teal focus:ring-2 focus:ring-sky-blue sm:w-44"
-                      onChange={(event) => setModuleSearch(event.target.value)}
-                      placeholder="Buscar módulo..."
-                      type="search"
-                      value={moduleSearch}
-                    />
-                    <span
-                      aria-hidden="true"
-                      className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted"
-                    >
-                      ⌕
-                    </span>
-                  </label>
+                  <div className="flex flex-wrap items-center gap-4">
+                    <div className="flex items-center gap-3">
+                      <div>
+                        <p className="text-sm font-semibold">
+                          Todos los permisos
+                        </p>
+                        <p className="text-xs text-muted">
+                          Activar o desactivar todos
+                        </p>
+                      </div>
+                      <PermissionSwitch
+                        checked={allPermissionsSelected}
+                        label="Seleccionar o quitar todos los permisos"
+                        onChange={toggleAllPermissions}
+                      />
+                    </div>
+                    <label className="relative block">
+                      <span className="sr-only">Buscar módulo</span>
+                      <input
+                        className="w-full rounded-lg border border-sky-blue bg-white py-2 pl-3 pr-9 text-sm font-normal outline-none focus:border-teal focus:ring-2 focus:ring-sky-blue sm:w-44"
+                        onChange={(event) =>
+                          setModuleSearch(event.target.value)
+                        }
+                        placeholder="Buscar módulo..."
+                        type="search"
+                        value={moduleSearch}
+                      />
+                      <span
+                        aria-hidden="true"
+                        className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted"
+                      >
+                        ⌕
+                      </span>
+                    </label>
+                  </div>
                 </div>
                 <div className="min-h-0 flex-1 overflow-auto">
                   <div className="min-w-[720px]">
@@ -297,10 +363,14 @@ export default function PerfilesPage() {
               </section>
               <div className="mt-5 flex shrink-0 gap-3 border-t border-sky-blue pt-5">
                 <Button disabled={isSaving} type="submit">
-                  {isSaving ? 'Guardando…' : 'Guardar perfil'}
+                  {isSaving
+                    ? 'Guardando…'
+                    : editingProfile
+                      ? 'Guardar cambios'
+                      : 'Guardar perfil'}
                 </Button>
                 <Button
-                  onClick={() => profileDialog.current?.close()}
+                  onClick={closeProfileDialog}
                   type="button"
                   variant="secondary"
                 >
@@ -309,7 +379,7 @@ export default function PerfilesPage() {
               </div>
             </form>
           </dialog>
-        </PermissionGate>
+        ) : null}
 
         <Card className="p-0">
           <div className="border-b border-sky-blue px-6 py-4">
@@ -337,6 +407,23 @@ export default function PerfilesPage() {
                     status={profile.status === 'activo' ? 'Activo' : 'Inactivo'}
                   />
                 ),
+              },
+              {
+                key: 'actions',
+                header: 'Acciones',
+                render: (profile) =>
+                  can('perfiles.editar') && !profile.isSystem ? (
+                    <Button
+                      className="px-3 py-1.5 text-xs"
+                      onClick={() => openEditForm(profile)}
+                      type="button"
+                      variant="secondary"
+                    >
+                      Editar
+                    </Button>
+                  ) : (
+                    <span className="text-sm text-muted">—</span>
+                  ),
               },
             ]}
             rowKey={(profile) => profile.id}

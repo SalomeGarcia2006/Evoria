@@ -55,3 +55,17 @@ export async function createProfile(payload: {
     })
   ).data;
 }
+
+export async function updateProfile(
+  id: string,
+  payload: { name: string; permissionKeys: string[] },
+): Promise<ApiProfile> {
+  return (
+    await apiRequest<ApiResponse<ApiProfile>>(`/profiles/${id}`, {
+      method: 'PATCH',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+  ).data;
+}

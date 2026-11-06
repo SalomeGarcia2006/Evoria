@@ -1,159 +1,146 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AppShell } from '../../components/layout/AppShell';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { DataTable } from '../../components/ui/DataTable';
-
-const auditActions = [
-  'Inicio de sesión',
-  'Cierre de sesión',
-  'Creación de evento',
-  'Modificación de evento',
-  'Eliminación o desactivación',
-  'Asignación de recurso',
-  'Cambio de inventario',
-  'Cambio de permisos',
-  'Generación de reporte',
-] as const;
-
-type AuditAction = (typeof auditActions)[number];
-
-type AuditRecord = {
-  id: string;
-  date: string;
-  dateTime: string;
-  user: string;
-  action: AuditAction;
-  detail: string;
-};
-
-const auditRecords: AuditRecord[] = [
-  {
-    id: 'AUD-001',
-    date: '2026-10-26',
-    dateTime: '26 oct 2026 · 09:42',
-    user: 'Laura Gómez',
-    action: 'Inicio de sesión',
-    detail: 'Accedió al panel de la empresa.',
-  },
-  {
-    id: 'AUD-002',
-    date: '2026-10-26',
-    dateTime: '26 oct 2026 · 09:18',
-    user: 'Carlos Ruiz',
-    action: 'Creación de evento',
-    detail: 'Creó el evento Feria de innovación.',
-  },
-  {
-    id: 'AUD-003',
-    date: '2026-10-25',
-    dateTime: '25 oct 2026 · 16:05',
-    user: 'Mariana Torres',
-    action: 'Asignación de recurso',
-    detail: 'Asignó 40 sillas al evento Feria de innovación.',
-  },
-  {
-    id: 'AUD-004',
-    date: '2026-10-25',
-    dateTime: '25 oct 2026 · 14:21',
-    user: 'Laura Gómez',
-    action: 'Cambio de permisos',
-    detail: 'Actualizó los permisos del perfil Operaciones.',
-  },
-  {
-    id: 'AUD-005',
-    date: '2026-10-24',
-    dateTime: '24 oct 2026 · 11:30',
-    user: 'Carlos Ruiz',
-    action: 'Cambio de inventario',
-    detail: 'Ajustó la disponibilidad de proyectores.',
-  },
-  {
-    id: 'AUD-006',
-    date: '2026-10-24',
-    dateTime: '24 oct 2026 · 10:15',
-    user: 'Mariana Torres',
-    action: 'Modificación de evento',
-    detail: 'Actualizó la ubicación del evento Jornada de bienestar.',
-  },
-  {
-    id: 'AUD-007',
-    date: '2026-10-23',
-    dateTime: '23 oct 2026 · 17:42',
-    user: 'Laura Gómez',
-    action: 'Eliminación o desactivación',
-    detail: 'Desactivó el recurso Mesa auxiliar.',
-  },
-  {
-    id: 'AUD-008',
-    date: '2026-10-23',
-    dateTime: '23 oct 2026 · 15:08',
-    user: 'Carlos Ruiz',
-    action: 'Generación de reporte',
-    detail: 'Generó el reporte de uso de recursos.',
-  },
-  {
-    id: 'AUD-009',
-    date: '2026-10-22',
-    dateTime: '22 oct 2026 · 18:00',
-    user: 'Mariana Torres',
-    action: 'Cierre de sesión',
-    detail: 'Cerró su sesión en la plataforma.',
-  },
-];
+import { ErrorMessage } from '../../components/ui/ErrorMessage';
+import { LoadingState } from '../../components/ui/LoadingState';
+import {
+  getAuditLogs,
+  type AuditLogItem,
+  type AuditLogList,
+  type AuditLogQuery,
+} from '../../services/audits.service';
+import { getUsers, type CompanyUser } from '../../services/users.service';
 
 const fieldClassName =
   'rounded-lg border border-sky-blue bg-white px-3 py-2 font-normal outline-none focus:border-teal focus:ring-2 focus:ring-sky-blue';
 
-export default function AuditoriaPage() {
-  const [filters, setFilters] = useState({ action: '', date: '' });
-  const [appliedFilters, setAppliedFilters] = useState<{
-    action: AuditAction;
-    date: string;
-  } | null>(null);
-  const [validationAlert, setValidationAlert] = useState<string | null>(null);
+const initialFilters = {
+  userId: '',
+  module: '',
+  action: '',
+  startDate: '',
+  endDate: '',
+};
 
-  const visibleRecords = useMemo(
+function formatLabel(value: string) {
+  return value.replaceAll('_', ' ');
+}
+
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat('es-CO', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(new Date(value));
+}
+
+export default function AuditoriaPage() {
+  const [filters, setFilters] = useState(initialFilters);
+  const [appliedFilters, setAppliedFilters] = useState(initialFilters);
+  const [auditData, setAuditData] = useState<AuditLogList | null>(null);
+  const [users, setUsers] = useState<CompanyUser[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(true);
+  const [usersUnavailable, setUsersUnavailable] = useState(false);
+  const [error, setError] = useState('');
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
+  const [revision, setRevision] = useState(0);
+
+  useEffect(() => {
+    let isMounted = true;
+    void getUsers()
+      .then((items) => {
+        if (isMounted) setUsers(items);
+      })
+      .catch(() => {
+        if (isMounted) setUsersUnavailable(true);
+      })
+      .finally(() => {
+        if (isMounted) setIsLoadingUsers(false);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+    const query: AuditLogQuery = {
+      ...appliedFilters,
+      page,
+      limit,
+      endDate: appliedFilters.endDate
+        ? `${appliedFilters.endDate}T23:59:59.999`
+        : undefined,
+    };
+    void getAuditLogs(query)
+      .then((data) => {
+        if (isMounted) setAuditData(data);
+      })
+      .catch((loadError: unknown) => {
+        if (isMounted)
+          setError(
+            loadError instanceof Error
+              ? loadError.message
+              : 'No fue posible cargar la auditoría.',
+          );
+      })
+      .finally(() => {
+        if (isMounted) setIsLoading(false);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [appliedFilters, limit, page, revision]);
+
+  const moduleOptions = useMemo(
     () =>
-      appliedFilters
-        ? auditRecords.filter(
-            (record) =>
-              record.action === appliedFilters.action &&
-              record.date === appliedFilters.date,
-          )
-        : auditRecords,
-    [appliedFilters],
+      Array.from(new Set(auditData?.items.map((item) => item.module) ?? [])),
+    [auditData],
+  );
+  const actionOptions = useMemo(
+    () =>
+      Array.from(new Set(auditData?.items.map((item) => item.action) ?? [])),
+    [auditData],
   );
 
   function applyFilters(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setValidationAlert(null);
-
-    const missingFields = [
-      !filters.action && 'Acción',
-      !filters.date && 'Fecha',
-    ].filter(Boolean);
-
-    if (missingFields.length > 0) {
-      setValidationAlert(
-        `Completa los siguientes campos obligatorios: ${missingFields.join(', ')}.`,
-      );
-      return;
-    }
-
-    setAppliedFilters({
-      action: filters.action as AuditAction,
-      date: filters.date,
-    });
+    setIsLoading(true);
+    setError('');
+    setPage(1);
+    setAppliedFilters(filters);
+    setRevision((current) => current + 1);
   }
 
   function clearFilters() {
-    setFilters({ action: '', date: '' });
-    setAppliedFilters(null);
-    setValidationAlert(null);
+    setIsLoading(true);
+    setError('');
+    setFilters(initialFilters);
+    setAppliedFilters(initialFilters);
+    setPage(1);
+    setRevision((current) => current + 1);
   }
+
+  function changeLimit(nextLimit: number) {
+    setIsLoading(true);
+    setError('');
+    setLimit(nextLimit);
+    setPage(1);
+  }
+
+  function changePage(nextPage: number) {
+    setIsLoading(true);
+    setError('');
+    setPage(nextPage);
+  }
+
+  const rows: AuditLogItem[] = auditData?.items ?? [];
+  const pagination = auditData?.pagination;
 
   return (
     <AppShell title="Auditoría">
@@ -164,55 +151,111 @@ export default function AuditoriaPage() {
           </p>
           <h2 className="mt-2 text-3xl font-bold">Auditoría</h2>
           <p className="mt-1 text-muted">
-            Consulta las acciones importantes realizadas en la plataforma.
+            Consulta las acciones registradas en la plataforma.
           </p>
         </header>
 
         <Card>
           <form
-            className="grid gap-4 md:grid-cols-[1fr_1fr_auto]"
-            noValidate
+            className="grid gap-4 md:grid-cols-2 xl:grid-cols-5"
             onSubmit={applyFilters}
           >
             <label className="grid gap-2 text-sm font-semibold">
-              Acción
+              Usuario
               <select
                 className={fieldClassName}
+                disabled={isLoadingUsers || usersUnavailable}
+                onChange={(event) =>
+                  setFilters((current) => ({
+                    ...current,
+                    userId: event.target.value,
+                  }))
+                }
+                value={filters.userId}
+              >
+                <option value="">
+                  {usersUnavailable
+                    ? 'Usuarios no disponibles'
+                    : 'Todos los usuarios'}
+                </option>
+                {users.map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="grid gap-2 text-sm font-semibold">
+              Módulo
+              <input
+                className={fieldClassName}
+                list="audit-modules"
+                onChange={(event) =>
+                  setFilters((current) => ({
+                    ...current,
+                    module: event.target.value,
+                  }))
+                }
+                placeholder="Ej. eventos"
+                value={filters.module}
+              />
+              <datalist id="audit-modules">
+                {moduleOptions.map((module) => (
+                  <option key={module} value={module} />
+                ))}
+              </datalist>
+            </label>
+            <label className="grid gap-2 text-sm font-semibold">
+              Acción
+              <input
+                className={fieldClassName}
+                list="audit-actions"
                 onChange={(event) =>
                   setFilters((current) => ({
                     ...current,
                     action: event.target.value,
                   }))
                 }
-                required
+                placeholder="Ej. crear"
                 value={filters.action}
-              >
-                <option disabled value="">
-                  Selecciona una acción
-                </option>
-                {auditActions.map((action) => (
-                  <option key={action} value={action}>
-                    {action}
-                  </option>
+              />
+              <datalist id="audit-actions">
+                {actionOptions.map((action) => (
+                  <option key={action} value={action} />
                 ))}
-              </select>
+              </datalist>
             </label>
             <label className="grid gap-2 text-sm font-semibold">
-              Fecha
+              Desde
               <input
                 className={fieldClassName}
+                max={filters.endDate || undefined}
                 onChange={(event) =>
                   setFilters((current) => ({
                     ...current,
-                    date: event.target.value,
+                    startDate: event.target.value,
                   }))
                 }
-                required
                 type="date"
-                value={filters.date}
+                value={filters.startDate}
               />
             </label>
-            <div className="flex items-end gap-3">
+            <label className="grid gap-2 text-sm font-semibold">
+              Hasta
+              <input
+                className={fieldClassName}
+                min={filters.startDate || undefined}
+                onChange={(event) =>
+                  setFilters((current) => ({
+                    ...current,
+                    endDate: event.target.value,
+                  }))
+                }
+                type="date"
+                value={filters.endDate}
+              />
+            </label>
+            <div className="flex items-end gap-3 md:col-span-2 xl:col-span-5">
               <Button type="submit">Consultar</Button>
               <Button onClick={clearFilters} type="button" variant="secondary">
                 Limpiar
@@ -221,83 +264,109 @@ export default function AuditoriaPage() {
           </form>
         </Card>
 
+        {error ? <ErrorMessage message={error} /> : null}
         <Card className="p-0">
-          <div className="flex flex-col gap-2 border-b border-sky-blue px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 border-b border-sky-blue px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h3 className="font-bold">Historial de acciones</h3>
               <p className="mt-1 text-sm text-muted">
-                Vista visual con registros de ejemplo.
+                {pagination
+                  ? `${pagination.total} registros encontrados.`
+                  : 'Consultando registros.'}
               </p>
             </div>
-            <span className="w-fit rounded-full bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-800">
-              Sin integración API
-            </span>
+            <label className="flex items-center gap-2 text-sm text-muted">
+              Mostrar
+              <select
+                className="rounded-lg border border-sky-blue bg-white px-2 py-1 text-sm"
+                onChange={(event) => changeLimit(Number(event.target.value))}
+                value={limit}
+              >
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </label>
           </div>
-          {visibleRecords.length > 0 ? (
+          {isLoading ? (
+            <div className="p-6">
+              <LoadingState label="Cargando registros de auditoría…" />
+            </div>
+          ) : rows.length > 0 ? (
             <DataTable
               columns={[
                 {
                   key: 'date',
                   header: 'Fecha y hora',
-                  render: (item) => item.dateTime,
+                  render: (item) => formatDate(item.createdAt),
                 },
-                { key: 'user', header: 'Usuario', render: (item) => item.user },
+                {
+                  key: 'user',
+                  header: 'Usuario',
+                  render: (item) => item.userName,
+                },
+                {
+                  key: 'module',
+                  header: 'Módulo',
+                  render: (item) => formatLabel(item.module),
+                },
                 {
                   key: 'action',
                   header: 'Acción',
-                  render: (item) => item.action,
+                  render: (item) => formatLabel(item.action),
+                },
+                {
+                  key: 'entity',
+                  header: 'Entidad',
+                  render: (item) => item.entity,
                 },
                 {
                   key: 'detail',
                   header: 'Detalle',
-                  render: (item) => item.detail,
+                  render: (item) => item.description,
                 },
               ]}
               rowKey={(item) => item.id}
-              rows={visibleRecords}
+              rows={rows}
             />
           ) : (
             <p className="p-6 text-sm text-muted">
-              No hay registros de ejemplo para los filtros seleccionados.
+              No hay registros para los filtros seleccionados.
             </p>
           )}
+          {pagination && pagination.totalPages > 1 ? (
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-sky-blue px-6 py-4">
+              <p className="text-sm text-muted">
+                Página {pagination.page} de {pagination.totalPages}
+              </p>
+              <div className="flex gap-3">
+                <Button
+                  disabled={pagination.page === 1 || isLoading}
+                  onClick={() => changePage(Math.max(1, pagination.page - 1))}
+                  type="button"
+                  variant="secondary"
+                >
+                  Anterior
+                </Button>
+                <Button
+                  disabled={
+                    pagination.page === pagination.totalPages || isLoading
+                  }
+                  onClick={() =>
+                    changePage(
+                      Math.min(pagination.totalPages, pagination.page + 1),
+                    )
+                  }
+                  type="button"
+                  variant="secondary"
+                >
+                  Siguiente
+                </Button>
+              </div>
+            </div>
+          ) : null}
         </Card>
       </div>
-
-      {validationAlert ? (
-        <div
-          aria-label="Alerta de validación de auditoría"
-          aria-live="assertive"
-          className="login-alert-backdrop fixed inset-0 z-50 grid place-items-center p-6"
-          role="alertdialog"
-          aria-modal="true"
-        >
-          <div className="login-alert-modal">
-            <button
-              aria-label="Cerrar alerta"
-              className="login-alert-close"
-              onClick={() => setValidationAlert(null)}
-              type="button"
-            >
-              ×
-            </button>
-            <div className="login-alert-icon" aria-hidden="true">
-              ⚠️
-            </div>
-            <p className="login-alert-kicker">
-              Revisa los filtros de auditoría
-            </p>
-            <p className="login-alert-message">{validationAlert}</p>
-            <button
-              className="login-alert-button"
-              onClick={() => setValidationAlert(null)}
-              type="button"
-            >
-              Entendido
-            </button>
-          </div>
-        </div>
-      ) : null}
     </AppShell>
   );
 }
