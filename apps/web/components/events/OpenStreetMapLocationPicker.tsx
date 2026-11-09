@@ -211,24 +211,6 @@ export function OpenStreetMapLocationPicker({
           {isSearching ? 'Buscando…' : 'Buscar'}
         </button>
       </div>
-      {results.length > 0 ? (
-        <ul className="overflow-hidden rounded-lg border border-sky-blue bg-white">
-          {results.map((result) => (
-            <li
-              className="border-b border-sky-blue last:border-b-0"
-              key={`${result.lat}-${result.lon}`}
-            >
-              <button
-                className="w-full px-3 py-2 text-left text-sm hover:bg-beige focus:bg-beige focus:outline-none"
-                onClick={() => chooseResult(result)}
-                type="button"
-              >
-                {result.display_name}
-              </button>
-            </li>
-          ))}
-        </ul>
-      ) : null}
       {searchError ? (
         <p className="text-sm text-red-700">{searchError}</p>
       ) : null}
@@ -238,11 +220,31 @@ export function OpenStreetMapLocationPicker({
       <p className="text-sm text-muted">
         Navega por el mapa y haz clic en el punto donde se realizará el evento.
       </p>
-      <div
-        aria-label="Mapa para seleccionar la ubicación exacta del evento"
-        className="h-72 rounded-lg border border-sky-blue"
-        ref={mapContainer}
-      />
+      <div className="relative h-72 overflow-hidden rounded-lg border border-sky-blue">
+        <div
+          aria-label="Mapa para seleccionar la ubicación exacta del evento"
+          className="h-full"
+          ref={mapContainer}
+        />
+        {results.length > 0 ? (
+          <ul className="absolute inset-x-3 top-3 z-[1100] max-h-52 overflow-y-auto rounded-lg border border-sky-blue bg-white/95 shadow-lg backdrop-blur-sm">
+            {results.map((result) => (
+              <li
+                className="border-b border-sky-blue last:border-b-0"
+                key={`${result.lat}-${result.lon}`}
+              >
+                <button
+                  className="w-full px-3 py-2 text-left text-sm hover:bg-beige focus:bg-beige focus:outline-none"
+                  onClick={() => chooseResult(result)}
+                  type="button"
+                >
+                  {result.display_name}
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </div>
       {loadError ? <p className="text-sm text-red-700">{loadError}</p> : null}
       <p className="text-sm text-muted">
         {isResolvingLocation

@@ -29,6 +29,8 @@ export function ResourceForm({
     const data = new FormData(event.currentTarget);
     const name = String(data.get('name') ?? '').trim();
     const type = String(data.get('type') ?? '').trim();
+    const description = String(data.get('description') ?? '').trim();
+    const status = String(data.get('status') ?? '').trim();
     const unitCost = Number(data.get('unitCost'));
     const totalQuantity = Number(data.get('totalQuantity'));
     if (
@@ -36,13 +38,15 @@ export function ResourceForm({
       !String(data.get('totalQuantity') ?? '').trim() ||
       name.length < 2 ||
       type.length < 2 ||
+      !description ||
+      !status ||
       !Number.isFinite(unitCost) ||
       unitCost < 0 ||
       !Number.isInteger(totalQuantity) ||
       totalQuantity < (resource?.reservedQuantity ?? 0)
     ) {
       feedback.guide(
-        `Completa el nombre y el tipo con al menos dos caracteres. Indica un costo no negativo y una cantidad total entera de al menos ${resource?.reservedQuantity ?? 0} unidades para cubrir las reservas existentes.`,
+        `Completa todos los campos obligatorios. El nombre y el tipo deben tener al menos dos caracteres; la descripción no puede quedar vacía. Indica un costo no negativo y una cantidad total entera de al menos ${resource?.reservedQuantity ?? 0} unidades para cubrir las reservas existentes.`,
         'Revisa los datos del recurso',
         'error',
       );
@@ -59,8 +63,8 @@ export function ResourceForm({
             type,
             unitCost,
             totalQuantity,
-            description: String(data.get('description') ?? ''),
-            status: String(data.get('status')) as ResourceStatus,
+            description,
+            status: status as ResourceStatus,
           },
           resource?.id,
         ),
@@ -110,6 +114,7 @@ export function ResourceForm({
             name="status"
             className={inputClass}
             defaultValue={resource?.status ?? 'disponible'}
+            required
           >
             {Object.entries(resourceStatusLabels).map(([value, label]) => (
               <option
@@ -156,6 +161,7 @@ export function ResourceForm({
             maxLength={1000}
             rows={3}
             defaultValue={resource?.description}
+            required
           />
         </label>
       </fieldset>

@@ -12,6 +12,7 @@ import {
   type EventStatus,
   updateEventStatus,
 } from '../../services/events.service';
+import { getUsers } from '../../services/users.service';
 import { Button } from '../ui/Button';
 import { ErrorMessage } from '../ui/ErrorMessage';
 import { LoadingState } from '../ui/LoadingState';
@@ -71,6 +72,9 @@ export function EventList({
   const viewDialog = useRef<HTMLDialogElement>(null);
   const statusDialog = useRef<HTMLDialogElement>(null);
   const [events, setEvents] = useState<EventItem[]>([]);
+  const [responsibleNames, setResponsibleNames] = useState<
+    Record<string, string>
+  >({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
@@ -104,6 +108,21 @@ export function EventList({
       isMounted = false;
     };
   }, [revision]);
+
+  useEffect(() => {
+    let isMounted = true;
+    void getUsers()
+      .then((users) => {
+        if (!isMounted) return;
+        setResponsibleNames(
+          Object.fromEntries(users.map((user) => [user.id, user.name])),
+        );
+      })
+      .catch(() => undefined);
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   async function handleCancel(event: EventItem) {
     if (!window.confirm(`¿Deseas cancelar el evento "${event.name}"?`)) return;
@@ -449,6 +468,15 @@ export function EventList({
                     currency: 'COP',
                     maximumFractionDigits: 0,
                   }).format(viewEvent.baseBudget)}
+                </p>
+              </div>
+              <div className="rounded-[1.125rem] border border-sky-blue p-4">
+                <p className="text-sm text-muted">Persona responsable</p>
+                <p className="mt-1 break-words font-semibold">
+                  {viewEvent.responsibleUserId
+                    ? (responsibleNames[viewEvent.responsibleUserId] ??
+                      'Responsable asignado')
+                    : 'Sin persona responsable asignada'}
                 </p>
               </div>
             </div>
