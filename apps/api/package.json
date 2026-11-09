@@ -15,7 +15,7 @@
     "test": "npm run test:unit && npm run test:integration",
     "test:unit": "node test/run-unit.mjs",
     "test:integration": "node test/run-integration.mjs",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit --incremental false"
   },
   "dependencies": {
     "@evoria/contracts": "0.1.0",
