@@ -33,6 +33,12 @@ export interface HttpTestApi {
   close(): Promise<void>;
 }
 
+export interface TenantTestContext {
+  developerSession: HttpSession;
+  ownerSession: HttpSession;
+  tenantId: string;
+}
+
 function extractCookies(response: Response): string {
   return response.headers
     .getSetCookie()
@@ -125,4 +131,30 @@ export async function createHttpTestApi(name: string): Promise<HttpTestApi> {
       await app.close();
     },
   };
+}
+
+export async function createTenantTestContext(
+  api: HttpTestApi,
+): Promise<TenantTestContext> {
+  await api.seedAccessControl();
+  const developer = await api.seedDeveloper();
+  const developerSession = await api.login(developer.email, developer.password);
+  const tenantResponse = await api.request('tenants', {
+    method: 'POST',
+    session: developerSession,
+    body: {
+      name: 'Empresa de prueba',
+      nit: '900123456-7',
+      ownerName: 'Administrador de prueba',
+      ownerEmail: 'owner@example.test',
+      ownerPassword: 'prueba-segura',
+    },
+  });
+  if (tenantResponse.status !== 201) {
+    throw new Error(`No se pudo crear la empresa: ${tenantResponse.status}.`);
+  }
+  const tenant = (await tenantResponse.json()) as { data: { id: string } };
+  const ownerSession = await api.login('owner@example.test', 'prueba-segura');
+
+  return { developerSession, ownerSession, tenantId: tenant.data.id };
 }

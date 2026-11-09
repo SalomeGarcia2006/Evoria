@@ -45,6 +45,7 @@ try {
       'src/core.http.mongo.spec.ts',
       'src/auth/auth-flow.http.mongo.spec.ts',
       'src/auth/protected-routes.http.mongo.spec.ts',
+      'src/profiles/profiles-users.http.mongo.spec.ts',
       'src/alerts/replica-feasibility.mongo.spec.ts',
       'src/alerts/alerts.mongo.spec.ts',
       'src/alerts/alerts.http.mongo.spec.ts',
