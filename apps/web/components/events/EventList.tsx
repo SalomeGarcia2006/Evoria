@@ -15,6 +15,7 @@ import {
 import { getUsers } from '../../services/users.service';
 import { Button } from '../ui/Button';
 import { ErrorMessage } from '../ui/ErrorMessage';
+import { FeedbackMessages, useFeedback } from '../ui/Feedback';
 import { LoadingState } from '../ui/LoadingState';
 import { EventLocation } from './EventLocation';
 import { EventLocationMap } from './EventLocationMap';
@@ -59,6 +60,31 @@ function formatDateBadge(value: string): { day: string; month: string } {
   };
 }
 
+function normalizeSearch(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase()
+    .trim();
+}
+
+function matchesEventSearch(event: EventItem, search: string): boolean {
+  const normalizedSearch = normalizeSearch(search);
+  if (!normalizedSearch) return true;
+
+  const date = new Date(event.startAt);
+  const numericDate = `${String(date.getDate()).padStart(2, '0')}/${String(
+    date.getMonth() + 1,
+  ).padStart(2, '0')}/${date.getFullYear()}`;
+  return [
+    event.name,
+    formatDate(event.startAt),
+    date.toLocaleDateString('es-CO'),
+    numericDate,
+    event.startAt.slice(0, 10),
+  ].some((value) => normalizeSearch(value).includes(normalizedSearch));
+}
+
 export function EventList({
   onCreate,
   onEdit,
@@ -69,6 +95,7 @@ export function EventList({
   revision?: number;
 }) {
   const { can } = useAuth();
+  const feedback = useFeedback();
   const viewDialog = useRef<HTMLDialogElement>(null);
   const statusDialog = useRef<HTMLDialogElement>(null);
   const [events, setEvents] = useState<EventItem[]>([]);
@@ -83,6 +110,7 @@ export function EventList({
   const [selectedStatus, setSelectedStatus] = useState<EventStatus>('borrador');
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<EventFilter>('all');
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
     let isMounted = true;
@@ -125,7 +153,13 @@ export function EventList({
   }, []);
 
   async function handleCancel(event: EventItem) {
-    if (!window.confirm(`¿Deseas cancelar el evento "${event.name}"?`)) return;
+    const confirmed = await feedback.confirm(
+      '¿Vas a cancelar este evento?',
+      `El evento “${event.name}” quedará cancelado y no podrá volver a gestionarse como un evento activo.`,
+      'Sí, cancelar evento',
+      'warning',
+    );
+    if (!confirmed) return;
 
     setCancellingId(event.id);
     setError(null);
@@ -217,7 +251,9 @@ export function EventList({
     (event) => event.status === 'finalizado',
   ).length;
   const filteredEvents = events.filter(
-    (event) => selectedFilter === 'all' || event.status === selectedFilter,
+    (event) =>
+      (selectedFilter === 'all' || event.status === selectedFilter) &&
+      matchesEventSearch(event, search),
   );
   const upcomingEvent = [...events]
     .filter(
@@ -233,6 +269,7 @@ export function EventList({
   return (
     <section className="grid gap-4">
       {error ? <ErrorMessage message={error} /> : null}
+      <FeedbackMessages feedback={feedback} />
       {isLoading ? (
         <LoadingState label="Cargando eventos…" />
       ) : events.length === 0 ? (
@@ -283,10 +320,23 @@ export function EventList({
                   Finalizados ({finishedCount})
                 </button>
               </div>
-              <span className="text-sm text-muted">
-                {filteredEvents.length}{' '}
-                {filteredEvents.length === 1 ? 'evento' : 'eventos'}
-              </span>
+              <div className="flex w-full max-w-md items-center justify-end gap-3">
+                <label className="sr-only" htmlFor="event-search">
+                  Buscar eventos por nombre o fecha
+                </label>
+                <input
+                  className="w-full min-w-0 rounded-xl border border-sky-blue bg-white px-3 py-2 text-sm outline-none focus:border-teal focus:ring-2 focus:ring-sky-blue"
+                  id="event-search"
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Buscar por nombre o fecha…"
+                  type="search"
+                  value={search}
+                />
+                <span className="shrink-0 text-sm text-muted">
+                  {filteredEvents.length}{' '}
+                  {filteredEvents.length === 1 ? 'evento' : 'eventos'}
+                </span>
+              </div>
             </div>
             <div className="overflow-x-auto">
               <table className="events-table">
@@ -362,7 +412,7 @@ export function EventList({
                         className="py-8 text-center text-sm text-muted"
                         colSpan={5}
                       >
-                        No hay eventos en este estado.
+                        No hay eventos que coincidan con la búsqueda.
                       </td>
                     </tr>
                   ) : null}
