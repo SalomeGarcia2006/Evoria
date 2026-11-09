@@ -27,7 +27,6 @@ export function ResourceDialog({
   const { can } = useAuth();
   const canAdjust = can('inventario.ajustar');
   const [editing, setEditing] = useState(false);
-  const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const feedback = useFeedback();
   const { notify } = feedback;
@@ -93,7 +92,6 @@ export function ResourceDialog({
     try {
       const item = await deactivateResource(resource.id);
       setResult({ key, resource: item });
-      setConfirming(false);
       feedback.notify('Recurso desactivado correctamente.');
       onChanged();
     } catch (deactivateError) {
@@ -103,13 +101,22 @@ export function ResourceDialog({
     }
   }
 
+  async function requestDeactivation() {
+    if (!resource || !canAdjust || busy) return;
+    const confirmed = await feedback.confirm(
+      '¿Vas a desactivar este recurso?',
+      `El recurso “${resource.name}” dejará de aparecer entre los recursos activos y no podrá asignarse a nuevos eventos.`,
+      'Sí, desactivar recurso',
+      'warning',
+    );
+    if (confirmed) await deactivate();
+  }
+
   const title = !resourceId
     ? 'Nuevo recurso'
     : editing
       ? 'Editar recurso'
-      : confirming
-        ? 'Desactivar recurso'
-        : (resource?.name ?? 'Detalle del recurso');
+      : (resource?.name ?? 'Detalle del recurso');
   return (
     <dialog
       ref={dialog}
@@ -184,30 +191,6 @@ export function ResourceDialog({
                 onCancel={() => setEditing(false)}
                 onSavingChange={setBusy}
               />
-            ) : confirming && canAdjust ? (
-              <>
-                <p className="break-words text-sm text-muted">
-                  ¿Desactivar {resource.name}? Dejará de aparecer en el
-                  inventario de recursos activos.
-                </p>
-                <div className="flex flex-wrap gap-3">
-                  <Button
-                    disabled={busy}
-                    type="button"
-                    onClick={() => void deactivate()}
-                  >
-                    {busy ? 'Desactivando…' : 'Confirmar desactivación'}
-                  </Button>
-                  <Button
-                    disabled={busy}
-                    variant="secondary"
-                    type="button"
-                    onClick={() => setConfirming(false)}
-                  >
-                    Cancelar
-                  </Button>
-                </div>
-              </>
             ) : (
               <>
                 <div className="flex flex-wrap items-center justify-between gap-3">
@@ -258,10 +241,7 @@ export function ResourceDialog({
                       <Button
                         variant="secondary"
                         type="button"
-                        onClick={() => {
-                          setConfirming(true);
-                          feedback.dismiss();
-                        }}
+                        onClick={() => void requestDeactivation()}
                       >
                         Desactivar recurso
                       </Button>
