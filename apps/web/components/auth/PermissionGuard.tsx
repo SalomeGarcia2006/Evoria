@@ -19,6 +19,9 @@ export function PermissionGuard({ children }: { children: ReactNode }) {
   const hasAccess =
     !requiredPermission ||
     can(requiredPermission) ||
+    (pathname === '/empresas' &&
+      user?.isDeveloper === true &&
+      user.scope === 'tenant') ||
     (pathname === '/presupuestos' && can('presupuestos.aprobar')) ||
     (isAssignments && can('servicios_proveedor.ver'));
 

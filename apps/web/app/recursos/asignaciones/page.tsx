@@ -5,6 +5,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { AppShell } from '../../../components/layout/AppShell';
 import { Card } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
+import { PageHero } from '../../../components/ui/PageHero';
+import { ModuleBanner } from '../../../components/ui/ModuleBanner';
 import { ErrorMessage } from '../../../components/ui/ErrorMessage';
 import { LoadingState } from '../../../components/ui/LoadingState';
 import { StatusBadge } from '../../../components/ui/StatusBadge';
@@ -71,35 +73,37 @@ function AssignmentsContent() {
     );
   }, []);
   return (
-    <AppShell title="Asignación de recursos">
+    <AppShell hideTitle title="Asignación de recursos">
       <div className="grid min-w-0 gap-6">
-        {can('inventario.ver') && (
-          <Link
-            href="/inventario"
-            className="text-sm font-semibold text-muted underline"
-          >
-            ← Ver inventario
-          </Link>
-        )}
-        <header className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="text-sm font-semibold uppercase tracking-[.16em] text-muted">
-              Recursos de tu empresa
-            </p>
-            <h1 className="mt-2 text-3xl font-bold">Asignación de recursos</h1>
-            <p className="mt-2 text-muted">
-              Organiza el inventario y los servicios de cada evento
-            </p>
-          </div>
-          {canSeeEvents && (
-            <Button
-              variant="secondary"
-              onClick={() => setAttempt((value) => value + 1)}
-            >
-              Actualizar eventos
-            </Button>
-          )}
-        </header>
+        <PageHero
+          title="Asignación de recursos"
+          description="Organiza el inventario y los servicios de cada evento."
+          actions={
+            <>
+              {canSeeEvents && (
+                <Button
+                  variant="secondary"
+                  onClick={() => setAttempt((value) => value + 1)}
+                >
+                  Actualizar eventos
+                </Button>
+              )}
+              {can('inventario.ver') && (
+                <Link
+                  href="/inventario"
+                  className="text-sm font-semibold text-muted underline"
+                >
+                  Ver inventario →
+                </Link>
+              )}
+            </>
+          }
+        />
+        <ModuleBanner
+          icon="recursos.svg"
+          title="Recursos para cada evento"
+          description="Consulta las reservas de inventario y los servicios asignados a tus eventos activos."
+        />
         {error && events && (
           <Card>
             <ErrorMessage message={error} />
@@ -150,50 +154,58 @@ function AssignmentsContent() {
         ) : (
           <section
             aria-label="Eventos activos para asignar recursos"
-            className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4"
+            className="module-panel"
           >
-            {events.map((event) => (
-              <button
-                type="button"
-                key={event.id}
-                aria-haspopup="dialog"
-                aria-expanded={selectedId === event.id}
-                aria-label={`Ver asignaciones de ${event.name}`}
-                onClick={() => setSelectedId(event.id)}
-                className="group flex h-full min-w-0 flex-col items-start rounded-2xl border border-sky-blue bg-white p-4 text-left shadow-sm transition hover:border-teal hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal active:bg-sky-blue/20"
-              >
-                <div className="flex w-full flex-wrap items-center justify-between gap-3">
-                  <AssignmentIcon name="eventos" small />
-                  <StatusBadge
-                    status={assignmentEventStatusLabels[event.status]}
-                  />
-                </div>
-                <h2
-                  title={event.name}
-                  className="mt-3 line-clamp-2 break-words text-base font-bold"
+            <div className="module-panel__heading">
+              <h2 className="text-xl font-bold">Eventos activos</h2>
+              <p className="mt-1 text-sm text-muted">
+                Selecciona un evento para consultar sus asignaciones.
+              </p>
+            </div>
+            <div className="module-panel__content grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+              {events.map((event) => (
+                <button
+                  type="button"
+                  key={event.id}
+                  aria-haspopup="dialog"
+                  aria-expanded={selectedId === event.id}
+                  aria-label={`Ver asignaciones de ${event.name}`}
+                  onClick={() => setSelectedId(event.id)}
+                  className="module-card group flex h-full min-w-0 flex-col items-start p-4 text-left focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal"
                 >
-                  {event.name}
-                </h2>
-                <p className="mt-2 flex items-center gap-2 text-xs text-muted">
-                  <AssignmentIcon name="cronograma" small plain />
-                  {assignmentEventDate(event.startAt)}
-                </p>
-                {event.location && (
-                  <p className="mt-2 flex items-center gap-2 break-words text-xs text-muted">
-                    <AssignmentIcon name="empresas" small plain />
-                    <span
-                      className="line-clamp-1 min-w-0 break-words"
-                      title={event.location}
-                    >
-                      {event.location}
-                    </span>
+                  <div className="flex w-full flex-wrap items-center justify-between gap-3">
+                    <AssignmentIcon name="eventos" small />
+                    <StatusBadge
+                      status={assignmentEventStatusLabels[event.status]}
+                    />
+                  </div>
+                  <h2
+                    title={event.name}
+                    className="mt-3 line-clamp-2 break-words text-base font-bold"
+                  >
+                    {event.name}
+                  </h2>
+                  <p className="mt-2 flex items-center gap-2 text-xs text-muted">
+                    <AssignmentIcon name="cronograma" small plain />
+                    {assignmentEventDate(event.startAt)}
                   </p>
-                )}
-                <span className="mt-3 w-full border-t border-sky-blue pt-3 text-sm font-semibold text-muted group-hover:text-navy">
-                  Ver detalles y asignar →
-                </span>
-              </button>
-            ))}
+                  {event.location && (
+                    <p className="mt-2 flex items-center gap-2 break-words text-xs text-muted">
+                      <AssignmentIcon name="empresas" small plain />
+                      <span
+                        className="line-clamp-1 min-w-0 break-words"
+                        title={event.location}
+                      >
+                        {event.location}
+                      </span>
+                    </p>
+                  )}
+                  <span className="mt-3 w-full border-t border-sky-blue pt-3 text-sm font-semibold text-muted group-hover:text-navy">
+                    Ver detalles y asignar →
+                  </span>
+                </button>
+              ))}
+            </div>
           </section>
         )}
         {selectedId && canSeeEvents && (

@@ -10,8 +10,8 @@ const variantClasses: Record<ButtonVariant, string> = {
   primary:
     'evoria-button-primary text-white shadow-[0_10px_20px_rgba(106,76,255,0.22)] hover:brightness-105',
   secondary:
-    'border border-sky-blue bg-white text-navy hover:border-teal hover:bg-beige',
-  ghost: 'text-muted hover:bg-sky-blue/60 hover:text-navy',
+    'evoria-button-secondary border border-sky-blue bg-white text-navy hover:border-teal hover:bg-beige',
+  ghost: 'evoria-button-ghost text-muted hover:bg-sky-blue/60 hover:text-navy',
 };
 
 export function Button({

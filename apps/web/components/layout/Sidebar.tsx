@@ -26,7 +26,7 @@ const iconByRoute: Record<string, string> = {
 export function Sidebar() {
   const router = useRouter();
   const pathname = usePathname();
-  const { can, signOut } = useAuth();
+  const { can, signOut, user } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   async function handleLogout() {
@@ -40,8 +40,11 @@ export function Sidebar() {
   }
 
   const visibleItems = navigationItems.filter(
-    ({ permission, alternativePermission }) =>
+    ({ href, permission, alternativePermission }) =>
       can(permission) ||
+      (href === '/empresas' &&
+        user?.isDeveloper === true &&
+        user.scope === 'tenant') ||
       (!!alternativePermission && can(alternativePermission)),
   );
 

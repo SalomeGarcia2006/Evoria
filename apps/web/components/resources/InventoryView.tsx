@@ -7,6 +7,8 @@ import { ResourceDialog } from './ResourceDialog';
 import { AppShell } from '../layout/AppShell';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
+import { PageHero } from '../ui/PageHero';
+import { ModuleBanner } from '../ui/ModuleBanner';
 import { LoadingState } from '../ui/LoadingState';
 import { FeedbackMessages, useFeedback } from '../ui/Feedback';
 import { PermissionGate } from '../auth/PermissionGate';
@@ -56,32 +58,34 @@ export function InventoryView({
       router.replace('/inventario', { scroll: false });
   }
   return (
-    <AppShell title="Inventario">
+    <AppShell hideTitle title="Inventario">
       <div className="grid min-w-0 gap-6">
-        <header className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h2 className="text-3xl font-bold">Inventario</h2>
-            <p className="mt-2 text-muted">
-              Equipos y materiales activos de tu empresa. Abre una tarjeta para
-              consultar o ajustar el recurso.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <Button variant="secondary" onClick={retry}>
-              Actualizar
-            </Button>
-            <PermissionGate permission="inventario.ajustar">
-              <Button
-                onClick={() => {
-                  feedback.dismiss();
-                  setPanel({ kind: 'create' });
-                }}
-              >
-                Nuevo recurso
+        <PageHero
+          title="Inventario"
+          description="Equipos y materiales activos de tu empresa. Abre una tarjeta para consultar o ajustar el recurso."
+          actions={
+            <>
+              <Button variant="secondary" onClick={retry}>
+                Actualizar
               </Button>
-            </PermissionGate>
-          </div>
-        </header>
+              <PermissionGate permission="inventario.ajustar">
+                <Button
+                  onClick={() => {
+                    feedback.dismiss();
+                    setPanel({ kind: 'create' });
+                  }}
+                >
+                  Nuevo recurso
+                </Button>
+              </PermissionGate>
+            </>
+          }
+        />
+        <ModuleBanner
+          icon="recursos.svg"
+          title="Inventario organizado"
+          description="Revisa las existencias disponibles y las unidades reservadas para tus eventos."
+        />
         <PermissionGate permission="asignaciones.ver">
           <Link
             href="/recursos/asignaciones"
@@ -143,65 +147,71 @@ export function InventoryView({
                 </p>
               </Card>
             ) : (
-              <section
-                aria-label="Recursos activos"
-                className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4"
-              >
-                {activeResources.map((resource) => (
-                  <Card
-                    key={resource.id}
-                    density="compact"
-                    className="flex min-w-0 flex-col"
-                  >
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <h3
-                        title={resource.name}
-                        className="line-clamp-2 break-words text-base font-bold"
-                      >
-                        {resource.name}
-                      </h3>
-                      <span className="rounded-full bg-beige px-3 py-1 text-xs font-semibold">
-                        {resourceStatusLabels[resource.status]}
-                      </span>
-                    </div>
-                    <p className="mt-2 text-sm text-muted">{resource.type}</p>
-                    {resource.description && (
-                      <p
-                        className="mt-2 line-clamp-2 whitespace-pre-wrap break-words text-xs"
-                        title={resource.description}
-                      >
-                        {resource.description}
-                      </p>
-                    )}
-                    <dl className="my-3 grid grid-cols-3 gap-2 text-xs">
-                      {[
-                        ['Total', resource.totalQuantity],
-                        [
-                          'Disponibles',
-                          resource.status === 'disponible'
-                            ? resource.availableQuantity
-                            : 0,
-                        ],
-                        ['Reservadas', resource.reservedQuantity],
-                      ].map(([label, value]) => (
-                        <div key={label}>
-                          <dt className="text-muted">{label}</dt>
-                          <dd className="mt-1 text-lg font-bold">{value}</dd>
-                        </div>
-                      ))}
-                    </dl>
-                    <Button
-                      className="mt-auto self-start"
-                      variant="secondary"
-                      onClick={() => {
-                        feedback.dismiss();
-                        setPanel({ kind: 'detail', id: resource.id });
-                      }}
+              <section aria-label="Recursos activos" className="module-panel">
+                <div className="module-panel__heading">
+                  <h2 className="text-xl font-bold">Recursos activos</h2>
+                  <p className="mt-1 text-sm text-muted">
+                    Consulta las existencias y abre un recurso para ver su
+                    detalle.
+                  </p>
+                </div>
+                <div className="module-panel__content grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+                  {activeResources.map((resource) => (
+                    <Card
+                      key={resource.id}
+                      density="compact"
+                      className="flex min-w-0 flex-col"
                     >
-                      Ver detalle →
-                    </Button>
-                  </Card>
-                ))}
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <h3
+                          title={resource.name}
+                          className="line-clamp-2 break-words text-base font-bold"
+                        >
+                          {resource.name}
+                        </h3>
+                        <span className="rounded-full bg-beige px-3 py-1 text-xs font-semibold">
+                          {resourceStatusLabels[resource.status]}
+                        </span>
+                      </div>
+                      <p className="mt-2 text-sm text-muted">{resource.type}</p>
+                      {resource.description && (
+                        <p
+                          className="mt-2 line-clamp-2 whitespace-pre-wrap break-words text-xs"
+                          title={resource.description}
+                        >
+                          {resource.description}
+                        </p>
+                      )}
+                      <dl className="my-3 grid grid-cols-3 gap-2 text-xs">
+                        {[
+                          ['Total', resource.totalQuantity],
+                          [
+                            'Disponibles',
+                            resource.status === 'disponible'
+                              ? resource.availableQuantity
+                              : 0,
+                          ],
+                          ['Reservadas', resource.reservedQuantity],
+                        ].map(([label, value]) => (
+                          <div key={label}>
+                            <dt className="text-muted">{label}</dt>
+                            <dd className="mt-1 text-lg font-bold">{value}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                      <Button
+                        className="mt-auto self-start"
+                        variant="secondary"
+                        onClick={() => {
+                          feedback.dismiss();
+                          setPanel({ kind: 'detail', id: resource.id });
+                        }}
+                      >
+                        Ver detalle →
+                      </Button>
+                    </Card>
+                  ))}
+                </div>
               </section>
             )}
           </>

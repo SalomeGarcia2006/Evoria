@@ -710,6 +710,45 @@ textarea:focus {
   padding: 1.25rem;
 }
 
+.module-panel {
+  overflow: hidden;
+  min-width: 0;
+  border: 1px solid var(--evoria-border);
+  border-radius: 1.375rem;
+  background: var(--evoria-surface);
+  box-shadow: var(--evoria-shadow);
+}
+
+.module-panel__heading {
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--evoria-border);
+  background: linear-gradient(
+    100deg,
+    rgb(106 76 255 / 7%),
+    rgb(18 181 166 / 4%)
+  );
+}
+
+.module-panel__content {
+  padding: 1.25rem 1.5rem;
+}
+
+.module-card {
+  border: 1px solid var(--evoria-border);
+  border-radius: 1rem;
+  background: var(--evoria-surface);
+  transition:
+    border-color 180ms ease,
+    background 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.module-card:hover {
+  border-color: var(--color-teal);
+  background: rgb(106 76 255 / 3%);
+  box-shadow: var(--evoria-shadow);
+}
+
 .events-upcoming__item {
   display: flex;
   align-items: center;
@@ -923,6 +962,49 @@ textarea:disabled,
 [data-theme='dark'] .dashboard-hero__button {
   background: #fff;
   color: #492aa3;
+}
+
+[data-theme='dark']
+  .evoria-button-primary:not(.dashboard-hero__button):not(:disabled) {
+  background: linear-gradient(135deg, #08796f, #6042bb);
+  color: #fff;
+}
+
+[data-theme='dark'] .evoria-button-secondary:not(:disabled) {
+  border-color: #667895;
+  background: #25344b;
+  color: #eef3ff;
+}
+
+[data-theme='dark'] .evoria-button-ghost:not(:disabled) {
+  color: #c3d0e4;
+}
+
+@media (hover: hover) {
+  [data-theme='dark']
+    .evoria-button-primary:not(.dashboard-hero__button):not(:disabled):hover {
+    filter: brightness(1.14);
+    box-shadow: 0 6px 16px rgb(106 76 255 / 22%);
+  }
+
+  [data-theme='dark'] .evoria-button-secondary:not(:disabled):hover {
+    border-color: #79d4ca;
+    background: #30465b;
+    color: #fff;
+  }
+
+  [data-theme='dark'] .evoria-button-ghost:not(:disabled):hover,
+  [data-theme='dark'] .events-list-panel__filter:not(:disabled):hover {
+    background: rgb(125 108 205 / 18%);
+    color: #f3efff;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .evoria-button,
+  .events-list-panel__filter {
+    transition: none;
+  }
 }
 [data-theme='dark'] .text-teal {
   color: #65ded0;
