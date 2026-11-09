@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { Button } from './Button';
 
-type Tone = 'success' | 'error' | 'info';
+type Tone = 'success' | 'error' | 'info' | 'warning';
 type Notice = { id: number; message: string; tone: Tone };
 type Prompt = { title: string; message: string; confirm?: string; tone?: Tone };
 export function useFeedback() {
@@ -24,11 +24,16 @@ export function useFeedback() {
     [],
   );
   const confirm = useCallback(
-    (title: string, message: string, label = 'Confirmar') =>
+    (
+      title: string,
+      message: string,
+      label = 'Confirmar',
+      tone: Tone = 'info',
+    ) =>
       new Promise<boolean>((done) => {
         resolve.current?.(false);
         resolve.current = done;
-        setPrompt({ title, message, confirm: label, tone: 'info' });
+        setPrompt({ title, message, confirm: label, tone });
       }),
     [],
   );
@@ -63,7 +68,9 @@ export function FeedbackMessages({
             ? '¡Operación completada!'
             : feedback.notice.tone === 'error'
               ? 'No se pudo completar la operación'
-              : 'Información',
+              : feedback.notice.tone === 'warning'
+                ? 'Atención'
+                : 'Información',
         message: feedback.notice.message,
         tone: feedback.notice.tone,
       }}
@@ -122,7 +129,11 @@ function FeedbackDialog({
           className={success ? 'event-success-icon' : 'login-alert-icon'}
           aria-hidden="true"
         >
-          {success ? '✓' : prompt.tone === 'error' ? '⚠️' : 'i'}
+          {success
+            ? '✓'
+            : prompt.tone === 'error' || prompt.tone === 'warning'
+              ? '⚠️'
+              : 'i'}
         </div>
         <h2
           id={`${id}-title`}
@@ -132,7 +143,11 @@ function FeedbackDialog({
         </h2>
         <p
           id={`${id}-message`}
-          role={prompt.tone === 'error' ? 'alert' : 'status'}
+          role={
+            prompt.tone === 'error' || prompt.tone === 'warning'
+              ? 'alert'
+              : 'status'
+          }
           className={`${success ? 'event-success-message' : 'login-alert-message'} whitespace-pre-wrap break-words`}
         >
           {prompt.message}
