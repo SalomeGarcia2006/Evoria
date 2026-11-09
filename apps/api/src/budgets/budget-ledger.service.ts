@@ -101,7 +101,7 @@ export class BudgetLedgerService {
         ...(amountCop > 0 ? { $expr: this.hasAvailable(amountCop) } : {}),
       },
       { $inc: { [field]: amountCop } },
-      { new: true, session },
+      { returnDocument: 'after', session },
     );
     if (budget) return;
     if (!(await this.hasBudget(tenantId, eventId, session))) {

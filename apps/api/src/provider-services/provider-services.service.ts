@@ -216,7 +216,7 @@ export class ProviderServicesService {
               agreedAmountCop,
             },
           },
-          { new: true, runValidators: true, session },
+          { returnDocument: 'after', runValidators: true, session },
         );
         if (!service)
           throw new ConflictException('El servicio ya no está confirmado.');
@@ -267,7 +267,7 @@ export class ProviderServicesService {
         const service = await this.serviceModel.findOneAndUpdate(
           { _id: id, tenantId, eventId, status: 'confirmado' },
           { $set: { status: 'cancelado', cancelledAt: new Date() } },
-          { new: true, session },
+          { returnDocument: 'after', session },
         );
         if (!service)
           throw new ConflictException('El servicio ya está cancelado.');

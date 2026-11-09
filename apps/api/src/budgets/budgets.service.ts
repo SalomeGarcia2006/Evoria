@@ -381,7 +381,7 @@ export class BudgetsService {
           },
         },
       },
-      { new: true, runValidators: true },
+      { returnDocument: 'after', runValidators: true },
     );
     if (!result) {
       throw new ConflictException(
@@ -577,7 +577,7 @@ export class BudgetsService {
             ? { approvedIncreaseCop: request.amountCop }
             : { extraSpentCop: request.amountCop },
       },
-      { new: true, session },
+      { returnDocument: 'after', session },
     );
     if (!budget) {
       throw new ConflictException(
@@ -682,7 +682,7 @@ export class BudgetsService {
           'requests.$.rejectionReason': rejectionReason,
         },
       },
-      { new: true, session },
+      { returnDocument: 'after', session },
     );
     if (!budget) throw new ConflictException('La solicitud ya fue decidida.');
     const decided = budget.requests.find(
@@ -768,7 +768,7 @@ export class BudgetsService {
             budgetDecisionLock: { $exists: false },
           },
           { $inc: { budgetDecisionRevision: 1 } },
-          { new: true, timestamps: false, session },
+          { returnDocument: 'after', timestamps: false, session },
         );
         if (!locked) {
           const event = await this.eventModel

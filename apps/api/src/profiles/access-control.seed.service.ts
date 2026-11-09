@@ -118,7 +118,7 @@ export class AccessControlSeedService {
             status: 'activo',
           },
         },
-        { upsert: true, new: true, session },
+        { upsert: true, returnDocument: 'after', session },
       )
       .select('_id')
       .lean();

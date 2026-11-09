@@ -162,7 +162,7 @@ export class TenantsService {
       .findOneAndUpdate(
         { userId, tenantId: tenant._id, status: 'inactivo' },
         { $set: { profileId: profile._id, status: 'activo' } },
-        { new: true },
+        { returnDocument: 'after' },
       )
       .lean();
 
@@ -193,7 +193,7 @@ export class TenantsService {
     const membership = await this.membershipModel.findOneAndUpdate(
       { userId, status: 'activo' },
       { $set: { status: 'inactivo' } },
-      { new: true },
+      { returnDocument: 'after' },
     );
 
     if (!membership) {
