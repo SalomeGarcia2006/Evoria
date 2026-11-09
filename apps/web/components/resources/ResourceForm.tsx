@@ -31,22 +31,39 @@ export function ResourceForm({
     const type = String(data.get('type') ?? '').trim();
     const description = String(data.get('description') ?? '').trim();
     const status = String(data.get('status') ?? '').trim();
-    const unitCost = Number(data.get('unitCost'));
-    const totalQuantity = Number(data.get('totalQuantity'));
+    const unitCostValue = String(data.get('unitCost') ?? '').trim();
+    const totalQuantityValue = String(data.get('totalQuantity') ?? '').trim();
+    const unitCost = Number(unitCostValue);
+    const totalQuantity = Number(totalQuantityValue);
+
+    const missingFields = [
+      !name && 'Nombre del recurso',
+      !type && 'Tipo',
+      !status && 'Estado',
+      !totalQuantityValue && 'Cantidad total',
+      !unitCostValue && 'Costo unitario',
+      !description && 'Descripción',
+    ].filter(Boolean);
+
+    if (missingFields.length > 0) {
+      feedback.guide(
+        `Falta completar: ${missingFields.join(', ')}.`,
+        'Campos obligatorios',
+        'error',
+      );
+      return;
+    }
+
     if (
-      !String(data.get('unitCost') ?? '').trim() ||
-      !String(data.get('totalQuantity') ?? '').trim() ||
       name.length < 2 ||
       type.length < 2 ||
-      !description ||
-      !status ||
       !Number.isFinite(unitCost) ||
       unitCost < 0 ||
       !Number.isInteger(totalQuantity) ||
       totalQuantity < (resource?.reservedQuantity ?? 0)
     ) {
       feedback.guide(
-        `Completa todos los campos obligatorios. El nombre y el tipo deben tener al menos dos caracteres; la descripción no puede quedar vacía. Indica un costo no negativo y una cantidad total entera de al menos ${resource?.reservedQuantity ?? 0} unidades para cubrir las reservas existentes.`,
+        `El nombre y el tipo deben tener al menos dos caracteres. Indica un costo no negativo y una cantidad total entera de al menos ${resource?.reservedQuantity ?? 0} unidades para cubrir las reservas existentes.`,
         'Revisa los datos del recurso',
         'error',
       );
