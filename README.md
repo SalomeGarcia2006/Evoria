@@ -208,8 +208,8 @@ interna ficticia de Evoria.
 
 ## Verificaciones de calidad
 
-Todavía no hay pruebas unitarias o de integración. Por ahora, estas
-verificaciones comprueban formato, reglas de código, tipos y compilación:
+Las verificaciones de calidad comprueban formato, reglas de código, tipos y
+compilación:
 
 ```bash
 npm run format:check
@@ -218,9 +218,16 @@ npm run typecheck
 npm run build
 ```
 
+La API tiene pruebas unitarias, de integración con MongoDB en réplica y HTTP.
+Se ejecutan contra una instancia temporal en el puerto `27129`; no modifican
+la base de desarrollo:
+
+```bash
+npm run test --workspace=@evoria/api
+```
+
 GitHub Actions ejecuta esas verificaciones y además comprueba que Docker pueda
-iniciar la web, la API y MongoDB, incluyendo una operación básica sobre la base
-de datos.
+iniciar la web, la API y MongoDB, incluyendo las pruebas de API.
 
 ### Hooks de Git
 
