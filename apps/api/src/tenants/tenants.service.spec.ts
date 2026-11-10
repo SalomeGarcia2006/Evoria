@@ -13,6 +13,7 @@ test('rechaza seleccionar una empresa con identificador inválido', async () => 
     {} as never,
     {} as never,
     {} as never,
+    {} as never,
   );
 
   await assert.rejects(

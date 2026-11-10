@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { AuditsModule } from '../audits/audits.module';
 import { MembershipsModule } from '../memberships/memberships.module';
 import { ProfilesModule } from '../profiles/profiles.module';
 import { UsersModule } from '../users/users.module';
@@ -13,6 +14,7 @@ import { TenantsService } from './tenants.service';
     MembershipsModule,
     ProfilesModule,
     UsersModule,
+    AuditsModule,
   ],
   controllers: [TenantsController],
   providers: [TenantsService],
