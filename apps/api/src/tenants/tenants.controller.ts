@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Patch, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+} from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { DeveloperOnly } from '../auth/decorators/developer-only.decorator';
 import { PlatformOnly } from '../auth/decorators/platform-only.decorator';
@@ -55,6 +63,20 @@ export class TenantsController {
     return {
       data: await this.tenantsService.updateContext(dto, user),
       message: 'Contexto operativo actualizado correctamente.',
+    };
+  }
+
+  @Delete(':id')
+  @PlatformOnly()
+  @DeveloperOnly()
+  @RequirePermissions('empresas.desactivar')
+  async deactivate(
+    @Param('id') id: string,
+    @CurrentUser() developer: AuthenticatedUser,
+  ) {
+    return {
+      data: await this.tenantsService.deactivate(id, developer),
+      message: 'Empresa desactivada correctamente.',
     };
   }
 }

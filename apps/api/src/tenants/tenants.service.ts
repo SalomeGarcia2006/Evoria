@@ -122,6 +122,39 @@ export class TenantsService {
     }));
   }
 
+  async deactivate(id: string, developer: AuthenticatedUser) {
+    if (!isValidObjectId(id)) {
+      throw new BadRequestException(
+        'El identificador de la empresa no es válido.',
+      );
+    }
+
+    const tenant = await this.tenantModel.findOneAndUpdate(
+      { _id: id, status: 'activo' },
+      { $set: { status: 'inactivo' } },
+      { returnDocument: 'after' },
+    );
+    if (!tenant) {
+      throw new NotFoundException('La empresa no existe o ya está inactiva.');
+    }
+
+    await this.auditsService.record({
+      tenantId: tenant._id.toString(),
+      actor: developer,
+      module: 'empresas',
+      action: 'desactivar',
+      entity: 'empresa',
+      entityId: tenant._id,
+      description: `Desactivó la empresa ${tenant.name}.`,
+    });
+
+    return {
+      id: tenant._id.toString(),
+      name: tenant.name,
+      status: tenant.status,
+    };
+  }
+
   async context(user: AuthenticatedUser) {
     const tenant = await this.findActiveTenant(user);
     return this.toContext(tenant);

@@ -141,6 +141,9 @@ test('HTTP: el contexto operativo se administra de forma aislada por empresa', a
       },
     });
     assert.equal(secondTenant.status, 201);
+    const secondTenantBody = (await secondTenant.json()) as {
+      data: { id: string };
+    };
     const otherOwner = await api.login(
       'other-owner@example.test',
       'prueba-segura',
@@ -154,6 +157,33 @@ test('HTTP: el contexto operativo se administra de forma aislada por empresa', a
         })
       ).status,
       200,
+    );
+
+    const deactivated = await api.request(
+      `tenants/${secondTenantBody.data.id}`,
+      {
+        method: 'DELETE',
+        session: developerSession,
+      },
+    );
+    assert.equal(deactivated.status, 200);
+    const deactivatedBody = (await deactivated.json()) as {
+      data: { status: string };
+    };
+    assert.equal(deactivatedBody.data.status, 'inactivo');
+    assert.equal(
+      (await api.request('tenants/context', { session: otherOwner })).status,
+      401,
+    );
+    const tenants = await api.request('tenants', { session: developerSession });
+    assert.equal(tenants.status, 200);
+    const tenantsBody = (await tenants.json()) as {
+      data: Array<{ id: string }>;
+    };
+    assert.ok(
+      !tenantsBody.data.some(
+        (tenant) => tenant.id === secondTenantBody.data.id,
+      ),
     );
 
     const firstTenantContext = await api.request('tenants/context', {
