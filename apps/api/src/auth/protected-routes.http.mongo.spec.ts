@@ -8,6 +8,8 @@ import {
 
 const protectedRoutes = [
   ['GET', 'auth/me'],
+  ['GET', 'auth/google/connection'],
+  ['POST', 'auth/google/link'],
   ['GET', 'tenants'],
   ['POST', 'tenants'],
   ['POST', 'tenants/000000000000000000000000/join'],
@@ -143,6 +145,7 @@ test('HTTP: una sesión solo accede a las rutas de sus permisos', async () => {
           : path;
       const expectedStatus =
         actualPath === 'auth/me' ||
+        actualPath === 'auth/google/connection' ||
         (method === 'GET' &&
           (actualPath === 'events' || actualPath === `events/${event.data.id}`))
           ? 200
@@ -151,6 +154,10 @@ test('HTTP: una sesión solo accede a las rutas de sus permisos', async () => {
         method,
         session: reader,
       });
+      if (actualPath === 'auth/google/link') {
+        assert.notEqual(response.status, 403, `${method} /${actualPath}`);
+        continue;
+      }
       assert.equal(response.status, expectedStatus, `${method} /${actualPath}`);
     }
   } finally {
