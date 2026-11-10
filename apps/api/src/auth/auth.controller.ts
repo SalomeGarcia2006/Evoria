@@ -5,6 +5,7 @@ import {
   HttpCode,
   HttpStatus,
   Post,
+  Query,
   Req,
   Res,
 } from '@nestjs/common';
@@ -12,16 +13,23 @@ import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { AuthConfigService } from './auth.config';
 import { AuthService, type AuthTokens } from './auth.service';
+import { CaptchaService } from './captcha.service';
 import type { AuthenticatedUser } from './auth.types';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { Public } from './decorators/public.decorator';
+import { CaptchaDto } from './dto/captcha.dto';
 import { LoginDto } from './dto/login.dto';
+import { GoogleOAuthService } from './google-oauth.service';
+
+const GOOGLE_STATE_COOKIE = 'evoria_google_state';
 
 @Controller('auth')
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly authConfigService: AuthConfigService,
+    private readonly captchaService: CaptchaService,
+    private readonly googleOAuthService: GoogleOAuthService,
   ) {}
 
   @Post('login')
@@ -32,6 +40,7 @@ export class AuthController {
     @Body() loginDto: LoginDto,
     @Res({ passthrough: true }) response: Response,
   ) {
+    await this.captchaService.verify(loginDto.captchaToken);
     const result = await this.authService.login(loginDto);
 
     this.setAuthenticationCookies(response, result.tokens);
@@ -40,6 +49,83 @@ export class AuthController {
       data: result.session,
       message: 'Inicio de sesión realizado correctamente.',
     };
+  }
+
+  @Get('google/connection')
+  async googleConnection(@CurrentUser() user: AuthenticatedUser) {
+    return {
+      data: await this.googleOAuthService.connection(user.id),
+      message: 'Vinculación de Google obtenida correctamente.',
+    };
+  }
+
+  @Post('google/link')
+  @HttpCode(HttpStatus.OK)
+  async startGoogleLink(
+    @CurrentUser() user: AuthenticatedUser,
+    @Req() request: Request,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const result = await this.googleOAuthService.startLink(
+      user,
+      request.cookies?.[this.authConfigService.accessTokenCookieName],
+    );
+    this.setGoogleStateCookie(response, result.state);
+    return { data: { url: result.url }, message: 'Vinculación iniciada.' };
+  }
+
+  @Post('google/login')
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  async startGoogleLogin(
+    @Body() body: CaptchaDto,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const result = await this.googleOAuthService.startLogin(body.captchaToken);
+    this.setGoogleStateCookie(response, result.state);
+    return {
+      data: { url: result.url },
+      message: 'Inicio con Google iniciado.',
+    };
+  }
+
+  @Get('google/callback')
+  @Public()
+  async googleCallback(
+    @Query('state') state: string | undefined,
+    @Query('code') code: string | undefined,
+    @Query('error') error: string | undefined,
+    @Req() request: Request,
+    @Res() response: Response,
+  ) {
+    const stateCookie = request.cookies?.[GOOGLE_STATE_COOKIE];
+    response.clearCookie(
+      GOOGLE_STATE_COOKIE,
+      this.authConfigService.createClearCookieOptions(),
+    );
+    const webOrigin = process.env.WEB_ORIGIN?.trim() || 'http://localhost:3000';
+    try {
+      const result = await this.googleOAuthService.complete(
+        state,
+        stateCookie,
+        code,
+        error,
+        request.cookies?.[this.authConfigService.accessTokenCookieName],
+      );
+      if (result.loginResult) {
+        this.setAuthenticationCookies(response, result.loginResult.tokens);
+      }
+      const path =
+        result.mode === 'link'
+          ? `/mi-perfil?google=${result.status}`
+          : `/login?google=${result.status}`;
+      return response.redirect(new URL(path, webOrigin).toString());
+    } catch {
+      return response.redirect(
+        new URL('/login?google=error', webOrigin).toString(),
+      );
+    }
   }
 
   @Post('refresh')
@@ -106,6 +192,14 @@ export class AuthController {
       this.authConfigService.refreshTokenCookieName,
       tokens.refreshToken,
       this.authConfigService.createCookieOptions(tokens.refreshTokenMaxAge),
+    );
+  }
+
+  private setGoogleStateCookie(response: Response, state: string): void {
+    response.cookie(
+      GOOGLE_STATE_COOKIE,
+      state,
+      this.authConfigService.createCookieOptions(5 * 60_000),
     );
   }
 

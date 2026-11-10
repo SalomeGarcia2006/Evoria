@@ -1,10 +1,12 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { getConnectionToken } from '@nestjs/mongoose';
+import { Test } from '@nestjs/testing';
 import cookieParser from 'cookie-parser';
 import type { AddressInfo } from 'node:net';
 import { Types, type Connection } from 'mongoose';
 import { AppModule } from '../app.module';
+import { GoogleProviderService } from '../auth/google-provider.service';
 import { AccessControlSeedService } from '../profiles/access-control.seed.service';
 import { DEVELOPER_PROFILE_NAME } from '../profiles/profiles.constants';
 import { PasswordService } from '../users/password.service';
@@ -17,6 +19,7 @@ export interface HttpSession<T = unknown> {
 interface RequestOptions {
   body?: unknown;
   method?: string;
+  redirect?: RequestRedirect;
   session?: HttpSession;
 }
 
@@ -46,7 +49,32 @@ function extractCookies(response: Response): string {
     .join('; ');
 }
 
-export async function createHttpTestApi(name: string): Promise<HttpTestApi> {
+function mergeCookies(current: string, response: Response): string {
+  const cookies = new Map(
+    current
+      .split('; ')
+      .filter(Boolean)
+      .map((part) => {
+        const separator = part.indexOf('=');
+        return [part.slice(0, separator), part.slice(separator + 1)];
+      }),
+  );
+  for (const setCookie of response.headers.getSetCookie()) {
+    const [pair] = setCookie.split(';', 1);
+    const separator = pair.indexOf('=');
+    const name = pair.slice(0, separator);
+    const value = pair.slice(separator + 1);
+    if (!value || /(?:^|;)\s*Max-Age=0(?:;|$)/i.test(setCookie))
+      cookies.delete(name);
+    else cookies.set(name, value);
+  }
+  return [...cookies].map(([name, value]) => `${name}=${value}`).join('; ');
+}
+
+export async function createHttpTestApi(
+  name: string,
+  googleProvider?: Pick<GoogleProviderService, 'authorization' | 'exchange'>,
+): Promise<HttpTestApi> {
   const database = `evoria_${name}_${new Types.ObjectId().toString()}`;
   const mongoUri = new URL(
     process.env.EVORIA_TEST_MONGO_URI ?? 'mongodb://127.0.0.1:27017',
@@ -56,7 +84,14 @@ export async function createHttpTestApi(name: string): Promise<HttpTestApi> {
   process.env.JWT_ACCESS_SECRET = `${name}-access-secret`;
   process.env.JWT_REFRESH_SECRET = `${name}-refresh-secret`;
 
-  const app = await NestFactory.create(AppModule, { logger: false });
+  const app = googleProvider
+    ? (
+        await Test.createTestingModule({ imports: [AppModule] })
+          .overrideProvider(GoogleProviderService)
+          .useValue(googleProvider)
+          .compile()
+      ).createNestApplication({ logger: false })
+    : await NestFactory.create(AppModule, { logger: false });
   app.setGlobalPrefix('api');
   app.use(cookieParser());
   app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }));
@@ -68,7 +103,7 @@ export async function createHttpTestApi(name: string): Promise<HttpTestApi> {
 
   async function request(
     path: string,
-    { body, method = 'GET', session }: RequestOptions = {},
+    { body, method = 'GET', redirect, session }: RequestOptions = {},
   ): Promise<Response> {
     const headers = new Headers();
     if (session?.cookies) headers.set('Cookie', session.cookies);
@@ -77,11 +112,12 @@ export async function createHttpTestApi(name: string): Promise<HttpTestApi> {
     const response = await fetch(`${baseUrl}/${path}`, {
       method,
       headers,
+      redirect,
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     });
 
     if (session && response.headers.getSetCookie().length) {
-      session.cookies = extractCookies(response);
+      session.cookies = mergeCookies(session.cookies, response);
     }
 
     return response;
