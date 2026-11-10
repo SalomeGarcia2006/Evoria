@@ -12,6 +12,8 @@ const protectedRoutes = [
   ['POST', 'tenants'],
   ['POST', 'tenants/000000000000000000000000/join'],
   ['POST', 'tenants/leave'],
+  ['GET', 'tenants/context'],
+  ['PATCH', 'tenants/context'],
   ['GET', 'permissions'],
   ['POST', 'profiles'],
   ['GET', 'profiles'],
