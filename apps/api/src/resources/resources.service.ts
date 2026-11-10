@@ -58,7 +58,7 @@ export class ResourcesService {
         const event = await this.eventModel.findOneAndUpdate(
           { _id: eventId, tenantId, status: { $ne: 'cancelado' } },
           { $inc: { budgetDecisionRevision: 1 } },
-          { session, new: true, timestamps: false },
+          { session, returnDocument: 'after', timestamps: false },
         );
         if (!event)
           throw new ConflictException(
@@ -96,7 +96,12 @@ export class ResourcesService {
             },
             $inc: { quantity: dto.quantity, costAmountCop },
           },
-          { new: true, upsert: true, setDefaultsOnInsert: true, session },
+          {
+            returnDocument: 'after',
+            upsert: true,
+            setDefaultsOnInsert: true,
+            session,
+          },
         );
         if (!assignment)
           throw new ConflictException(
@@ -186,7 +191,7 @@ export class ResourcesService {
         const assignment = await this.assignmentModel.findOneAndUpdate(
           { tenantId, eventId, inventoryItemId, status: 'asignado' },
           { $set: { status: 'devuelto', returnedAt: new Date() } },
-          { new: true, session },
+          { returnDocument: 'after', session },
         );
         if (!assignment)
           throw new NotFoundException(
@@ -214,7 +219,7 @@ export class ResourcesService {
               reservedQuantity: -assignment.quantity,
             },
           },
-          { new: true, session },
+          { returnDocument: 'after', session },
         );
         if (!inventoryItem)
           throw new ConflictException(
@@ -294,7 +299,7 @@ export class ResourcesService {
       {
         $inc: { availableQuantity: -quantity, reservedQuantity: quantity },
       },
-      { new: true, session },
+      { returnDocument: 'after', session },
     );
     if (inventoryItem) return inventoryItem;
 

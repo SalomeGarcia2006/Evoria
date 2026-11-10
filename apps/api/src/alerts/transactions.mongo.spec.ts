@@ -41,6 +41,20 @@ import { EventsService } from '../events/events.service';
 import { ProviderServicesService } from '../provider-services/provider-services.service';
 import type { AuditsService } from '../audits/audits.service';
 
+async function withoutErrorLogs<T>(
+  service: object,
+  operation: () => Promise<T>,
+): Promise<T> {
+  const logger = (service as { logger: { error: () => void } }).logger;
+  const error = logger.error;
+  logger.error = () => undefined;
+  try {
+    return await operation();
+  } finally {
+    logger.error = error;
+  }
+}
+
 test('servicios reales: cruce transitorio y decisiones en réplica aislada', async () => {
   const database = `evoria_alertas_tx_${new Types.ObjectId().toString()}`;
   const host = process.env.EVORIA_TEST_MONGO_HOST ?? '127.0.0.1:27129';
@@ -227,16 +241,18 @@ test('servicios reales: cruce transitorio y decisiones en réplica aislada', asy
       value: () => Promise.reject(new Error('entrega interrumpida')),
     });
     try {
-      await resources.assign(
-        event._id.toString(),
-        { inventoryItemId: item._id.toString(), quantity: 8 },
-        user(requester),
-      );
-      await resources.release(
-        event._id.toString(),
-        item._id.toString(),
-        user(requester),
-      );
+      await withoutErrorLogs(service, async () => {
+        await resources.assign(
+          event._id.toString(),
+          { inventoryItemId: item._id.toString(), quantity: 8 },
+          user(requester),
+        );
+        await resources.release(
+          event._id.toString(),
+          item._id.toString(),
+          user(requester),
+        );
+      });
     } finally {
       Object.defineProperty(alerts, 'updateOne', {
         configurable: true,
@@ -284,21 +300,23 @@ test('servicios reales: cruce transitorio y decisiones en réplica aislada', asy
       value: () => Promise.reject(new Error('entrega interrumpida')),
     });
     try {
-      const reserved = await providerService.create(
-        event._id.toString(),
-        {
-          providerId: provider._id.toString(),
-          serviceName: 'Servicio de prueba',
-          startDate: '2027-01-01',
-          agreedAmountCop: 800,
-        },
-        user(requester),
-      );
-      await providerService.cancel(
-        event._id.toString(),
-        reserved.id,
-        user(requester),
-      );
+      await withoutErrorLogs(service, async () => {
+        const reserved = await providerService.create(
+          event._id.toString(),
+          {
+            providerId: provider._id.toString(),
+            serviceName: 'Servicio de prueba',
+            startDate: '2027-01-01',
+            agreedAmountCop: 800,
+          },
+          user(requester),
+        );
+        await providerService.cancel(
+          event._id.toString(),
+          reserved.id,
+          user(requester),
+        );
+      });
     } finally {
       Object.defineProperty(alerts, 'updateOne', {
         configurable: true,

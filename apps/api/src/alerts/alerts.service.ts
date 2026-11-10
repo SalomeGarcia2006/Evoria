@@ -784,7 +784,7 @@ export class AlertsService implements OnModuleInit, OnModuleDestroy {
       .findOneAndUpdate(
         { ...filter, readAt: null },
         { $set: { readAt: new Date() } },
-        { new: true },
+        { returnDocument: 'after' },
       )
       .lean();
     if (item) return this.serialize(item);

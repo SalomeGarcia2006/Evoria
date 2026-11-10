@@ -143,3 +143,24 @@ jobs:
       - name: Detener y limpiar servicios
         if: always()
         run: docker compose down --volumes --remove-orphans
+
+  api-tests:
+    name: Pruebas de API
+    needs: quality
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Descargar código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.21.0
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Ejecutar pruebas unitarias e integración
+        run: npm run test --workspace=@evoria/api
