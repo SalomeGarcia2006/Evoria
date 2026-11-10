@@ -6,8 +6,9 @@ import {
   MinLength,
 } from 'class-validator';
 import type { LoginRequest } from '@evoria/contracts';
+import { CaptchaDto } from './captcha.dto';
 
-export class LoginDto implements LoginRequest {
+export class LoginDto extends CaptchaDto implements LoginRequest {
   @IsEmail()
   @MaxLength(150)
   email!: string;

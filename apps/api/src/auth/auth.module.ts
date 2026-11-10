@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
+import { MongooseModule } from '@nestjs/mongoose';
 import { MembershipsModule } from '../memberships/memberships.module';
 import { PermissionsModule } from '../permissions/permissions.module';
 import { ProfilesModule } from '../profiles/profiles.module';
@@ -9,6 +10,17 @@ import { UsersModule } from '../users/users.module';
 import { AuthConfigService } from './auth.config';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { CaptchaService } from './captcha.service';
+import { GoogleOAuthService } from './google-oauth.service';
+import { GoogleProviderService } from './google-provider.service';
+import {
+  GoogleAccount,
+  GoogleAccountSchema,
+} from './schemas/google-account.schema';
+import {
+  GoogleOAuthState,
+  GoogleOAuthStateSchema,
+} from './schemas/google-oauth-state.schema';
 import { DeveloperGuard } from './guards/developer.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { PermissionsGuard } from './guards/permissions.guard';
@@ -18,6 +30,10 @@ import { TenantSessionsController } from './tenant-sessions.controller';
 @Module({
   imports: [
     JwtModule.register({}),
+    MongooseModule.forFeature([
+      { name: GoogleAccount.name, schema: GoogleAccountSchema },
+      { name: GoogleOAuthState.name, schema: GoogleOAuthStateSchema },
+    ]),
     MembershipsModule,
     UsersModule,
     ProfilesModule,
@@ -28,6 +44,9 @@ import { TenantSessionsController } from './tenant-sessions.controller';
   providers: [
     AuthConfigService,
     AuthService,
+    CaptchaService,
+    GoogleProviderService,
+    GoogleOAuthService,
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
