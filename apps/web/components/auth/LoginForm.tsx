@@ -4,7 +4,12 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { defaultRouteFor } from '../../lib/access-control';
 import { useAuth } from '../../hooks/useAuth';
+import { apiErrorMessage } from '../../services/api';
+import { startGoogleLogin } from '../../services/auth.service';
 import type { AuthUser } from '../../types/auth';
+import { TurnstileWidget } from './TurnstileWidget';
+
+const captchaConfigured = Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY);
 
 export function LoginForm() {
   const router = useRouter();
@@ -17,7 +22,26 @@ export function LoginForm() {
   const [failedAttempts, setFailedAttempts] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successfulLogin, setSuccessfulLogin] = useState<AuthUser | null>(null);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaResetKey, setCaptchaResetKey] = useState(0);
   const isLoginFlow = useRef(false);
+
+  useEffect(() => {
+    const googleResult = new URLSearchParams(window.location.search).get(
+      'google',
+    );
+    queueMicrotask(() => {
+      if (googleResult === 'unlinked')
+        setError(
+          'Esta cuenta de Google aún no está vinculada a Evoria. Entra con tu contraseña y vincúlala desde Mi perfil.',
+        );
+      else if (googleResult === 'cancelled')
+        setError('Cancelaste el inicio de sesión con Google.');
+      else if (googleResult === 'error')
+        setError('No se pudo iniciar sesión con Google. Intenta de nuevo.');
+    });
+    if (googleResult) window.history.replaceState(null, '', '/login');
+  }, []);
 
   useEffect(() => {
     if (!isLoading && user && !isLoginFlow.current) {
@@ -38,33 +62,63 @@ export function LoginForm() {
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (captchaConfigured && !captchaToken) {
+      setError('Completa la verificación de seguridad.');
+      return;
+    }
     setError(null);
     setIsSubmitting(true);
     isLoginFlow.current = true;
 
     try {
-      const user = await signIn({ email, password });
+      const user = await signIn({
+        email,
+        password,
+        captchaToken: captchaToken ?? undefined,
+      });
       setError(null);
       setIsAlertVisible(false);
       setFailedAttempts(0);
       setSuccessfulLogin(user);
     } catch (submitError) {
+      setCaptchaResetKey((value) => value + 1);
       isLoginFlow.current = false;
       const nextAttempt = Math.min(failedAttempts + 1, 5);
       const backendMessage =
         submitError instanceof Error ? submitError.message : '';
       const isLocked = backendMessage.toLowerCase().includes('bloqueada');
+      const isCaptchaError = /captcha|verificación de seguridad/i.test(
+        backendMessage,
+      );
 
-      setFailedAttempts(nextAttempt);
+      if (!isCaptchaError) setFailedAttempts(nextAttempt);
       setIsAlertVisible(true);
       setError(
-        isLocked || nextAttempt >= 5
-          ? 'Demasiados intentos fallidos. Por seguridad, el inicio de sesión se ha desactivado por 15 minutos. Si olvidaste tu clave, restablécela aquí.'
-          : nextAttempt >= 3
-            ? `Contraseña incorrecta. Te quedan ${5 - nextAttempt} intentos antes de que la cuenta se bloquee temporalmente por seguridad.`
-            : 'Usuario o contraseña incorrectos.',
+        isCaptchaError
+          ? apiErrorMessage(submitError)
+          : isLocked || nextAttempt >= 5
+            ? 'Demasiados intentos fallidos. Por seguridad, el inicio de sesión se ha desactivado por 15 minutos. Si olvidaste tu clave, restablécela aquí.'
+            : nextAttempt >= 3
+              ? `Contraseña incorrecta. Te quedan ${5 - nextAttempt} intentos antes de que la cuenta se bloquee temporalmente por seguridad.`
+              : 'Usuario o contraseña incorrectos.',
       );
     } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleGoogleLogin() {
+    if (captchaConfigured && !captchaToken) {
+      setError('Completa la verificación de seguridad.');
+      return;
+    }
+    setError(null);
+    setIsSubmitting(true);
+    try {
+      window.location.assign(await startGoogleLogin(captchaToken ?? undefined));
+    } catch (cause) {
+      setError(apiErrorMessage(cause));
+      setCaptchaResetKey((value) => value + 1);
       setIsSubmitting(false);
     }
   }
@@ -166,8 +220,22 @@ export function LoginForm() {
           </p>
         ) : null}
 
-        <button className="login-button" disabled={isSubmitting} type="submit">
+        <TurnstileWidget onToken={setCaptchaToken} resetKey={captchaResetKey} />
+
+        <button
+          className="login-button"
+          disabled={isSubmitting || (captchaConfigured && !captchaToken)}
+          type="submit"
+        >
           {isSubmitting ? 'Iniciando sesión…' : 'Iniciar sesión'}
+        </button>
+        <button
+          className="mt-3 w-full rounded-lg border border-teal bg-white px-4 py-3 font-semibold text-navy transition hover:bg-sky-blue/40 disabled:opacity-60"
+          disabled={isSubmitting || (captchaConfigured && !captchaToken)}
+          onClick={handleGoogleLogin}
+          type="button"
+        >
+          Continuar con Google
         </button>
       </form>
 

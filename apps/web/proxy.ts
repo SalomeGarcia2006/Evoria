@@ -25,5 +25,6 @@ export const config = {
     '/usuarios/:path*',
     '/perfiles/:path*',
     '/empresas/:path*',
+    '/mi-perfil/:path*',
   ],
 };
