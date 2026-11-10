@@ -34,6 +34,7 @@ const provider = {
   status: 'activo',
 };
 async function setup(page, options = {}) {
+  const baseURL = test.info().project.use.baseURL || 'http://localhost:3100';
   const state = {
     actor: 'requester',
     initialized: true,
@@ -70,7 +71,7 @@ async function setup(page, options = {}) {
     {
       name: 'evoria_access_token',
       value: 'test-only',
-      url: 'http://localhost:3100',
+      url: baseURL,
     },
   ]);
   await page.route('**/api/**', async (route) => {
@@ -79,7 +80,7 @@ async function setup(page, options = {}) {
     const path = url.pathname.replace('/api', '');
     const method = req.method();
     const headers = {
-      'access-control-allow-origin': 'http://localhost:3100',
+      'access-control-allow-origin': baseURL,
       'access-control-allow-credentials': 'true',
       'access-control-allow-headers': 'content-type',
       'access-control-allow-methods': 'GET,POST,PATCH,DELETE,OPTIONS',
@@ -251,7 +252,9 @@ async function setup(page, options = {}) {
 async function openBudget(page) {
   await page.goto('/presupuestos?eventId=e1');
   await expect(
-    page.getByRole('heading', { name: 'Evento financiero', exact: true }),
+    page
+      .getByRole('region', { name: 'Detalle del presupuesto' })
+      .getByRole('heading', { name: 'Evento financiero', exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole('button', { name: 'Añadir presupuesto' }),
@@ -284,6 +287,57 @@ function available(page) {
     .filter({ has: page.locator('dt', { hasText: /^Disponible$/ }) })
     .locator('dd');
 }
+
+test('actualizar presupuesto valida cambios y permite consultar tras una solicitud', async ({
+  page,
+}) => {
+  const state = await setup(page);
+  await openBudget(page);
+  const update = page.getByRole('button', { name: 'Actualizar presupuesto' });
+  const before = state.calls.filter(
+    (call) => call.path === '/events/e1/budget' && call.method === 'GET',
+  ).length;
+  await update.click();
+  const alert = page.getByRole('alertdialog');
+  await expect(alert).toContainText(
+    'Para actualizar el presupuesto, primero debes',
+  );
+  expect(
+    state.calls.filter(
+      (call) => call.path === '/events/e1/budget' && call.method === 'GET',
+    ),
+  ).toHaveLength(before);
+  await alert.getByRole('button', { name: 'Entendido' }).click();
+  await page.getByRole('button', { name: 'Añadir presupuesto' }).click();
+  const action = page.getByRole('dialog', {
+    name: 'Solicitar cambio de presupuesto',
+  });
+  await action.getByLabel('Monto solicitado (COP)').fill('2000');
+  await action
+    .getByLabel('Motivo', { exact: true })
+    .fill('Se requieren recursos adicionales');
+  await action.getByRole('button', { name: 'Enviar solicitud' }).click();
+  await expect(alert).toContainText('Solicitud enviada');
+  await alert.getByRole('button', { name: 'Entendido' }).click();
+  await expect(update).toBeEnabled();
+  const after = state.calls.filter(
+    (call) => call.path === '/events/e1/budget' && call.method === 'GET',
+  ).length;
+  await update.click();
+  await expect(alert).toContainText(
+    'El presupuesto se consultó correctamente.',
+  );
+  expect(
+    state.calls.filter(
+      (call) => call.path === '/events/e1/budget' && call.method === 'GET',
+    ).length,
+  ).toBeGreaterThan(after);
+  await alert.getByRole('button', { name: 'Entendido' }).click();
+  await update.click();
+  await expect(alert).toContainText(
+    'Para actualizar el presupuesto, primero debes',
+  );
+});
 
 test('eventos activos aparecen como tarjetas sin búsqueda y cargan todas las páginas', async ({
   page,
@@ -684,7 +738,7 @@ test('solo lectura: sin operaciones de presupuesto; errores 403 y 404 claros y r
     message: 'El presupuesto no existe.',
     status: 404,
   };
-  await page.getByRole('button', { name: 'Actualizar presupuesto' }).click();
+  await page.reload();
   await acknowledgeFeedback(page, 'no existe');
   state.fail = { ...state.fail, message: 'Acceso denegado.', status: 403 };
   await page.getByRole('button', { name: 'Actualizar presupuesto' }).click();
