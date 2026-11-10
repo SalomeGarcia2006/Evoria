@@ -77,6 +77,7 @@ export function EventAssignmentsDialog({
     error?: string;
   }>();
   const [committedAttempt, setCommittedAttempt] = useState(0);
+  const [hasChanges, setHasChanges] = useState(false);
   const [visibleSnapshot, setVisibleSnapshot] = useState<{
     event?: EventItem;
     budget?: { key: string; initialized?: boolean; error?: string };
@@ -198,12 +199,15 @@ export function EventAssignmentsDialog({
     // Publish the coordinated results once after all independent requests settle.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setCommittedAttempt(attempt);
-    notify(
-      errors.length
-        ? `No se pudo actualizar toda la información. ${errors.join(' ')}`
-        : 'La información del evento y sus asignaciones se actualizó correctamente.',
-      errors.length ? 'error' : 'success',
-    );
+    if (errors.length) {
+      notify(
+        `No se pudo actualizar toda la información. ${errors.join(' ')}`,
+        'error',
+      );
+    } else {
+      setHasChanges(false);
+      notify('Las asignaciones del evento se consultaron correctamente.');
+    }
   }, [
     attempt,
     eventLoading,
@@ -220,10 +224,25 @@ export function EventAssignmentsDialog({
   function budgetChanged() {
     setBudgetRevision((value) => value + 1);
   }
+  function assignmentChanged() {
+    setHasChanges(true);
+    budgetChanged();
+  }
   function refresh() {
     setVisibleSnapshot({ event: visibleEvent, budget: visibleBudget });
     setAttempt((value) => value + 1);
     budgetChanged();
+  }
+  function updateEvent() {
+    if (!hasChanges) {
+      feedback.guide(
+        'Para actualizar el evento, primero debes añadir o liberar un recurso, o asignar un servicio.',
+        'Revisa las asignaciones del evento',
+        'error',
+      );
+      return;
+    }
+    refresh();
   }
   return (
     <ProviderDialogShell
@@ -296,7 +315,7 @@ export function EventAssignmentsDialog({
                 <Button
                   variant="secondary"
                   disabled={inventoryBusy || updating}
-                  onClick={refresh}
+                  onClick={updateEvent}
                 >
                   Actualizar evento
                 </Button>
@@ -412,7 +431,7 @@ export function EventAssignmentsDialog({
                       committedRevision={committedAttempt}
                       onRefreshingChange={setInventoryRefreshing}
                       onRefreshResult={setInventoryResult}
-                      onChanged={budgetChanged}
+                      onChanged={assignmentChanged}
                       onBusyChange={setInventoryBusy}
                     />
                   )}
@@ -428,7 +447,7 @@ export function EventAssignmentsDialog({
                       committedRevision={committedAttempt}
                       onRefreshingChange={setServicesRefreshing}
                       onRefreshResult={setServicesResult}
-                      onChanged={budgetChanged}
+                      onChanged={assignmentChanged}
                     />
                   )}
                 </div>
