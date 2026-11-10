@@ -1,10 +1,11 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, Patch, Post } from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { DeveloperOnly } from '../auth/decorators/developer-only.decorator';
 import { PlatformOnly } from '../auth/decorators/platform-only.decorator';
 import { RequirePermissions } from '../auth/decorators/require-permissions.decorator';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { CreateTenantDto } from './dto/create-tenant.dto';
+import { UpdateTenantContextDto } from './dto/update-tenant-context.dto';
 import { TenantsService } from './tenants.service';
 
 @Controller('tenants')
@@ -33,6 +34,27 @@ export class TenantsController {
     return {
       data: await this.tenantsService.create(createTenantDto, developer),
       message: 'Empresa creada correctamente.',
+    };
+  }
+
+  @Get('context')
+  @RequirePermissions('empresa_contexto.ver')
+  async context(@CurrentUser() user: AuthenticatedUser) {
+    return {
+      data: await this.tenantsService.context(user),
+      message: 'Contexto operativo obtenido correctamente.',
+    };
+  }
+
+  @Patch('context')
+  @RequirePermissions('empresa_contexto.editar')
+  async updateContext(
+    @Body() dto: UpdateTenantContextDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return {
+      data: await this.tenantsService.updateContext(dto, user),
+      message: 'Contexto operativo actualizado correctamente.',
     };
   }
 }

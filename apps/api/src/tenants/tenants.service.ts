@@ -3,6 +3,8 @@ import {
   ConflictException,
   Injectable,
 } from '@nestjs/common';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { AuditsService } from '../audits/audits.service';
 import { InjectModel } from '@nestjs/mongoose';
 import { isValidObjectId, type Model } from 'mongoose';
 import {
@@ -16,6 +18,7 @@ import { PasswordService } from '../users/password.service';
 import { User, type UserDocument } from '../users/schemas/user.schema';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { CreateTenantDto } from './dto/create-tenant.dto';
+import { UpdateTenantContextDto } from './dto/update-tenant-context.dto';
 import { Tenant, type TenantDocument } from './schemas/tenant.schema';
 
 @Injectable()
@@ -28,6 +31,7 @@ export class TenantsService {
     @InjectModel(Profile.name) private readonly profileModel: Model<Profile>,
     private readonly passwordService: PasswordService,
     private readonly accessControlSeedService: AccessControlSeedService,
+    private readonly auditsService: AuditsService,
   ) {}
 
   async create(createTenantDto: CreateTenantDto, developer: AuthenticatedUser) {
@@ -116,6 +120,60 @@ export class TenantsService {
       slug: tenant.slug,
       status: tenant.status,
     }));
+  }
+
+  async context(user: AuthenticatedUser) {
+    const tenant = await this.findActiveTenant(user);
+    return this.toContext(tenant);
+  }
+
+  async updateContext(dto: UpdateTenantContextDto, user: AuthenticatedUser) {
+    const tenant = await this.findActiveTenant(user);
+    const changes = Object.fromEntries(
+      Object.entries(dto).map(([key, value]) => [
+        key,
+        typeof value === 'string' ? value.trim() : value,
+      ]),
+    );
+    if (!Object.keys(changes).length)
+      throw new BadRequestException('Debes indicar al menos un cambio.');
+    Object.assign(tenant, changes);
+    await tenant.save();
+    await this.auditsService.record({
+      tenantId: tenant._id.toString(),
+      actor: user,
+      module: 'empresa_contexto',
+      action: 'editar',
+      entity: 'empresa',
+      entityId: tenant._id,
+      description: `Actualizó el contexto operativo: ${Object.keys(changes).join(', ')}.`,
+    });
+    return this.toContext(tenant);
+  }
+
+  private async findActiveTenant(
+    user: AuthenticatedUser,
+  ): Promise<TenantDocument> {
+    if (user.scope !== 'tenant' || !user.tenantId)
+      throw new ForbiddenException('Esta acción requiere una empresa activa.');
+    const tenant = await this.tenantModel.findOne({
+      _id: user.tenantId,
+      status: 'activo',
+    });
+    if (!tenant) throw new NotFoundException('La empresa activa no existe.');
+    return tenant;
+  }
+
+  private toContext(tenant: TenantDocument) {
+    return {
+      id: tenant._id.toString(),
+      sector: tenant.sector,
+      operationalDescription: tenant.operationalDescription,
+      eventTypes: tenant.eventTypes ?? [],
+      operationMode: tenant.operationMode,
+      operationalAreas: tenant.operationalAreas ?? [],
+      operationalNotes: tenant.operationalNotes,
+    };
   }
 
   async join(tenantId: string, userId: string) {
