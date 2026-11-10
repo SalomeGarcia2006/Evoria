@@ -66,7 +66,7 @@ export class Tenant {
   @Prop({ type: [String], default: undefined })
   eventTypes!: string[] | undefined;
 
-  @Prop({ enum: TENANT_OPERATION_MODES, default: null })
+  @Prop({ type: String, enum: TENANT_OPERATION_MODES, default: null })
   operationMode!: TenantOperationMode | null;
 
   @Prop({ type: [TenantOperationalAreaSchema], default: undefined })
