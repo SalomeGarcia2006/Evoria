@@ -67,7 +67,7 @@ export function TurnstileWidget({
       />
       <div
         aria-label="Verificación de seguridad"
-        className="my-4"
+        className="my-4 flex justify-center"
         ref={element}
       />
     </>

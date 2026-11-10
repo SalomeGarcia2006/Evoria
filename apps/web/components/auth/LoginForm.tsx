@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { defaultRouteFor } from '../../lib/access-control';
@@ -24,6 +25,7 @@ export function LoginForm() {
   const [successfulLogin, setSuccessfulLogin] = useState<AuthUser | null>(null);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [captchaResetKey, setCaptchaResetKey] = useState(0);
+  const captchaSectionRef = useRef<HTMLDivElement>(null);
   const isLoginFlow = useRef(false);
 
   useEffect(() => {
@@ -60,10 +62,19 @@ export function LoginForm() {
     return () => window.clearTimeout(timeout);
   }, [router, successfulLogin]);
 
+  function requestCaptcha() {
+    setError('Completa la verificación de seguridad para continuar.');
+    captchaSectionRef.current?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'center',
+    });
+    captchaSectionRef.current?.focus({ preventScroll: true });
+  }
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (captchaConfigured && !captchaToken) {
-      setError('Completa la verificación de seguridad.');
+      requestCaptcha();
       return;
     }
     setError(null);
@@ -109,7 +120,7 @@ export function LoginForm() {
 
   async function handleGoogleLogin() {
     if (captchaConfigured && !captchaToken) {
-      setError('Completa la verificación de seguridad.');
+      requestCaptcha();
       return;
     }
     setError(null);
@@ -211,6 +222,9 @@ export function LoginForm() {
               </svg>
             </button>
           </div>
+          <p className="mt-2 text-right text-sm text-muted">
+            ¿Olvidaste tu contraseña?
+          </p>
         </div>
 
         {error ? (
@@ -220,23 +234,43 @@ export function LoginForm() {
           </p>
         ) : null}
 
-        <TurnstileWidget onToken={setCaptchaToken} resetKey={captchaResetKey} />
-
-        <button
-          className="login-button"
-          disabled={isSubmitting || (captchaConfigured && !captchaToken)}
-          type="submit"
-        >
+        <button className="login-button" disabled={isSubmitting} type="submit">
           {isSubmitting ? 'Iniciando sesión…' : 'Iniciar sesión'}
         </button>
+        <div className="flex items-center gap-3 py-5 text-sm text-muted">
+          <span aria-hidden="true" className="h-px flex-1 bg-sky-blue" />
+          <span>O</span>
+          <span aria-hidden="true" className="h-px flex-1 bg-sky-blue" />
+        </div>
         <button
-          className="mt-3 w-full rounded-lg border border-teal bg-white px-4 py-3 font-semibold text-navy transition hover:bg-sky-blue/40 disabled:opacity-60"
-          disabled={isSubmitting || (captchaConfigured && !captchaToken)}
+          className="inline-flex min-h-[3.125rem] w-full cursor-pointer items-center justify-center gap-2.5 rounded-[0.875rem] border border-[#747775] bg-white px-4 text-base font-semibold text-[#1f1f1f] transition hover:bg-[#f8fafd] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1a73e8] disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={isSubmitting}
           onClick={handleGoogleLogin}
           type="button"
         >
+          <Image
+            alt=""
+            height={18}
+            src="https://developers.google.com/static/identity/images/g-logo.png"
+            unoptimized
+            width={18}
+          />
           Continuar con Google
         </button>
+        {captchaConfigured ? (
+          <div
+            aria-label="Verificación de seguridad: complétala antes de ingresar"
+            className="mt-6 border-t border-sky-blue pt-4 text-center focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal"
+            ref={captchaSectionRef}
+            role="group"
+            tabIndex={-1}
+          >
+            <TurnstileWidget
+              onToken={setCaptchaToken}
+              resetKey={captchaResetKey}
+            />
+          </div>
+        ) : null}
       </form>
 
       {error && isAlertVisible ? (
