@@ -1,6 +1,30 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import type { HydratedDocument, Types } from 'mongoose';
-import { TENANT_STATUSES, type TenantStatus } from '../tenants.constants';
+import {
+  TENANT_OPERATION_MODES,
+  TENANT_STATUSES,
+  type TenantOperationMode,
+  type TenantStatus,
+} from '../tenants.constants';
+
+@Schema({ _id: false })
+export class TenantOperationalArea {
+  @Prop({ required: true, trim: true, minlength: 2, maxlength: 80 })
+  name!: string;
+
+  @Prop({ type: String, trim: true, maxlength: 500, default: null })
+  description!: string | null;
+
+  @Prop({ type: [String], default: [] })
+  responsibilities!: string[];
+
+  @Prop({ type: [String], default: [] })
+  authorizations!: string[];
+}
+
+export const TenantOperationalAreaSchema = SchemaFactory.createForClass(
+  TenantOperationalArea,
+);
 
 export type TenantDocument = HydratedDocument<Tenant>;
 
@@ -32,6 +56,24 @@ export class Tenant {
     index: true,
   })
   status!: TenantStatus;
+
+  @Prop({ type: String, trim: true, maxlength: 80, default: null })
+  sector!: string | null;
+
+  @Prop({ type: String, trim: true, maxlength: 1500, default: null })
+  operationalDescription!: string | null;
+
+  @Prop({ type: [String], default: undefined })
+  eventTypes!: string[] | undefined;
+
+  @Prop({ enum: TENANT_OPERATION_MODES, default: null })
+  operationMode!: TenantOperationMode | null;
+
+  @Prop({ type: [TenantOperationalAreaSchema], default: undefined })
+  operationalAreas!: TenantOperationalArea[] | undefined;
+
+  @Prop({ type: String, trim: true, maxlength: 2000, default: null })
+  operationalNotes!: string | null;
 }
 
 export const TenantSchema = SchemaFactory.createForClass(Tenant);
