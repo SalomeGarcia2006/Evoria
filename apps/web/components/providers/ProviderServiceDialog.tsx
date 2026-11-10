@@ -132,9 +132,8 @@ export function ProviderServiceDialog({
       next.serviceName = 'Escribe un nombre de al menos dos caracteres.';
     if (!values.startDate)
       next.startDate = 'Indica la fecha acordada de prestación.';
-    if (!values.startTime) next.startTime = 'Indica la hora de inicio.';
-    if (!values.endDate) next.endDate = 'Indica la fecha de fin.';
-    if (!values.endTime) next.endTime = 'Indica la hora de fin.';
+    if (values.endTime && !values.endDate)
+      next.endDate = 'Indica una fecha de fin para la hora de fin.';
     if (values.endDate && values.endDate < values.startDate)
       next.endDate = 'El fin no puede ser anterior al inicio.';
     if (
@@ -162,9 +161,9 @@ export function ProviderServiceDialog({
       serviceName: values.serviceName.trim(),
       description: values.description.trim() || null,
       startDate: values.startDate,
-      startTime: values.startTime,
-      endDate: values.endDate,
-      endTime: values.endTime,
+      startTime: values.startTime || null,
+      endDate: values.endDate || null,
+      endTime: values.endTime || null,
       agreedAmountCop: amount,
     };
     try {
@@ -355,17 +354,17 @@ export function ProviderServiceDialog({
                 },
                 {
                   key: 'startTime',
-                  label: 'Hora de inicio',
+                  label: 'Hora de inicio (opcional)',
                   type: 'time',
                 },
                 {
                   key: 'endDate',
-                  label: 'Fecha de fin',
+                  label: 'Fecha de fin (opcional)',
                   type: 'date',
                 },
                 {
                   key: 'endTime',
-                  label: 'Hora de fin',
+                  label: 'Hora de fin (opcional)',
                   type: 'time',
                 },
               ] as const
@@ -374,7 +373,7 @@ export function ProviderServiceDialog({
                 key={field.key}
                 label={field.label}
                 type={field.type}
-                required
+                required={field.key === 'startDate'}
                 error={errors[field.key]}
                 value={values[field.key]}
                 onChange={(e) =>

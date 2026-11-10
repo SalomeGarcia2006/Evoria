@@ -237,14 +237,15 @@ function ProvidersContent() {
                         header: 'Acciones',
                         render: (item) => (
                           <div className="flex gap-2">
-                            {can('proveedores.editar') && (
-                              <Button
-                                variant="ghost"
-                                onClick={() => setPanel(item)}
-                              >
-                                Editar
-                              </Button>
-                            )}
+                            {can('proveedores.editar') &&
+                              item.status === 'activo' && (
+                                <Button
+                                  variant="ghost"
+                                  onClick={() => setPanel(item)}
+                                >
+                                  Editar
+                                </Button>
+                              )}
                             {can('proveedores.desactivar') &&
                               item.status === 'activo' && (
                                 <Button
@@ -296,7 +297,7 @@ function ProvidersContent() {
         {deactivating && (
           <ConfirmProviderAction
             title="Desactivar proveedor"
-            description={`¿Desactivar a ${deactivating.name}? Sus acuerdos históricos se conservarán.`}
+            description={`¿Desactivar a ${deactivating.name}? No podrá seleccionarse para nuevos servicios. Sus acuerdos se conservarán y actualmente no es posible reactivarlo desde la aplicación.`}
             action={() => deactivateProvider(deactivating.id)}
             onClose={() => setDeactivating(null)}
             onSaved={() => saved('Proveedor desactivado correctamente.')}

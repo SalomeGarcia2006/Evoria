@@ -168,6 +168,14 @@ export function ProviderServices({
               no crear ni editar.
             </p>
           )}
+          {!cancelled &&
+            can('servicios_proveedor.crear') &&
+            !can('proveedores.ver') && (
+              <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
+                Necesitas permiso para consultar proveedores antes de asignar un
+                servicio.
+              </p>
+            )}
           {!cancelled && budgetMissing && (
             <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
               No puedes crear ni editar acuerdos hasta consultar e iniciar el
