@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import Image from 'next/image';
 import { PermissionGate } from '../../components/auth/PermissionGate';
 import { AppShell } from '../../components/layout/AppShell';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
-import { DataTable } from '../../components/ui/DataTable';
+import { FeedbackMessages, useFeedback } from '../../components/ui/Feedback';
 import { LoadingState } from '../../components/ui/LoadingState';
 import { useAuth } from '../../hooks/useAuth';
 import { getAllEvents, type EventItem } from '../../services/events.service';
@@ -28,6 +29,13 @@ const statusLabels: Record<ScheduleStatus, string> = {
   en_progreso: 'En progreso',
   completado: 'Completado',
   cancelado: 'Cancelado',
+};
+
+const statusClasses: Record<ScheduleStatus, string> = {
+  pendiente: 'bg-amber/15 text-amber-900',
+  en_progreso: 'bg-teal/15 text-teal',
+  completado: 'bg-violet/10 text-violet',
+  cancelado: 'bg-coral/10 text-coral',
 };
 
 type ScheduleForm = {
@@ -128,6 +136,7 @@ function emptyForm(eventId = ''): ScheduleForm {
 
 export default function CronogramaPage() {
   const { can } = useAuth();
+  const feedback = useFeedback();
   const dialog = useRef<HTMLDialogElement>(null);
   const [events, setEvents] = useState<EventItem[]>([]);
   const [users, setUsers] = useState<CompanyUser[]>([]);
@@ -296,6 +305,11 @@ export default function CronogramaPage() {
         setIsLoadingSchedules(false);
       }
       closeForm();
+      feedback.notify(
+        editing
+          ? 'Actividad actualizada correctamente.'
+          : 'Actividad creada correctamente.',
+      );
     } catch (saveError) {
       setValidationAlert(
         saveError instanceof Error
@@ -308,7 +322,14 @@ export default function CronogramaPage() {
   }
 
   async function handleCancel(schedule: ScheduleItem) {
-    if (!window.confirm(`¿Deseas cancelar "${schedule.name}"?`)) return;
+    const confirmed = await feedback.confirm(
+      '¿Vas a cancelar esta actividad?',
+      `La actividad “${schedule.name}” quedará cancelada y no podrá continuar en el cronograma.`,
+      'Sí, cancelar actividad',
+      'warning',
+      'CANCELAR',
+    );
+    if (!confirmed) return;
 
     setCancellingId(schedule.id);
     setError(null);
@@ -333,17 +354,17 @@ export default function CronogramaPage() {
   const userNameById = new Map(users.map((user) => [user.id, user.name]));
 
   return (
-    <AppShell title="Cronograma">
+    <AppShell hideTitle title="Cronograma">
       <div className="grid gap-6">
-        <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+        <header className="events-hero">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[.16em] text-muted">
+            <p className="text-sm font-semibold uppercase tracking-[.16em] text-violet">
               Planificación operativa
             </p>
-            <h2 className="mt-2 text-3xl font-bold">Actividades programadas</h2>
-            <p className="mt-1 text-muted">
-              Organiza las tareas de cada evento y da seguimiento a sus
-              responsables.
+            <h1 className="mt-1 text-4xl font-bold">Cronograma</h1>
+            <p className="mt-2 max-w-xl text-base text-muted">
+              Organiza las actividades de cada evento y mantén a tu equipo al
+              día.
             </p>
           </div>
           <PermissionGate permission="cronogramas.crear">
@@ -357,10 +378,30 @@ export default function CronogramaPage() {
           </PermissionGate>
         </header>
 
+        <section className="events-banner">
+          <span className="events-banner__icon" aria-hidden="true">
+            <Image
+              alt=""
+              className="brightness-0 invert"
+              height={24}
+              src="/icons/cronograma.svg"
+              width={24}
+            />
+          </span>
+          <div>
+            <h2 className="text-xl font-bold">
+              Tu agenda de eventos, en orden
+            </h2>
+            <p className="mt-1 text-sm text-muted">
+              Revisa horarios, responsables y el avance de cada actividad.
+            </p>
+          </div>
+        </section>
+
         {isLoadingEvents ? (
           <LoadingState label="Cargando eventos…" />
         ) : events.length === 0 ? (
-          <Card>
+          <Card className="border-dashed text-center">
             <p className="font-semibold">
               No hay eventos activos para programar.
             </p>
@@ -369,18 +410,23 @@ export default function CronogramaPage() {
             </p>
           </Card>
         ) : (
-          <Card className="p-0">
-            <div className="flex flex-col gap-4 border-b border-sky-blue px-6 py-5 sm:flex-row sm:items-end sm:justify-between">
+          <section className="events-list-panel">
+            <div className="events-list-panel__toolbar flex-col items-stretch pb-4 sm:flex-row sm:items-end">
               <div>
-                <h3 className="font-bold">Cronograma de eventos</h3>
+                <p className="text-sm font-semibold uppercase tracking-[.14em] text-muted">
+                  Actividades programadas
+                </p>
+                <h2 className="mt-1 text-2xl font-bold">
+                  {selectedEvent?.name ?? 'Cronograma de eventos'}
+                </h2>
                 <p className="mt-1 text-sm text-muted">
                   {selectedEvent
-                    ? `Actividades de ${selectedEvent.name}.`
+                    ? `${schedules.length} ${schedules.length === 1 ? 'actividad programada' : 'actividades programadas'}.`
                     : 'Selecciona un evento para ver sus actividades.'}
                 </p>
               </div>
-              <label className="grid gap-1 text-sm font-semibold">
-                Evento
+              <label className="grid max-w-full gap-1 text-sm font-semibold sm:w-80">
+                <span className="text-muted">Evento</span>
                 <select
                   className={fieldClassName}
                   onChange={(event) => {
@@ -402,95 +448,130 @@ export default function CronogramaPage() {
                 <LoadingState label="Cargando actividades…" />
               </div>
             ) : schedules.length === 0 ? (
-              <p className="p-6 text-sm text-muted">
-                Este evento aún no tiene actividades programadas.
-              </p>
+              <div className="grid min-h-56 place-items-center p-6 text-center">
+                <div>
+                  <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-violet/10 text-xl text-violet">
+                    +
+                  </span>
+                  <h3 className="mt-3 font-bold">Aún no hay actividades</h3>
+                  <p className="mt-1 max-w-sm text-sm text-muted">
+                    Crea la primera actividad para organizar este evento.
+                  </p>
+                </div>
+              </div>
             ) : (
-              <DataTable
-                columns={[
-                  {
-                    key: 'activity',
-                    header: 'Actividad',
-                    render: (item) => item.name,
-                  },
-                  {
-                    key: 'start',
-                    header: 'Inicio',
-                    render: (item) => formatDate(item.startAt),
-                  },
-                  {
-                    key: 'end',
-                    header: 'Fin',
-                    render: (item) => formatDate(item.endAt),
-                  },
-                  {
-                    key: 'status',
-                    header: 'Estado',
-                    render: (item) =>
-                      statusLabels[
+              <div className="overflow-x-auto">
+                <table className="events-table min-w-[62rem]">
+                  <thead>
+                    <tr>
+                      <th>Actividad</th>
+                      <th>Fecha y hora</th>
+                      <th>Responsable</th>
+                      <th>Estado</th>
+                      <th aria-label="Acciones" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {schedules.map((item) => {
+                      const status =
                         item.status === 'cancelado'
                           ? item.status
-                          : getAutomaticStatus(item.startAt, item.endAt)
-                      ],
-                  },
-                  {
-                    key: 'responsible',
-                    header: 'Responsable',
-                    render: (item) =>
-                      item.responsibleUserId
+                          : getAutomaticStatus(item.startAt, item.endAt);
+                      const responsible = item.responsibleUserId
                         ? (userNameById.get(item.responsibleUserId) ??
                           'Usuario asignado')
-                        : 'Sin responsable',
-                  },
-                  {
-                    key: 'actions',
-                    header: 'Acciones',
-                    render: (item) => (
-                      <div className="flex flex-wrap gap-2">
-                        {can('cronogramas.editar') &&
-                        item.status !== 'cancelado' ? (
-                          <Button
-                            className="px-3 py-1.5 text-xs"
-                            onClick={() => openEditForm(item)}
-                            type="button"
-                            variant="secondary"
-                          >
-                            Editar
-                          </Button>
-                        ) : null}
-                        {can('cronogramas.eliminar') &&
-                        item.status !== 'cancelado' ? (
-                          <Button
-                            className="px-3 py-1.5 text-xs"
-                            disabled={cancellingId === item.id}
-                            onClick={() => void handleCancel(item)}
-                            type="button"
-                          >
-                            {cancellingId === item.id
-                              ? 'Cancelando…'
-                              : 'Cancelar'}
-                          </Button>
-                        ) : null}
-                      </div>
-                    ),
-                  },
-                ]}
-                rowKey={(item) => item.id}
-                rows={schedules}
-              />
+                        : 'Sin responsable';
+
+                      return (
+                        <tr key={item.id}>
+                          <td>
+                            <div className="max-w-72">
+                              <p className="font-semibold">{item.name}</p>
+                              <p className="mt-1 line-clamp-1 text-sm text-muted">
+                                {item.description || 'Sin descripción'}
+                              </p>
+                            </div>
+                          </td>
+                          <td>
+                            <div className="events-table__detail min-w-56">
+                              <span className="events-table__icon text-violet">
+                                ◷
+                              </span>
+                              <div>
+                                <p className="font-semibold text-navy">
+                                  {formatDate(item.startAt)}
+                                </p>
+                                <p className="mt-1 text-xs">
+                                  Hasta {formatDate(item.endAt)}
+                                </p>
+                              </div>
+                            </div>
+                          </td>
+                          <td>
+                            <p className="font-medium">{responsible}</p>
+                            <p className="mt-1 text-xs text-muted">
+                              Responsable
+                            </p>
+                          </td>
+                          <td>
+                            <span
+                              className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${statusClasses[status]}`}
+                            >
+                              {statusLabels[status]}
+                            </span>
+                          </td>
+                          <td>
+                            <div className="flex flex-wrap justify-end gap-2">
+                              {can('cronogramas.editar') &&
+                              item.status !== 'cancelado' ? (
+                                <Button
+                                  className="px-3 py-1.5 text-xs"
+                                  onClick={() => openEditForm(item)}
+                                  type="button"
+                                  variant="secondary"
+                                >
+                                  Editar
+                                </Button>
+                              ) : null}
+                              {can('cronogramas.eliminar') &&
+                              item.status !== 'cancelado' ? (
+                                <Button
+                                  className="px-3 py-1.5 text-xs"
+                                  disabled={cancellingId === item.id}
+                                  onClick={() => void handleCancel(item)}
+                                  type="button"
+                                >
+                                  {cancellingId === item.id
+                                    ? 'Cancelando…'
+                                    : 'Cancelar'}
+                                </Button>
+                              ) : null}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             )}
-          </Card>
+            <p className="events-list-panel__footer">
+              Mostrando {schedules.length}{' '}
+              {schedules.length === 1 ? 'actividad' : 'actividades'} de este
+              evento.
+            </p>
+          </section>
         )}
 
         <dialog
           aria-labelledby="activity-dialog-title"
-          className="m-auto max-h-[calc(100dvh-2rem)] w-11/12 max-w-3xl overflow-y-auto rounded-2xl border border-sky-blue bg-white p-0 text-navy shadow-2xl backdrop:bg-navy/60"
+          className="m-auto max-h-[calc(100dvh-2rem)] w-11/12 max-w-3xl overflow-y-auto rounded-[1.75rem] border border-sky-blue bg-white p-0 text-navy shadow-2xl backdrop:bg-navy/60"
           onClose={() => setEditing(null)}
           ref={dialog}
         >
-          <div className="flex items-start justify-between gap-4 border-b border-sky-blue p-6">
+          <div className="flex items-start justify-between gap-4 border-b border-sky-blue bg-linear-to-r from-violet/10 via-white to-teal/10 p-6 sm:p-8">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-[.16em] text-muted">
+              <p className="text-sm font-semibold uppercase tracking-[.16em] text-violet">
                 Cronograma
               </p>
               <h2
@@ -511,11 +592,11 @@ export default function CronogramaPage() {
             </Button>
           </div>
           <form
-            className="grid gap-5 p-6 sm:grid-cols-2"
+            className="grid gap-5 p-6 sm:grid-cols-2 sm:p-8"
             noValidate
             onSubmit={saveSchedule}
           >
-            <label className="grid gap-2 text-sm font-semibold sm:col-span-2">
+            <label className="grid gap-2 rounded-[1.25rem] border border-sky-blue bg-beige/50 p-4 text-sm font-semibold sm:col-span-2">
               Evento
               <select
                 className={fieldClassName}
@@ -534,9 +615,11 @@ export default function CronogramaPage() {
               </select>
             </label>
             {formEvent ? (
-              <p className="rounded-lg bg-sky-blue/20 px-3 py-2 text-sm text-muted sm:col-span-2">
-                Periodo del evento: {formatDate(formEvent.startAt)} —{' '}
-                {formatDate(formEvent.endAt)}
+              <p className="rounded-xl border border-teal/15 bg-teal/5 px-4 py-3 text-sm text-muted sm:col-span-2">
+                <span className="font-semibold text-navy">
+                  Periodo del evento:
+                </span>{' '}
+                {formatDate(formEvent.startAt)} — {formatDate(formEvent.endAt)}
               </p>
             ) : null}
             <label className="grid gap-2 text-sm font-semibold sm:col-span-2">
@@ -611,7 +694,7 @@ export default function CronogramaPage() {
                 ))}
               </select>
             </label>
-            <div className="flex gap-3 border-t border-sky-blue pt-5 sm:col-span-2">
+            <div className="mt-2 flex gap-3 border-t border-sky-blue pt-5 sm:col-span-2">
               <Button disabled={isSaving} type="submit">
                 {isSaving ? 'Guardando…' : 'Guardar actividad'}
               </Button>
@@ -626,6 +709,7 @@ export default function CronogramaPage() {
           />
         </dialog>
         <AlertOverlay message={error} onClose={() => setError(null)} />
+        <FeedbackMessages feedback={feedback} />
       </div>
     </AppShell>
   );
