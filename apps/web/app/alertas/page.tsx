@@ -42,14 +42,40 @@ function formatDate(value: string) {
 }
 
 function severityLabel(severity: AlertItem['severity']) {
-  return severity === 'warning' ? 'Requiere atención' : 'Información';
+  return severity === 'warning' ? 'Requiere atención' : 'Novedad';
 }
 
 function severityClassName(severity: AlertItem['severity']) {
   return severity === 'warning'
-    ? 'bg-amber-50 text-amber-800'
-    : 'bg-violet/10 text-violet';
+    ? 'bg-coral/10 text-coral'
+    : 'bg-teal/10 text-teal';
 }
+
+function severityDotClassName(severity: AlertItem['severity']) {
+  return severity === 'warning' ? 'bg-coral' : 'bg-teal';
+}
+
+const severityFilters: Array<{
+  value: AlertQuery['severity'] | '';
+  label: string;
+  description: string;
+}> = [
+  {
+    value: '',
+    label: 'Todas',
+    description: 'Consulta todas las novedades',
+  },
+  {
+    value: 'warning',
+    label: 'Requieren atención',
+    description: 'Requieren atención inmediata',
+  },
+  {
+    value: 'info',
+    label: 'Novedades',
+    description: 'Actualizaciones de tu operación',
+  },
+];
 
 export default function AlertasPage() {
   const { can } = useAuth();
@@ -117,6 +143,7 @@ export default function AlertasPage() {
     setError('');
     try {
       await markAlertAsRead(id);
+      window.dispatchEvent(new Event('evoria-alerts-changed'));
       detailDialog.current?.close();
       reload();
     } catch (readError) {
@@ -131,6 +158,7 @@ export default function AlertasPage() {
     setError('');
     try {
       await markAllAlertsAsRead();
+      window.dispatchEvent(new Event('evoria-alerts-changed'));
       reload();
     } catch (readError) {
       setError(apiErrorMessage(readError));
@@ -140,6 +168,13 @@ export default function AlertasPage() {
   }
 
   const pagination = data?.pagination;
+  const activeSeverity = filters.severity ?? '';
+  const listTitle =
+    activeSeverity === 'warning'
+      ? 'Alertas que requieren atención'
+      : activeSeverity === 'info'
+        ? 'Novedades de la operación'
+        : 'Todas las alertas';
 
   return (
     <AppShell hideTitle title="Alertas">
@@ -172,65 +207,105 @@ export default function AlertasPage() {
         <ModuleBanner
           icon="alerta.svg"
           title="Novedades de tu empresa"
-          description="Filtra las alertas por estado, severidad o tipo para encontrar lo que necesitas revisar."
+          description="Separa las alertas que requieren atención de las novedades para priorizar lo que necesitas revisar."
         />
 
         <section className="module-panel" aria-label="Filtros de alertas">
           <div className="module-panel__heading">
-            <h2 className="text-xl font-bold">Filtrar alertas</h2>
+            <div>
+              <h2 className="text-xl font-bold">Categoría de alerta</h2>
+              <p className="mt-1 text-sm text-muted">
+                Prioriza los avisos que requieren atención o consulta las
+                novedades de tu operación.
+              </p>
+            </div>
           </div>
-          <div className="module-panel__content grid gap-4 md:grid-cols-3">
-            <label className="grid gap-2 text-sm font-semibold">
-              Estado
-              <select
-                className={fieldClassName}
-                onChange={(event) =>
-                  updateFilter(
-                    'unread',
-                    event.target.value as AlertQuery['unread'],
-                  )
-                }
-                value={filters.unread ?? ''}
-              >
-                <option value="">Todas</option>
-                <option value="true">Sin leer</option>
-                <option value="false">Leídas</option>
-              </select>
-            </label>
-            <label className="grid gap-2 text-sm font-semibold">
-              Severidad
-              <select
-                className={fieldClassName}
-                onChange={(event) =>
-                  updateFilter(
-                    'severity',
-                    event.target.value as AlertQuery['severity'],
-                  )
-                }
-                value={filters.severity ?? ''}
-              >
-                <option value="">Todas</option>
-                <option value="warning">Requiere atención</option>
-                <option value="info">Información</option>
-              </select>
-            </label>
-            <label className="grid gap-2 text-sm font-semibold">
-              Tipo
-              <select
-                className={fieldClassName}
-                onChange={(event) =>
-                  updateFilter('type', event.target.value as AlertQuery['type'])
-                }
-                value={filters.type ?? ''}
-              >
-                <option value="">Todos los tipos</option>
-                {Object.entries(alertTypes).map(([type, label]) => (
-                  <option key={type} value={type}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </label>
+          <div className="module-panel__content grid gap-5">
+            <div
+              aria-label="Filtrar por categoría"
+              className="grid gap-3 md:grid-cols-3"
+              role="group"
+            >
+              {severityFilters.map((filter) => {
+                const active = activeSeverity === filter.value;
+                return (
+                  <button
+                    aria-pressed={active}
+                    className={`rounded-[1rem] border p-4 text-left transition ${
+                      active
+                        ? filter.value === 'warning'
+                          ? 'border-coral bg-coral/10 text-coral shadow-[0_8px_18px_rgba(255,93,115,0.14)]'
+                          : filter.value === 'info'
+                            ? 'border-teal bg-teal/10 text-teal shadow-[0_8px_18px_rgba(18,181,166,0.14)]'
+                            : 'border-teal bg-teal/10 text-teal shadow-[0_8px_18px_rgba(18,181,166,0.14)]'
+                        : 'border-sky-blue bg-white text-navy hover:border-violet/40 hover:bg-beige'
+                    }`}
+                    key={filter.label}
+                    onClick={() =>
+                      updateFilter(
+                        'severity',
+                        filter.value as AlertQuery['severity'],
+                      )
+                    }
+                    type="button"
+                  >
+                    <span className="flex items-center gap-2 font-semibold">
+                      {filter.value ? (
+                        <span
+                          aria-hidden="true"
+                          className={`size-2 rounded-full ${
+                            filter.value === 'warning' ? 'bg-coral' : 'bg-teal'
+                          }`}
+                        />
+                      ) : null}
+                      {filter.label}
+                    </span>
+                    <span className="mt-1 block text-xs opacity-80">
+                      {filter.description}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="grid gap-2 text-sm font-semibold">
+                Estado
+                <select
+                  className={fieldClassName}
+                  onChange={(event) =>
+                    updateFilter(
+                      'unread',
+                      event.target.value as AlertQuery['unread'],
+                    )
+                  }
+                  value={filters.unread ?? ''}
+                >
+                  <option value="">Todas</option>
+                  <option value="true">Sin leer</option>
+                  <option value="false">Leídas</option>
+                </select>
+              </label>
+              <label className="grid gap-2 text-sm font-semibold">
+                Tipo
+                <select
+                  className={fieldClassName}
+                  onChange={(event) =>
+                    updateFilter(
+                      'type',
+                      event.target.value as AlertQuery['type'],
+                    )
+                  }
+                  value={filters.type ?? ''}
+                >
+                  <option value="">Todos los tipos</option>
+                  {Object.entries(alertTypes).map(([type, label]) => (
+                    <option key={type} value={type}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
           </div>
         </section>
 
@@ -238,19 +313,31 @@ export default function AlertasPage() {
         {loading && !data ? (
           <LoadingState label="Consultando alertas…" />
         ) : data?.items.length ? (
-          <section aria-label="Alertas actuales" className="grid gap-3">
+          <section aria-label={listTitle} className="grid gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-xl font-bold">{listTitle}</h2>
+              <span className="rounded-full bg-sky-blue/60 px-3 py-1 text-sm font-semibold text-muted">
+                {data.items.length} mostradas
+              </span>
+            </div>
             {data.items.map((alert) => (
               <Card
-                className={`flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between ${
-                  alert.readAt ? 'opacity-75' : ''
-                }`}
+                className={`flex flex-col gap-4 border-l-4 sm:flex-row sm:items-center sm:justify-between ${
+                  alert.severity === 'warning'
+                    ? 'border-l-coral'
+                    : 'border-l-teal'
+                } ${alert.readAt ? 'opacity-75' : ''}`}
                 key={alert.id}
               >
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <span
-                      className={`rounded-full px-3 py-1 text-xs font-semibold ${severityClassName(alert.severity)}`}
+                      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${severityClassName(alert.severity)}`}
                     >
+                      <span
+                        aria-hidden="true"
+                        className={`size-1.5 rounded-full ${severityDotClassName(alert.severity)}`}
+                      />
                       {severityLabel(alert.severity)}
                     </span>
                     <span className="text-xs font-semibold uppercase tracking-wide text-muted">
@@ -294,8 +381,20 @@ export default function AlertasPage() {
           </section>
         ) : (
           <EmptyState
-            description="Cuando haya novedades relevantes para ti, aparecerán aquí."
-            title="No hay alertas para los filtros seleccionados"
+            description={
+              activeSeverity === 'warning'
+                ? 'No tienes alertas que requieran atención con los filtros seleccionados.'
+                : activeSeverity === 'info'
+                  ? 'No tienes novedades con los filtros seleccionados.'
+                  : 'Cuando haya novedades relevantes para ti, aparecerán aquí.'
+            }
+            title={`No hay ${
+              activeSeverity === 'warning'
+                ? 'alertas que requieran atención'
+                : activeSeverity === 'info'
+                  ? 'novedades'
+                  : 'alertas'
+            } para mostrar`}
           />
         )}
 
@@ -345,8 +444,12 @@ export default function AlertasPage() {
                 </h2>
               </div>
               <span
-                className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${severityClassName(selectedAlert.severity)}`}
+                className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${severityClassName(selectedAlert.severity)}`}
               >
+                <span
+                  aria-hidden="true"
+                  className={`size-1.5 rounded-full ${severityDotClassName(selectedAlert.severity)}`}
+                />
                 {severityLabel(selectedAlert.severity)}
               </span>
             </div>

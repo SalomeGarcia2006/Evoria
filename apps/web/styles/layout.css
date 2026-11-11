@@ -151,6 +151,30 @@
   transition: opacity 180ms ease;
 }
 
+.evoria-sidebar__alert-indicator {
+  position: absolute;
+  top: 0.55rem;
+  left: calc(50% + 0.38rem);
+  display: grid;
+  min-width: 1.05rem;
+  height: 1.05rem;
+  padding: 0 0.16rem;
+  place-items: center;
+  border: 2px solid var(--evoria-sidebar);
+  border-radius: 999px;
+  background: var(--evoria-coral);
+  box-shadow: 0 0 0 2px rgb(255 93 115 / 18%);
+  color: #fff;
+  font-size: 0.58rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.evoria-sidebar:hover .evoria-sidebar__alert-indicator,
+.evoria-sidebar:focus-within .evoria-sidebar__alert-indicator {
+  left: 1.55rem;
+}
+
 .evoria-sidebar__link:hover .evoria-sidebar__icon,
 .evoria-sidebar__link.is-active .evoria-sidebar__icon {
   opacity: 1;
@@ -233,6 +257,13 @@
     justify-content: flex-start;
     gap: 0.7rem;
     white-space: nowrap;
+  }
+
+  .evoria-sidebar__alert-indicator,
+  .evoria-sidebar:hover .evoria-sidebar__alert-indicator,
+  .evoria-sidebar:focus-within .evoria-sidebar__alert-indicator {
+    top: 0.45rem;
+    left: 1.6rem;
   }
 
   .evoria-sidebar__footer {

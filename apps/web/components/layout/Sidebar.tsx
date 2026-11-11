@@ -3,9 +3,10 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { navigationItems } from '../../lib/access-control';
 import { useAuth } from '../../hooks/useAuth';
+import { getUnreadAlertCount } from '../../services/alerts.service';
 
 const iconByRoute: Record<string, string> = {
   '/dashboard': 'dashboard.svg',
@@ -28,6 +29,28 @@ export function Sidebar() {
   const pathname = usePathname();
   const { can, signOut, user } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [unreadAlertCount, setUnreadAlertCount] = useState(0);
+
+  useEffect(() => {
+    let isMounted = true;
+    const refreshUnreadAlerts = () => {
+      void getUnreadAlertCount()
+        .then((count) => {
+          if (isMounted) setUnreadAlertCount(count);
+        })
+        .catch(() => {
+          if (isMounted) setUnreadAlertCount(0);
+        });
+    };
+
+    refreshUnreadAlerts();
+    window.addEventListener('evoria-alerts-changed', refreshUnreadAlerts);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener('evoria-alerts-changed', refreshUnreadAlerts);
+    };
+  }, [pathname]);
 
   async function handleLogout() {
     setIsLoggingOut(true);
@@ -80,6 +103,15 @@ export function Sidebar() {
                     src={`/icons/${iconByRoute[href]}`}
                     width={24}
                   />
+                  {href === '/alertas' && unreadAlertCount > 0 ? (
+                    <span
+                      aria-label={`${unreadAlertCount} alertas sin leer`}
+                      className="evoria-sidebar__alert-indicator"
+                      role="status"
+                    >
+                      {unreadAlertCount > 99 ? '99+' : unreadAlertCount}
+                    </span>
+                  ) : null}
                   <span className="evoria-sidebar__link-label">{label}</span>
                 </Link>
               </li>

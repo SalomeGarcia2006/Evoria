@@ -1939,6 +1939,24 @@
   --slate-900: #f1f5ff;
   --accent: #ffb3bf;
 }
+[data-theme='dark'] .evoria-landing .hero {
+  background: linear-gradient(
+    180deg,
+    #0a1628 0%,
+    #0f1f3a 24%,
+    #1a2f4a 56%,
+    #173552 78%,
+    #101827 100%
+  );
+}
+[data-theme='dark'] .evoria-landing .hero::after {
+  background: linear-gradient(
+    180deg,
+    rgb(16 24 39 / 0%) 0%,
+    rgb(16 24 39 / 55%) 58%,
+    #101827 100%
+  );
+}
 [data-theme='dark'] .evoria-landing :is(.navbar, .navbar.scrolled, .nav-links) {
   background: rgb(16 24 39 / 97%);
   border-color: #52637c;
