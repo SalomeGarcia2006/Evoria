@@ -1,0 +1,118 @@
+.card {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #b8a9e7;
+  border-radius: 1.25rem;
+  background: #faf8ff;
+  box-shadow: 0 10px 24px rgb(55 38 120 / 14%);
+}
+
+.identity {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1.5rem;
+  background: linear-gradient(125deg, #f0ecff, #e9f8f6);
+}
+
+.monogram {
+  display: grid;
+  width: 3.25rem;
+  height: 3.25rem;
+  flex: none;
+  place-items: center;
+  border-radius: 1rem;
+  background: var(--evoria-action);
+  color: #fff;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.name {
+  overflow-wrap: anywhere;
+  color: #231858;
+  font-size: 1.125rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.45rem;
+  color: #116358;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.status::before {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: #12a897;
+  content: '';
+}
+
+.details {
+  padding: 1.1rem 1.5rem;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: auto;
+  padding: 1rem 1.5rem 1.25rem;
+  border-top: 1px solid var(--evoria-border);
+}
+
+.dashboardLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  min-height: 2.5rem;
+  padding: 0.55rem 1rem;
+  border-radius: 0.875rem;
+  background: var(--evoria-action);
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-decoration: none;
+  box-shadow: 0 6px 16px rgb(73 42 163 / 20%);
+  transition:
+    filter 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.dashboardLink:hover {
+  filter: brightness(1.1);
+  box-shadow: 0 8px 20px rgb(73 42 163 / 28%);
+}
+
+.dashboardLink:focus-visible {
+  outline: 2px solid var(--evoria-focus);
+  outline-offset: 3px;
+}
+
+:global(html[data-theme='dark']) .identity {
+  background: linear-gradient(125deg, #332a58, #193d44);
+}
+
+:global(html[data-theme='dark']) .card {
+  border-color: #8776be;
+  background: #29344a;
+  box-shadow: 0 10px 24px rgb(0 0 0 / 25%);
+}
+
+:global(html[data-theme='dark']) .name {
+  color: #f2edff;
+}
+
+:global(html[data-theme='dark']) .status {
+  color: #a2e9df;
+}

@@ -3,20 +3,27 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
-import { getTenants, type TenantOption } from '../../services/tenants.service';
+import {
+  deactivateTenant,
+  getTenants,
+  type TenantOption,
+} from '../../services/tenants.service';
+import { ConfirmProviderAction } from '../providers/ConfirmProviderAction';
 import { Button } from '../ui/Button';
-import { Card } from '../ui/Card';
+import panelHeadingStyles from '../ui/PanelHeading.module.css';
+import tenantCardStyles from './TenantCards.module.css';
 
 export function TenantSelector({ revision }: { revision?: string }) {
   const { user, selectTenant } = useAuth();
   const [tenants, setTenants] = useState<TenantOption[]>([]);
-  const [selectedId, setSelectedId] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isChanging, setIsChanging] = useState(false);
+  const [changingTenantId, setChangingTenantId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState('');
   const [actionError, setActionError] = useState('');
   const [notice, setNotice] = useState('');
   const [attempt, setAttempt] = useState(0);
+  const [deactivating, setDeactivating] = useState<TenantOption | null>(null);
   const isPlatform = user?.scope === 'platform';
 
   useEffect(() => {
@@ -26,11 +33,6 @@ export function TenantSelector({ revision }: { revision?: string }) {
       .then((items) => {
         if (!active) return;
         setTenants(items.filter((item) => item.status === 'activo'));
-        setSelectedId((current) =>
-          items.some((item) => item.id === current && item.status === 'activo')
-            ? current
-            : '',
-        );
         setLoadError('');
       })
       .catch((error: unknown) => {
@@ -52,11 +54,11 @@ export function TenantSelector({ revision }: { revision?: string }) {
   async function changeCompany(tenantId: string | null) {
     if (isChanging || (tenantId !== null && !tenantId)) return;
     setIsChanging(true);
+    setChangingTenantId(tenantId);
     setActionError('');
     setNotice('');
     try {
       await selectTenant(tenantId);
-      setSelectedId('');
       setNotice(
         tenantId
           ? 'Te uniste a la empresa correctamente.'
@@ -71,118 +73,171 @@ export function TenantSelector({ revision }: { revision?: string }) {
       );
     } finally {
       setIsChanging(false);
+      setChangingTenantId(null);
     }
   }
 
   if (!user?.isDeveloper) return null;
 
   return (
-    <Card>
-      <h3 className="text-lg font-bold">Mi empresa</h3>
-      {notice ? (
-        <p className="mt-3 text-sm text-muted" role="status">
-          {notice}
+    <section className="module-panel" aria-label="Mi empresa">
+      <div className={`module-panel__heading ${panelHeadingStyles.heading}`}>
+        <h2 className="text-xl font-bold">Mi empresa</h2>
+        <p className="mt-1 text-sm text-muted">
+          Consulta o selecciona la empresa en la que vas a trabajar.
         </p>
-      ) : null}
-      {actionError ? (
-        <p
-          className="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-800"
-          role="alert"
-        >
-          {actionError}
-        </p>
-      ) : null}
-      {user.scope === 'tenant' && user.tenant ? (
-        <div className="mt-4 grid gap-4 rounded-xl bg-beige p-4">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-muted">
-              Empresa activa
-            </p>
-            <p className="mt-1 font-semibold">{user.tenant.name}</p>
-            <p className="mt-1 text-sm text-muted">
-              Tienes acceso como Administrador. Puedes salir cuando quieras para
-              elegir otra empresa.
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-4">
-            <Link
-              href="/dashboard"
-              className="text-sm font-semibold text-muted underline"
-            >
-              Ir al dashboard
-            </Link>
-            <Button
-              type="button"
-              variant="secondary"
-              disabled={isChanging}
-              onClick={() => void changeCompany(null)}
-            >
-              {isChanging ? 'Saliendo…' : 'Salir de la empresa'}
-            </Button>
-          </div>
-        </div>
-      ) : (
-        <div className="mt-4 grid gap-4">
-          <p className="text-sm text-muted">
-            Selecciona una empresa para unirte y trabajar en ella.
+      </div>
+      <div className="module-panel__content">
+        {notice ? (
+          <p className="mt-3 text-sm text-muted" role="status">
+            {notice}
           </p>
-          {isLoading ? (
-            <p role="status" className="text-sm text-muted">
-              Cargando empresas…
-            </p>
-          ) : loadError ? (
-            <div>
-              <p role="alert" className="mb-3 text-sm text-red-800">
-                {loadError}
+        ) : null}
+        {actionError ? (
+          <p
+            className="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-800"
+            role="alert"
+          >
+            {actionError}
+          </p>
+        ) : null}
+        {user.scope === 'tenant' && user.tenant ? (
+          <div className={tenantCardStyles.card}>
+            <div className={tenantCardStyles.identity}>
+              <span className={tenantCardStyles.monogram} aria-hidden="true">
+                {user.tenant.name.trim().charAt(0).toLocaleUpperCase('es-CO')}
+              </span>
+              <div className="min-w-0">
+                <p className={tenantCardStyles.name}>{user.tenant.name}</p>
+                <span className={tenantCardStyles.status}>Empresa activa</span>
+              </div>
+            </div>
+            <div className={tenantCardStyles.details}>
+              <p className="mt-1 text-sm text-muted">
+                Tienes acceso como Administrador. Puedes salir cuando quieras
+                para elegir otra empresa.
               </p>
+            </div>
+            <div className={`${tenantCardStyles.actions} items-center`}>
+              <Link
+                href="/dashboard"
+                className={tenantCardStyles.dashboardLink}
+              >
+                Ir al dashboard
+              </Link>
               <Button
                 type="button"
                 variant="secondary"
-                onClick={() => {
-                  setIsLoading(true);
-                  setAttempt((current) => current + 1);
-                }}
+                disabled={isChanging}
+                onClick={() => void changeCompany(null)}
               >
-                Reintentar
+                {isChanging ? 'Saliendo…' : 'Salir de la empresa'}
               </Button>
             </div>
-          ) : tenants.length === 0 ? (
-            <p className="rounded-xl bg-beige p-4 text-sm text-muted">
-              No hay empresas disponibles. Crea una empresa para poder
-              seleccionarla.
-            </p>
-          ) : (
-            <form
-              className="flex flex-wrap items-end gap-4"
-              onSubmit={(event) => {
-                event.preventDefault();
-                void changeCompany(selectedId);
-              }}
-            >
-              <label className="grid min-w-0 flex-1 gap-2 text-sm font-semibold">
-                Empresa
-                <select
-                  className="rounded-lg border border-sky-blue bg-white px-3 py-2 font-normal"
-                  value={selectedId}
-                  onChange={(event) => setSelectedId(event.target.value)}
-                  disabled={isChanging}
-                  required
+          </div>
+        ) : (
+          <div className="mt-4 grid gap-4">
+            {isLoading ? (
+              <p role="status" className="text-sm text-muted">
+                Cargando empresas…
+              </p>
+            ) : loadError ? (
+              <div>
+                <p role="alert" className="mb-3 text-sm text-red-800">
+                  {loadError}
+                </p>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => {
+                    setIsLoading(true);
+                    setAttempt((current) => current + 1);
+                  }}
                 >
-                  <option value="">Selecciona una empresa</option>
-                  {tenants.map((tenant) => (
-                    <option key={tenant.id} value={tenant.id}>
-                      {tenant.name} · NIT {tenant.nit}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <Button type="submit" disabled={!selectedId || isChanging}>
-                {isChanging ? 'Uniéndome…' : 'Unirme a la empresa'}
-              </Button>
-            </form>
-          )}
-        </div>
-      )}
-    </Card>
+                  Reintentar
+                </Button>
+              </div>
+            ) : tenants.length === 0 ? (
+              <p className="rounded-xl bg-beige p-4 text-sm text-muted">
+                No hay empresas disponibles. Crea una empresa para poder
+                seleccionarla.
+              </p>
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                {tenants.map((tenant) => (
+                  <article
+                    key={tenant.id}
+                    aria-label={`Empresa ${tenant.name}`}
+                    className={tenantCardStyles.card}
+                  >
+                    <div className={tenantCardStyles.identity}>
+                      <span
+                        className={tenantCardStyles.monogram}
+                        aria-hidden="true"
+                      >
+                        {tenant.name
+                          .trim()
+                          .charAt(0)
+                          .toLocaleUpperCase('es-CO')}
+                      </span>
+                      <div className="min-w-0">
+                        <h3 className={tenantCardStyles.name}>{tenant.name}</h3>
+                        <span className={tenantCardStyles.status}>Activa</span>
+                      </div>
+                    </div>
+                    <dl className={tenantCardStyles.details}>
+                      <dt className="text-xs font-semibold uppercase tracking-wide text-muted">
+                        NIT
+                      </dt>
+                      <dd className="mt-1 break-all text-sm font-semibold">
+                        {tenant.nit}
+                      </dd>
+                    </dl>
+                    <div className={tenantCardStyles.actions}>
+                      {user.permissions.includes('empresas.desactivar') && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          disabled={isChanging}
+                          aria-label={`Desactivar ${tenant.name}`}
+                          onClick={() => setDeactivating(tenant)}
+                        >
+                          Desactivar
+                        </Button>
+                      )}
+                      <Button
+                        type="button"
+                        disabled={isChanging}
+                        aria-label={`Unirme a ${tenant.name}`}
+                        onClick={() => void changeCompany(tenant.id)}
+                      >
+                        {changingTenantId === tenant.id
+                          ? 'Uniéndome…'
+                          : 'Unirme a la empresa'}
+                      </Button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+        {deactivating && (
+          <ConfirmProviderAction
+            title="Desactivar empresa"
+            description={`¿Desactivar ${deactivating.name}? Sus usuarios no podrán acceder a la empresa y no podrá seleccionarse. No hay una opción de reactivación disponible en la aplicación.`}
+            confirmationText="DESACTIVAR"
+            action={() => deactivateTenant(deactivating.id)}
+            onClose={() => setDeactivating(null)}
+            onSaved={() => {
+              setNotice('La empresa se desactivó correctamente.');
+              setDeactivating(null);
+              setIsLoading(true);
+              setAttempt((value) => value + 1);
+            }}
+          />
+        )}
+      </div>
+    </section>
   );
 }

@@ -49,3 +49,54 @@ export async function createTenant(
 
   return response.data;
 }
+
+export type TenantOperationMode = 'propios' | 'clientes' | 'ambos';
+export type TenantArea = {
+  name: string;
+  description: string | null;
+  responsibilities: string[];
+  authorizations: string[];
+};
+export type TenantContext = {
+  id: string;
+  sector: string | null;
+  operationalDescription: string | null;
+  eventTypes: string[];
+  operationMode: TenantOperationMode | null;
+  operationalAreas: TenantArea[];
+  operationalNotes: string | null;
+};
+export type TenantContextUpdate = Partial<Omit<TenantContext, 'id'>>;
+
+export async function getTenantContext(): Promise<TenantContext> {
+  const response = await apiRequest<{ data: TenantContext }>(
+    '/tenants/context',
+    {
+      credentials: 'include',
+      cache: 'no-store',
+    },
+  );
+  return response.data;
+}
+
+export async function updateTenantContext(
+  payload: TenantContextUpdate,
+): Promise<TenantContext> {
+  const response = await apiRequest<{ data: TenantContext }>(
+    '/tenants/context',
+    {
+      method: 'PATCH',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    },
+  );
+  return response.data;
+}
+
+export async function deactivateTenant(id: string): Promise<void> {
+  await apiRequest(`/tenants/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  });
+}
