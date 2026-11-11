@@ -48,9 +48,20 @@ export function ProviderFormDialog({
       next.name = 'Escribe un nombre de al menos dos caracteres.';
     if (!categories.length)
       next.categories = 'Selecciona al menos una categoría.';
-    if (!values.phone.trim() && !values.email.trim())
-      next.phone = next.email = 'Ingresa teléfono o correo.';
-    if (values.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email.trim()))
+    if (!provider && !values.phone.trim())
+      next.phone = 'Ingresa el teléfono del proveedor.';
+    if (!provider && !values.email.trim())
+      next.email = 'Ingresa el correo del proveedor.';
+    if (!provider && !values.location.trim())
+      next.location = 'Ingresa la ubicación del proveedor.';
+    if (!provider && !values.notes.trim())
+      next.notes = 'Ingresa las notas del proveedor.';
+    if (provider && !values.phone.trim() && !values.email.trim())
+      next.phone = 'Ingresa teléfono o correo.';
+    if (
+      values.email.trim() &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email.trim())
+    )
       next.email = 'Ingresa un correo válido.';
     if (Object.keys(next).length) {
       feedback.guide(
@@ -149,6 +160,11 @@ export function ProviderFormDialog({
             <Field
               key={key}
               label={label}
+              required={
+                key === 'name' ||
+                (!provider &&
+                  (key === 'phone' || key === 'email' || key === 'location'))
+              }
               value={values[key as keyof typeof values]}
               maxLength={
                 key === 'email'
@@ -194,14 +210,12 @@ export function ProviderFormDialog({
             <textarea
               className={inputClass}
               maxLength={1000}
+              required={!provider}
               value={values.notes}
               onChange={(e) => setValues({ ...values, notes: e.target.value })}
             />
           </label>
         </fieldset>
-        <p className="text-sm text-muted">
-          Nombre, categorías y al menos un teléfono o correo son obligatorios.
-        </p>
         <div className="flex flex-wrap justify-end gap-3">
           <Button
             type="button"
@@ -212,7 +226,13 @@ export function ProviderFormDialog({
             Cancelar
           </Button>
           <Button disabled={busy}>
-            {busy ? 'Guardando…' : 'Guardar proveedor'}
+            {busy
+              ? provider
+                ? 'Actualizando…'
+                : 'Guardando…'
+              : provider
+                ? 'Actualizar información'
+                : 'Guardar proveedor'}
           </Button>
         </div>
       </form>

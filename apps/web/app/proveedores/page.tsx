@@ -14,6 +14,7 @@ import { ModuleBanner } from '../../components/ui/ModuleBanner';
 import { DataTable } from '../../components/ui/DataTable';
 import { LoadingState } from '../../components/ui/LoadingState';
 import { ErrorMessage } from '../../components/ui/ErrorMessage';
+import { FeedbackMessages, useFeedback } from '../../components/ui/Feedback';
 import { ProviderFormDialog } from '../../components/providers/ProviderFormDialog';
 import { ConfirmProviderAction } from '../../components/providers/ConfirmProviderAction';
 import { categoryLabels, inputClass } from '../../components/providers/fields';
@@ -30,6 +31,7 @@ export default function ProveedoresPage() {
 }
 function ProvidersContent() {
   const { can } = useAuth();
+  const feedback = useFeedback();
   const allowed = can('proveedores.ver');
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState<ProviderCategory | ''>('');
@@ -78,15 +80,17 @@ function ProvidersContent() {
   }, [allowed, search, category, status, page, key, queryKey]);
   const data = result?.queryKey === queryKey ? result.data : undefined;
   const error = result?.key === key ? result.error : undefined;
-  function saved(message: string) {
+  function saved(message: string, showModal = false) {
     setPanel(null);
     setDeactivating(null);
-    setNotice(message);
+    setNotice(showModal ? '' : message);
+    if (showModal) feedback.notify(message);
     setRevision((value) => value + 1);
   }
   return (
     <AppShell hideTitle title="Proveedores">
       <div className="grid min-w-0 gap-6">
+        <FeedbackMessages feedback={feedback} />
         <PageHero
           title="Proveedores"
           description="Contactos y categorías de los proveedores de tu empresa."
@@ -291,12 +295,20 @@ function ProvidersContent() {
           <ProviderFormDialog
             provider={panel === 'create' ? undefined : panel}
             onClose={() => setPanel(null)}
-            onSaved={() => saved('Proveedor guardado correctamente.')}
+            onSaved={() =>
+              panel === 'create'
+                ? saved('Proveedor guardado correctamente.')
+                : saved(
+                    'La información del proveedor se actualizó correctamente.',
+                    true,
+                  )
+            }
           />
         )}
         {deactivating && (
           <ConfirmProviderAction
             title="Desactivar proveedor"
+            confirmationText="DESACTIVAR"
             description={`¿Desactivar a ${deactivating.name}? No podrá seleccionarse para nuevos servicios. Sus acuerdos se conservarán y actualmente no es posible reactivarlo desde la aplicación.`}
             action={() => deactivateProvider(deactivating.id)}
             onClose={() => setDeactivating(null)}

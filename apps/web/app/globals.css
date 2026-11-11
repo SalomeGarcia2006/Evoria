@@ -893,6 +893,17 @@ textarea:focus {
 .evoria-button-primary {
   background: var(--evoria-action);
 }
+
+.dashboard-hero__button.evoria-button-primary:not(:disabled) {
+  background: #fff;
+  color: #392184;
+  border: 1px solid #d7d0ff;
+}
+
+.dashboard-hero__button.evoria-button-primary:not(:disabled):hover {
+  background: #f0edff;
+}
+
 button.border-sky-blue {
   border-color: var(--evoria-control-border);
 }

@@ -249,7 +249,7 @@ test('directorio: valida cambios y advierte duplicados', async ({ page }) => {
   const state = await setup(page);
   await page.goto('/proveedores');
   await page.getByRole('button', { name: 'Editar', exact: true }).click();
-  await page.getByRole('button', { name: 'Guardar proveedor' }).click();
+  await page.getByRole('button', { name: 'Actualizar información' }).click();
   const alert = page.getByRole('alertdialog');
   await expect(alert).toContainText('Modifica algún dato antes de guardar');
   expect(writes(state)).toHaveLength(0);
@@ -263,6 +263,9 @@ test('directorio: valida cambios y advierte duplicados', async ({ page }) => {
   await dialog.getByLabel('Nombre', { exact: true }).fill(provider.name);
   await dialog.getByLabel('Espacios', { exact: true }).check();
   await dialog.getByLabel('Teléfono').fill('3001234567');
+  await dialog.getByLabel('Correo').fill('ana@example.test');
+  await dialog.getByLabel('Ubicación').fill('Pasto');
+  await dialog.getByLabel('Notas').fill('Proveedor de eventos');
   await dialog.getByRole('button', { name: 'Guardar proveedor' }).click();
   await expect(alert).toContainText('Ya existe un proveedor con este nombre');
   expect(writes(state)).toHaveLength(0);
@@ -340,7 +343,10 @@ test('directorio: creación validada, búsqueda, categorías y edición', async 
     'Escribe un nombre de al menos dos caracteres.',
   );
   await expect(validation).toContainText('Selecciona al menos una categoría.');
-  await expect(validation).toContainText('Ingresa teléfono o correo.');
+  await expect(validation).toContainText('Ingresa el teléfono del proveedor.');
+  await expect(validation).toContainText('Ingresa el correo del proveedor.');
+  await expect(validation).toContainText('Ingresa la ubicación del proveedor.');
+  await expect(validation).toContainText('Ingresa las notas del proveedor.');
   await validation.getByRole('button', { name: 'Entendido' }).click();
   await expect(
     dialog.getByText('Selecciona al menos una categoría.'),
@@ -349,7 +355,29 @@ test('directorio: creación validada, búsqueda, categorías y edición', async 
   await dialog.getByLabel('Nombre', { exact: true }).fill('Transporte Andino');
   await dialog.getByLabel('Transporte', { exact: true }).check();
   await dialog.getByLabel('Otros', { exact: true }).check();
+  await dialog.getByLabel('Correo').fill('transporte@example.test');
+  await dialog.getByRole('button', { name: 'Guardar proveedor' }).click();
+  await expect(validation).toContainText('Ingresa el teléfono del proveedor.');
+  expect(writes(state)).toHaveLength(0);
+  await validation.getByRole('button', { name: 'Entendido' }).click();
   await dialog.getByLabel('Teléfono').fill('3007654321');
+  await dialog.getByLabel('Correo').fill('');
+  await dialog.getByRole('button', { name: 'Guardar proveedor' }).click();
+  await expect(validation).toContainText('Ingresa el correo del proveedor.');
+  expect(writes(state)).toHaveLength(0);
+  await validation.getByRole('button', { name: 'Entendido' }).click();
+  await dialog.getByLabel('Correo').fill('transporte@example.test');
+  await dialog.getByRole('button', { name: 'Guardar proveedor' }).click();
+  await expect(validation).toContainText('Ingresa la ubicación del proveedor.');
+  await expect(validation).toContainText('Ingresa las notas del proveedor.');
+  expect(writes(state)).toHaveLength(0);
+  await validation.getByRole('button', { name: 'Entendido' }).click();
+  await dialog.getByLabel('Ubicación').fill('Pasto');
+  await dialog.getByRole('button', { name: 'Guardar proveedor' }).click();
+  await expect(validation).toContainText('Ingresa las notas del proveedor.');
+  expect(writes(state)).toHaveLength(0);
+  await validation.getByRole('button', { name: 'Entendido' }).click();
+  await dialog.getByLabel('Notas').fill('Transporte para eventos');
   state.failSave = true;
   await dialog.getByRole('button', { name: 'Guardar proveedor' }).click();
   await expect(dialog.getByRole('alert')).toContainText('Error de prueba');
@@ -377,7 +405,13 @@ test('directorio: creación validada, búsqueda, categorías y edición', async 
     .getByRole('dialog')
     .getByLabel('Persona de contacto')
     .fill('Luis Pérez');
-  await page.getByRole('button', { name: 'Guardar proveedor' }).click();
+  await page.getByRole('button', { name: 'Actualizar información' }).click();
+  const success = page.getByRole('alertdialog');
+  await expect(success.locator('.event-success-modal')).toBeVisible();
+  await expect(success).toContainText(
+    'La información del proveedor se actualizó correctamente.',
+  );
+  await success.getByRole('button', { name: 'Entendido' }).click();
   await expect(page.getByRole('table').getByText('Luis Pérez')).toBeVisible();
   await page.getByLabel('Buscar por nombre o contacto').fill('Luis');
   await expect(
@@ -413,7 +447,12 @@ test('directorio: paginación, vacíos, error recuperable y desactivación confi
     .click();
   expect(writes(state)).toHaveLength(0);
   await page.getByRole('button', { name: 'Desactivar', exact: true }).click();
-  await page.getByLabel('Escribe CANCELAR para confirmar').fill('CANCELAR');
+  const confirmation = page.getByLabel('Escribe DESACTIVAR para confirmar');
+  await confirmation.fill('CANCELAR');
+  await expect(
+    page.getByRole('dialog').getByRole('button', { name: 'Confirmar' }),
+  ).toBeDisabled();
+  await confirmation.fill('DESACTIVAR');
   await page
     .getByRole('dialog')
     .getByRole('button', { name: 'Confirmar' })

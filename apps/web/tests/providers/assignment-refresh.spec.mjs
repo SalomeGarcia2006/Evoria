@@ -162,8 +162,8 @@ test('permite actualizar tras asignar o liberar un recurso y conserva errores', 
   ).toBeDisabled();
   await page
     .getByRole('alertdialog')
-    .getByLabel('Escribe CANCELAR para confirmar')
-    .fill('CANCELAR');
+    .getByLabel('Escribe LIBERAR para confirmar')
+    .fill('LIBERAR');
   await page
     .getByRole('alertdialog')
     .getByRole('button', { name: 'Liberar unidades' })

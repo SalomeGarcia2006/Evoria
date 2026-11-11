@@ -58,6 +58,18 @@ for (const [path, button, content] of [
       else if (endpoint === '/events') data = { items: [event], pagination };
       else if (endpoint === '/alerts') data = { items: [], pagination };
       else if (endpoint === '/alerts/unread-count') data = { count: 0 };
+      else if (endpoint === '/dashboard/summary')
+        data = {
+          events: null,
+          inventory: {
+            resources: 1,
+            total: 4,
+            available: 4,
+            reserved: 0,
+            maintenance: 0,
+          },
+          budgets: null,
+        };
       else if (endpoint === '/inventory')
         data = {
           items: [

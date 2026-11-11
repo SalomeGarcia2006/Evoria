@@ -1,6 +1,16 @@
 import { getAllEvents } from './events.service';
 import { getAllBudgets } from './presupuestos.service';
 import { getAllResources } from './recursos.service';
+import type { DashboardSummary } from '@evoria/contracts';
+import { apiRequest } from './api';
+
+export async function getDashboardSummary(): Promise<DashboardSummary> {
+  const response = await apiRequest<{ data: DashboardSummary }>(
+    '/dashboard/summary',
+    { credentials: 'include', cache: 'no-store' },
+  );
+  return response.data;
+}
 
 async function getInventorySummary() {
   const { items } = await getAllResources();
