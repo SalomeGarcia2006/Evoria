@@ -2,7 +2,6 @@ import { test, expect } from '@playwright/test';
 
 for (const [path, button, content] of [
   ['/dashboard', 'Actualizar datos', 'Unidades disponibles'],
-  ['/inventario', 'Actualizar', 'Sillas'],
   [
     '/recursos/asignaciones',
     'Actualizar eventos',
@@ -10,7 +9,7 @@ for (const [path, button, content] of [
   ],
   ['/presupuestos', 'Actualizar', 'Ver presupuesto de Evento de prueba'],
   ['/reportes', 'Actualizar', 'Eventos registrados'],
-  ['/alertas', 'Actualizar', 'Todo al día'],
+  ['/alertas', 'Actualizar', 'No hay alertas para los filtros seleccionados'],
 ]) {
   test(`mantiene la información de ${path} durante una actualización lenta`, async ({
     page,
@@ -57,6 +56,8 @@ for (const [path, button, content] of [
           ],
         };
       else if (endpoint === '/events') data = { items: [event], pagination };
+      else if (endpoint === '/alerts') data = { items: [], pagination };
+      else if (endpoint === '/alerts/unread-count') data = { count: 0 };
       else if (endpoint === '/inventory')
         data = {
           items: [

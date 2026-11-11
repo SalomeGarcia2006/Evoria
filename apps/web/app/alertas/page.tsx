@@ -235,7 +235,7 @@ export default function AlertasPage() {
         </section>
 
         {error ? <ErrorMessage message={error} /> : null}
-        {loading ? (
+        {loading && !data ? (
           <LoadingState label="Consultando alertas…" />
         ) : data?.items.length ? (
           <section aria-label="Alertas actuales" className="grid gap-3">

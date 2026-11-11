@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { AppShell } from '../../components/layout/AppShell';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
-import { DataTable } from '../../components/ui/DataTable';
+import { FeedbackMessages, useFeedback } from '../../components/ui/Feedback';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { PermissionGate } from '../../components/auth/PermissionGate';
 import { useAuth } from '../../hooks/useAuth';
@@ -62,6 +62,7 @@ function PermissionSwitch({
 
 export default function PerfilesPage() {
   const { can } = useAuth();
+  const feedback = useFeedback();
   const [profiles, setProfiles] = useState<ApiProfile[]>([]);
   const [permissionModules, setPermissionModules] = useState<
     PermissionModule[]
@@ -139,8 +140,21 @@ export default function PerfilesPage() {
   async function saveProfile(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const name = newProfileName.trim();
+    const missingFields = [
+      !name ? 'nombre del perfil' : '',
+      newProfilePermissionKeys.length === 0 ? 'al menos un permiso' : '',
+    ].filter(Boolean);
+
+    if (missingFields.length) {
+      feedback.guide(
+        `Falta completar: ${missingFields.join(' y ')}.`,
+        'Campos obligatorios',
+        'warning',
+      );
+      return;
+    }
+
     if (
-      !name ||
       profiles.some(
         (profile) =>
           profile.id !== editingProfile?.id &&
@@ -182,26 +196,105 @@ export default function PerfilesPage() {
   }
 
   return (
-    <AppShell title="Perfiles">
+    <AppShell hideTitle title="Perfiles">
       <div className="grid gap-6">
-        <Card>
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <header className="events-hero">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[.16em] text-violet">
+              Control de acceso
+            </p>
+            <h1 className="mt-1 text-4xl font-bold">Perfiles</h1>
+            <p className="mt-2 max-w-xl text-base text-muted">
+              Define los permisos que necesita cada equipo para trabajar.
+            </p>
+          </div>
+          <PermissionGate permission="perfiles.crear">
+            <Button onClick={openCreateForm} type="button">
+              + Nuevo perfil
+            </Button>
+          </PermissionGate>
+        </header>
+
+        <section className="events-banner">
+          <span className="events-banner__icon" aria-hidden="true">
+            <Image
+              alt=""
+              className="brightness-0"
+              height={24}
+              src="/icons/perfil.svg"
+              width={24}
+            />
+          </span>
+          <div>
+            <h2 className="text-xl font-bold">Permisos claros para cada rol</h2>
+            <p className="mt-1 text-sm text-muted">
+              Crea, consulta y ajusta los accesos de los perfiles de tu empresa.
+            </p>
+          </div>
+        </section>
+
+        <section className="grid gap-4 sm:grid-cols-3">
+          <Card className="flex items-center gap-4 p-5" density="compact">
+            <span className="grid size-12 place-items-center rounded-2xl bg-linear-to-br from-violet to-[#9B87FF] shadow-[0_10px_20px_rgba(106,76,255,0.2)]">
+              <Image
+                alt=""
+                aria-hidden="true"
+                className="brightness-0 invert"
+                height={23}
+                src="/icons/perfil.svg"
+                width={23}
+              />
+            </span>
             <div>
-              <p className="text-sm font-semibold uppercase tracking-wide text-muted">
-                Control de acceso
-              </p>
-              <h2 className="mt-1 text-2xl font-bold">Perfiles del sistema</h2>
-              <p className="mt-2 text-muted">
-                Crea perfiles y asigna permisos para cada módulo.
+              <p className="text-sm text-muted">Perfiles registrados</p>
+              <p className="font-display text-3xl font-bold">
+                {profiles.length}
               </p>
             </div>
-            <PermissionGate permission="perfiles.crear">
-              <Button onClick={openCreateForm} type="button">
-                Crear perfil
-              </Button>
-            </PermissionGate>
-          </div>
-        </Card>
+          </Card>
+          <Card className="flex items-center gap-4 p-5" density="compact">
+            <span className="grid size-12 place-items-center rounded-2xl bg-linear-to-br from-teal to-[#5BE0D2] shadow-[0_10px_20px_rgba(18,181,166,0.2)]">
+              <Image
+                alt=""
+                aria-hidden="true"
+                className="brightness-0 invert"
+                height={23}
+                src="/icons/usuarios.svg"
+                width={23}
+              />
+            </span>
+            <div>
+              <p className="text-sm text-muted">Perfiles activos</p>
+              <p className="font-display text-3xl font-bold">
+                {
+                  profiles.filter((profile) => profile.status === 'activo')
+                    .length
+                }
+              </p>
+            </div>
+          </Card>
+          <Card className="flex items-center gap-4 p-5" density="compact">
+            <span className="grid size-12 place-items-center rounded-2xl bg-linear-to-br from-coral to-amber shadow-[0_10px_20px_rgba(255,93,115,0.2)]">
+              <Image
+                alt=""
+                aria-hidden="true"
+                className="brightness-0 invert"
+                height={23}
+                src="/icons/alerta.svg"
+                width={23}
+              />
+            </span>
+            <div>
+              <p className="text-sm text-muted">Permisos asignados</p>
+              <p className="font-display text-3xl font-bold">
+                {profiles.reduce(
+                  (total, profile) => total + profile.permissions.length,
+                  0,
+                )}
+              </p>
+            </div>
+          </Card>
+        </section>
         {error ? (
           <p
             className="rounded-lg bg-red-50 p-3 text-sm text-red-800"
@@ -214,15 +307,18 @@ export default function PerfilesPage() {
         {can('perfiles.crear') || can('perfiles.editar') ? (
           <dialog
             aria-labelledby="profile-dialog-title"
-            className="m-auto h-[calc(100dvh-2rem)] w-11/12 max-w-7xl flex-col overflow-hidden rounded-2xl border border-sky-blue bg-white p-0 text-navy shadow-2xl backdrop:bg-navy/60 open:flex"
+            className="m-auto h-[calc(100dvh-2rem)] w-11/12 max-w-7xl flex-col overflow-hidden rounded-[1.75rem] border border-sky-blue bg-white p-0 text-navy shadow-2xl backdrop:bg-navy/60 open:flex"
             ref={profileDialog}
           >
-            <div className="shrink-0 flex flex-col gap-1 border-b border-sky-blue p-6 sm:flex-row sm:items-center sm:justify-between">
+            <div className="shrink-0 flex flex-col gap-4 border-b border-sky-blue bg-linear-to-r from-violet/10 via-white to-teal/10 p-6 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-sm text-muted">
+                <p className="text-sm font-semibold uppercase tracking-[.16em] text-violet">
                   {editingProfile ? 'Editar perfil' : 'Nuevo perfil'}
                 </p>
-                <h2 className="text-2xl font-bold" id="profile-dialog-title">
+                <h2
+                  className="mt-1 text-2xl font-bold"
+                  id="profile-dialog-title"
+                >
                   {editingProfile
                     ? 'Actualiza sus permisos'
                     : 'Configura sus permisos'}
@@ -240,6 +336,7 @@ export default function PerfilesPage() {
             </div>
             <form
               className="flex min-h-0 flex-1 flex-col p-8"
+              noValidate
               onSubmit={saveProfile}
             >
               <label className="grid max-w-md shrink-0 gap-2 text-sm font-semibold">
@@ -253,7 +350,7 @@ export default function PerfilesPage() {
                   value={newProfileName}
                 />
               </label>
-              <section className="mt-5 flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-sky-blue">
+              <section className="mt-5 flex min-h-0 flex-1 flex-col overflow-hidden rounded-[1.25rem] border border-sky-blue bg-beige/45">
                 <div className="flex flex-col gap-4 border-b border-sky-blue px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <h3 className="font-bold">Módulos del sistema</h3>
@@ -381,55 +478,104 @@ export default function PerfilesPage() {
           </dialog>
         ) : null}
 
-        <Card className="p-0">
-          <div className="border-b border-sky-blue px-6 py-4">
-            <h3 className="font-bold">Perfiles registrados</h3>
+        <section className="events-list-panel p-5 sm:p-6">
+          <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-2xl font-bold">Perfiles registrados</h2>
+              <p className="mt-1 text-sm text-muted">
+                Consulta los accesos configurados para cada perfil.
+              </p>
+            </div>
+            <span className="w-fit rounded-full bg-violet/10 px-3 py-1 text-sm font-semibold text-violet">
+              {profiles.length} {profiles.length === 1 ? 'perfil' : 'perfiles'}
+            </span>
           </div>
-          <DataTable
-            columns={[
-              {
-                key: 'name',
-                header: 'Perfil',
-                render: (profile) => (
-                  <span className="font-semibold">{profile.name}</span>
-                ),
-              },
-              {
-                key: 'permissions',
-                header: 'Permisos configurados',
-                render: (profile) => `${profile.permissions.length} permisos`,
-              },
-              {
-                key: 'status',
-                header: 'Estado',
-                render: (profile) => (
-                  <StatusBadge
-                    status={profile.status === 'activo' ? 'Activo' : 'Inactivo'}
+
+          {profiles.length ? (
+            <div className="grid gap-4 lg:grid-cols-2">
+              {profiles.map((profile) => (
+                <Card
+                  className="group flex min-h-52 flex-col border-violet/15 p-5 transition hover:-translate-y-0.5 hover:border-violet/35"
+                  density="compact"
+                  key={profile.id}
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <span className="grid size-11 place-items-center rounded-2xl bg-violet/10">
+                      <Image
+                        alt=""
+                        aria-hidden="true"
+                        className="brightness-0"
+                        height={22}
+                        src="/icons/perfil.svg"
+                        width={22}
+                      />
+                    </span>
+                    <StatusBadge
+                      status={
+                        profile.status === 'activo' ? 'Activo' : 'Inactivo'
+                      }
+                    />
+                  </div>
+                  <div className="mt-4">
+                    <p className="text-xs font-semibold uppercase tracking-[.16em] text-muted">
+                      {profile.isSystem
+                        ? 'Perfil del sistema'
+                        : 'Perfil personalizado'}
+                    </p>
+                    <h3 className="mt-1 text-2xl font-bold">{profile.name}</h3>
+                  </div>
+                  <div className="mt-5 flex items-end justify-between gap-4 border-t border-sky-blue pt-4">
+                    <div>
+                      <p className="text-xs text-muted">
+                        Permisos configurados
+                      </p>
+                      <p className="mt-1 font-display text-xl font-bold">
+                        {profile.permissions.length}{' '}
+                        <span className="font-sans text-sm font-medium text-muted">
+                          permisos
+                        </span>
+                      </p>
+                    </div>
+                    {can('perfiles.editar') && !profile.isSystem ? (
+                      <Button
+                        className="px-3 py-2 text-xs"
+                        onClick={() => openEditForm(profile)}
+                        type="button"
+                        variant="secondary"
+                      >
+                        Editar perfil
+                      </Button>
+                    ) : (
+                      <span className="text-xs font-medium text-muted">
+                        {profile.isSystem ? 'Protegido' : 'Solo consulta'}
+                      </span>
+                    )}
+                  </div>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div className="grid min-h-56 place-items-center rounded-[1.25rem] border border-dashed border-sky-blue bg-white p-6 text-center">
+              <div>
+                <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-violet/10">
+                  <Image
+                    alt=""
+                    aria-hidden="true"
+                    className="brightness-0"
+                    height={24}
+                    src="/icons/perfil.svg"
+                    width={24}
                   />
-                ),
-              },
-              {
-                key: 'actions',
-                header: 'Acciones',
-                render: (profile) =>
-                  can('perfiles.editar') && !profile.isSystem ? (
-                    <Button
-                      className="px-3 py-1.5 text-xs"
-                      onClick={() => openEditForm(profile)}
-                      type="button"
-                      variant="secondary"
-                    >
-                      Editar
-                    </Button>
-                  ) : (
-                    <span className="text-sm text-muted">—</span>
-                  ),
-              },
-            ]}
-            rowKey={(profile) => profile.id}
-            rows={profiles}
-          />
-        </Card>
+                </span>
+                <h3 className="mt-3 text-lg font-bold">Aún no hay perfiles</h3>
+                <p className="mt-1 text-sm text-muted">
+                  Crea un perfil para organizar los permisos de tu equipo.
+                </p>
+              </div>
+            </div>
+          )}
+        </section>
+        <FeedbackMessages feedback={feedback} />
       </div>
     </AppShell>
   );

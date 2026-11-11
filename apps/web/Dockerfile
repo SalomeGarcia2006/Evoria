@@ -31,6 +31,9 @@ WORKDIR /app
 
 COPY . .
 
+ARG NEXT_PUBLIC_TURNSTILE_SITE_KEY
+ENV NEXT_PUBLIC_TURNSTILE_SITE_KEY=$NEXT_PUBLIC_TURNSTILE_SITE_KEY
+
 RUN npm run build --workspace=@evoria/web
 
 FROM node:24.21.0-alpine3.24 AS runner

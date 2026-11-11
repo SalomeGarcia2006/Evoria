@@ -53,6 +53,20 @@ import {
 } from '../provider-services/schemas/event-provider-service.schema';
 import { Provider, ProviderSchema } from '../providers/schemas/provider.schema';
 
+async function withoutErrorLogs<T>(
+  service: object,
+  operation: () => Promise<T>,
+): Promise<T> {
+  const logger = (service as { logger: { error: () => void } }).logger;
+  const error = logger.error;
+  logger.error = () => undefined;
+  try {
+    return await operation();
+  } finally {
+    logger.error = error;
+  }
+}
+
 test('Mongo aislado: deduplicación, lectura personal y revocación', async () => {
   const database = `evoria_alertas_test_${new Types.ObjectId().toString()}`;
   assert.match(database, /^evoria_alertas_test_[a-f0-9]{24}$/);
@@ -307,14 +321,16 @@ test('Mongo aislado: deduplicación, lectura personal y revocación', async () =
       ReturnType<typeof budgetService.submitRequest>
     >;
     try {
-      recoveredRequest = await budgetService.submitRequest(
-        created.id,
-        {
-          type: 'ampliacion',
-          amountCop: 100,
-          reason: 'Recuperación de alerta pendiente',
-        },
-        user(other),
+      recoveredRequest = await withoutErrorLogs(budgetService, () =>
+        budgetService.submitRequest(
+          created.id,
+          {
+            type: 'ampliacion',
+            amountCop: 100,
+            reason: 'Recuperación de alerta pendiente',
+          },
+          user(other),
+        ),
       );
     } finally {
       Object.defineProperty(outbox, 'updateOne', {
@@ -721,10 +737,12 @@ test('Mongo aislado: deduplicación, lectura personal y revocación', async () =
         Promise.reject(new Error('cola no disponible durante el cruce')),
     });
     try {
-      await service.refreshThresholds(
-        tenant.toString(),
-        undefined,
-        transientItem.toString(),
+      await withoutErrorLogs(service, () =>
+        service.refreshThresholds(
+          tenant.toString(),
+          undefined,
+          transientItem.toString(),
+        ),
       );
     } finally {
       Object.defineProperty(outbox, 'updateOne', {
@@ -766,10 +784,12 @@ test('Mongo aislado: deduplicación, lectura personal y revocación', async () =
       value: () => Promise.reject(new Error('condición no disponible')),
     });
     try {
-      await service.refreshThresholds(
-        tenant.toString(),
-        undefined,
-        unrecordedItem.toString(),
+      await withoutErrorLogs(service, () =>
+        service.refreshThresholds(
+          tenant.toString(),
+          undefined,
+          unrecordedItem.toString(),
+        ),
       );
     } finally {
       Object.defineProperty(conditions, 'create', {

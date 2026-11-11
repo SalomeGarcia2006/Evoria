@@ -1,0 +1,35 @@
+/* Keep the inventory's light palette aligned with main; dark mode remains global. */
+:root:not([data-theme='dark']) [data-inventory-scope] {
+  --evoria-action: linear-gradient(135deg, #12b5a6, #6a4cff);
+  --evoria-control-border: var(--evoria-border);
+  --evoria-focus: rgb(106 76 255 / 42%);
+}
+
+:root:not([data-theme='dark']) [data-inventory-scope] .evoria-button-primary {
+  background: linear-gradient(to bottom right, #12b5a6, #6a4cff);
+}
+
+:root:not([data-theme='dark']) [data-inventory-scope] .text-teal {
+  color: var(--color-teal);
+}
+
+:root:not([data-theme='dark']) [data-inventory-scope] .text-violet {
+  color: var(--color-violet);
+}
+
+:root:not([data-theme='dark'])
+  [data-inventory-scope]
+  :is(input, textarea)::placeholder {
+  color: color-mix(in srgb, var(--evoria-muted) 72%, white);
+}
+
+:root:not([data-theme='dark']) [data-inventory-scope] .evoria-button:disabled {
+  opacity: 0.6;
+}
+
+@supports (appearance: base-select) and selector(::picker(select)) {
+  :root:not([data-theme='dark']) [data-inventory-scope] select,
+  :root:not([data-theme='dark']) [data-inventory-scope] select::picker(select) {
+    appearance: auto;
+  }
+}

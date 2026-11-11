@@ -208,8 +208,8 @@ interna ficticia de Evoria.
 
 ## Verificaciones de calidad
 
-Todavía no hay pruebas unitarias o de integración. Por ahora, estas
-verificaciones comprueban formato, reglas de código, tipos y compilación:
+Las verificaciones de calidad comprueban formato, reglas de código, tipos y
+compilación:
 
 ```bash
 npm run format:check
@@ -218,9 +218,16 @@ npm run typecheck
 npm run build
 ```
 
+La API tiene pruebas unitarias, de integración con MongoDB en réplica y HTTP.
+Se ejecutan contra una instancia temporal en el puerto `27129`; no modifican
+la base de desarrollo:
+
+```bash
+npm run test --workspace=@evoria/api
+```
+
 GitHub Actions ejecuta esas verificaciones y además comprueba que Docker pueda
-iniciar la web, la API y MongoDB, incluyendo una operación básica sobre la base
-de datos.
+iniciar la web, la API y MongoDB, incluyendo las pruebas de API.
 
 ### Hooks de Git
 
@@ -351,6 +358,33 @@ access token y el refresh token en cookies `HttpOnly`; por eso no se debe
 guardar ningún token manualmente en `localStorage`. Las pantallas privadas
 consultan `GET /api/auth/me`, renuevan la sesión con `/api/auth/refresh` cuando
 es necesario y redirigen a `/login` si no existe una sesión válida.
+
+### Vincular Google y proteger el inicio de sesión
+
+El nombre y la inicial de la esquina superior derecha abren **Mi perfil**.
+Desde allí, un usuario que ya inició sesión puede vincular su cuenta de Google.
+El botón **Continuar con Google** solo permite entrar a cuentas vinculadas: no
+crea usuarios nuevos. El correo de Google puede ser distinto del correo de
+Evoria; la vinculación se identifica por el ID verificado de Google.
+
+Para habilitarlo, configura la pantalla de consentimiento y crea un cliente
+OAuth de tipo **Aplicación web** en Google Cloud. Registra como URI de
+redirección autorizada
+`http://localhost:3001/api/auth/google/callback`. En el `.env` de la raíz
+configura `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` y `GOOGLE_REDIRECT_URI`.
+Si ejecutas la API fuera de Docker, define las mismas variables en
+`apps/api/.env`. Sin ellas, los endpoints de Google devuelven un error de
+configuración; el inicio con contraseña sigue disponible.
+
+Para activar CAPTCHA, crea un widget Turnstile para `localhost` y configura
+`TURNSTILE_SECRET_KEY`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY` y
+`CAPTCHA_ENABLED=true`. La API verifica el token en cada intento de inicio
+con contraseña o Google. En Docker, estas variables van en el `.env` de la
+raíz; fuera de Docker, la clave pública va en `apps/web/.env.local` y el
+secreto junto con `CAPTCHA_ENABLED` en `apps/api/.env`. No actives CAPTCHA
+sin configurar ambas claves: el servidor rechazará los inicios de sesión.
+Como la clave pública se integra en el frontend durante la compilación,
+reconstruye la imagen web si la cambias (`docker compose up --build`).
 
 ### Problemas frecuentes al ejecutar el seed
 

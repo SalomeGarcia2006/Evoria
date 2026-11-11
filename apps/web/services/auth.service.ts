@@ -57,6 +57,42 @@ export async function logout(): Promise<void> {
   });
 }
 
+export interface GoogleConnection {
+  linked: boolean;
+  email: string | null;
+  linkedAt: string | null;
+}
+
+export async function getGoogleConnection(): Promise<GoogleConnection> {
+  const response = await apiRequest<ApiResponse<GoogleConnection>>(
+    '/auth/google/connection',
+    { credentials: 'include' },
+  );
+  return response.data;
+}
+
+async function beginGoogle(path: string, body?: object): Promise<string> {
+  const response = await apiRequest<ApiResponse<{ url: string }>>(path, {
+    method: 'POST',
+    credentials: 'include',
+    ...(body
+      ? {
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        }
+      : {}),
+  });
+  return response.data.url;
+}
+
+export function startGoogleLink(): Promise<string> {
+  return beginGoogle('/auth/google/link');
+}
+
+export function startGoogleLogin(captchaToken?: string): Promise<string> {
+  return beginGoogle('/auth/google/login', { captchaToken });
+}
+
 export async function changeTenant(tenantId: string | null): Promise<AuthUser> {
   const response = await apiRequest<ApiResponse<AuthSession>>(
     tenantId

@@ -83,6 +83,20 @@ export class AuthService {
     return this.createLoginResult(user, undefined, undefined, true);
   }
 
+  async loginWithUserId(userId: string): Promise<LoginResult> {
+    const user = await this.findActiveUser(userId);
+    const locked = await this.userModel.exists({
+      _id: userId,
+      lockedUntil: { $gt: new Date() },
+    });
+    if (locked) {
+      throw new UnauthorizedException(
+        'La cuenta está bloqueada temporalmente.',
+      );
+    }
+    return this.createLoginResult(user);
+  }
+
   async refresh(refreshToken?: string): Promise<LoginResult> {
     if (!refreshToken) {
       throw new UnauthorizedException('La sesión no es válida o expiró.');

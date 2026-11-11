@@ -28,6 +28,17 @@ export const INITIAL_PERMISSION_MODULES = [
     ],
   },
   {
+    key: 'empresa_contexto',
+    name: 'Contexto operativo',
+    description:
+      'Consulta y actualización del contexto operativo de la empresa.',
+    scope: 'tenant',
+    actions: [
+      { key: 'ver', name: 'Ver' },
+      { key: 'editar', name: 'Editar' },
+    ],
+  },
+  {
     key: 'usuarios',
     name: 'Usuarios',
     description: 'Gestión de los usuarios de la empresa.',

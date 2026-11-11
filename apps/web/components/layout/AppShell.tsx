@@ -16,7 +16,10 @@ export function AppShell({
   return (
     <AuthGuard>
       <PermissionGuard>
-        <div className="min-h-screen lg:flex">
+        <div
+          className="min-h-screen lg:flex"
+          data-inventory-scope={title === 'Inventario' ? '' : undefined}
+        >
           <Sidebar />
           <div className="min-w-0 flex-1 lg:ml-[6.25rem]">
             <Topbar hideTitle={hideTitle} title={title} />
