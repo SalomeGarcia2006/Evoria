@@ -9,6 +9,7 @@ export function ProviderDialogShell({
   children,
   size = 'default',
   footer,
+  stickyFooter = true,
 }: {
   title: string;
   busy: boolean;
@@ -16,6 +17,7 @@ export function ProviderDialogShell({
   children: ReactNode;
   size?: 'default' | 'wide';
   footer?: ReactNode;
+  stickyFooter?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const id = useId();
@@ -71,7 +73,9 @@ export function ProviderDialogShell({
         children
       )}
       {footer && (
-        <footer className="sticky bottom-0 z-10 border-t border-sky-blue bg-white p-4 sm:px-6">
+        <footer
+          className={`${stickyFooter ? 'sticky bottom-0 z-10 ' : ''}border-t border-sky-blue bg-white p-4 sm:px-6`}
+        >
           {footer}
         </footer>
       )}

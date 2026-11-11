@@ -38,6 +38,8 @@ export function BudgetPanel({
   const allowed = can('presupuestos.ver');
   const canApprove = can('presupuestos.aprobar');
   const [attempt, setAttempt] = useState(0);
+  const [hasChanges, setHasChanges] = useState(false);
+  const manualRefresh = useRef(false);
   const key = `${eventId}:${revision}:${attempt}`;
   const [result, setResult] = useState<{
     owner: typeof user;
@@ -66,15 +68,24 @@ export function BudgetPanel({
         if (active) {
           setResult({ owner: user, key, data });
           onLoaded?.(data);
+          if (manualRefresh.current) {
+            manualRefresh.current = false;
+            setHasChanges(false);
+            notify('El presupuesto se consultó correctamente.');
+          }
         }
       })
       .catch((error: unknown) => {
+        if (active) manualRefresh.current = false;
         if (active) notify(apiErrorMessage(error), 'error');
         if (active)
           setResult((previous) => ({
             owner: user,
             key,
-            data: previous?.owner === user ? previous.data : undefined,
+            data:
+              previous?.owner === user && previous.key.startsWith(`${eventId}:`)
+                ? previous.data
+                : undefined,
             error: apiErrorMessage(error),
           }));
       });
@@ -103,7 +114,10 @@ export function BudgetPanel({
       active = false;
     };
   }, [allowed, canApprove, eventId, key, user, notify, onLoaded]);
-  const current = result?.owner === user ? result : undefined;
+  const current =
+    result?.owner === user && result.key.startsWith(`${eventId}:`)
+      ? result
+      : undefined;
   const budget = current?.data;
   const loading = current?.key !== key;
   const unavailable = loading || !!current?.error;
@@ -111,6 +125,22 @@ export function BudgetPanel({
     feedback.dismiss();
     setAttempt((value) => value + 1);
     onChanged?.();
+  }
+  function updateBudget() {
+    if (current?.error) {
+      refresh();
+      return;
+    }
+    if (!hasChanges) {
+      feedback.guide(
+        'Para actualizar el presupuesto, primero debes iniciarlo, registrar una solicitud o tomar una decisión sobre una solicitud.',
+        'Revisa los cambios del presupuesto',
+        'error',
+      );
+      return;
+    }
+    manualRefresh.current = true;
+    refresh();
   }
   async function decide(kind: 'approve' | 'reject', request: BudgetRequest) {
     setPreparing(true);
@@ -148,7 +178,7 @@ export function BudgetPanel({
   return (
     <div className="grid min-w-0 gap-5">
       <FeedbackMessages feedback={feedback} />
-      {loading && <LoadingState label="Actualizando presupuesto…" />}
+      {loading && !budget && <LoadingState label="Actualizando presupuesto…" />}
       {current?.error && (
         <p className="rounded-xl bg-red-50 p-4 text-sm text-red-800">
           {current.error}
@@ -189,7 +219,7 @@ export function BudgetPanel({
         <Button
           variant="secondary"
           disabled={loading || preparing}
-          onClick={refresh}
+          onClick={updateBudget}
         >
           Actualizar presupuesto
         </Button>
@@ -540,6 +570,7 @@ export function BudgetPanel({
           onConflict={refresh}
           onSaved={(message) => {
             setAction(null);
+            setHasChanges(true);
             refresh();
             notify(message);
           }}

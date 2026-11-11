@@ -34,6 +34,7 @@ const provider = {
   status: 'activo',
 };
 async function setup(page, options = {}) {
+  const baseURL = test.info().project.use.baseURL || 'http://localhost:3100';
   const state = {
     actor: 'requester',
     initialized: true,
@@ -70,7 +71,7 @@ async function setup(page, options = {}) {
     {
       name: 'evoria_access_token',
       value: 'test-only',
-      url: 'http://localhost:3100',
+      url: baseURL,
     },
   ]);
   await page.route('**/api/**', async (route) => {
@@ -79,7 +80,7 @@ async function setup(page, options = {}) {
     const path = url.pathname.replace('/api', '');
     const method = req.method();
     const headers = {
-      'access-control-allow-origin': 'http://localhost:3100',
+      'access-control-allow-origin': baseURL,
       'access-control-allow-credentials': 'true',
       'access-control-allow-headers': 'content-type',
       'access-control-allow-methods': 'GET,POST,PATCH,DELETE,OPTIONS',
@@ -111,6 +112,7 @@ async function setup(page, options = {}) {
     if (path === '/auth/me')
       return send({
         scope: 'tenant',
+        isDeveloper: options.isDeveloper === true,
         user: { id: state.actor, name: state.actor, email: 'qa@example.test' },
         profile: { name: 'QA' },
         tenant: { id: 't1', name: 'Empresa financiera' },
@@ -250,7 +252,9 @@ async function setup(page, options = {}) {
 async function openBudget(page) {
   await page.goto('/presupuestos?eventId=e1');
   await expect(
-    page.getByRole('heading', { name: 'Evento financiero', exact: true }),
+    page
+      .getByRole('region', { name: 'Detalle del presupuesto' })
+      .getByRole('heading', { name: 'Evento financiero', exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole('button', { name: 'Añadir presupuesto' }),
@@ -283,6 +287,57 @@ function available(page) {
     .filter({ has: page.locator('dt', { hasText: /^Disponible$/ }) })
     .locator('dd');
 }
+
+test('actualizar presupuesto valida cambios y permite consultar tras una solicitud', async ({
+  page,
+}) => {
+  const state = await setup(page);
+  await openBudget(page);
+  const update = page.getByRole('button', { name: 'Actualizar presupuesto' });
+  const before = state.calls.filter(
+    (call) => call.path === '/events/e1/budget' && call.method === 'GET',
+  ).length;
+  await update.click();
+  const alert = page.getByRole('alertdialog');
+  await expect(alert).toContainText(
+    'Para actualizar el presupuesto, primero debes',
+  );
+  expect(
+    state.calls.filter(
+      (call) => call.path === '/events/e1/budget' && call.method === 'GET',
+    ),
+  ).toHaveLength(before);
+  await alert.getByRole('button', { name: 'Entendido' }).click();
+  await page.getByRole('button', { name: 'Añadir presupuesto' }).click();
+  const action = page.getByRole('dialog', {
+    name: 'Solicitar cambio de presupuesto',
+  });
+  await action.getByLabel('Monto solicitado (COP)').fill('2000');
+  await action
+    .getByLabel('Motivo', { exact: true })
+    .fill('Se requieren recursos adicionales');
+  await action.getByRole('button', { name: 'Enviar solicitud' }).click();
+  await expect(alert).toContainText('Solicitud enviada');
+  await alert.getByRole('button', { name: 'Entendido' }).click();
+  await expect(update).toBeEnabled();
+  const after = state.calls.filter(
+    (call) => call.path === '/events/e1/budget' && call.method === 'GET',
+  ).length;
+  await update.click();
+  await expect(alert).toContainText(
+    'El presupuesto se consultó correctamente.',
+  );
+  expect(
+    state.calls.filter(
+      (call) => call.path === '/events/e1/budget' && call.method === 'GET',
+    ).length,
+  ).toBeGreaterThan(after);
+  await alert.getByRole('button', { name: 'Entendido' }).click();
+  await update.click();
+  await expect(alert).toContainText(
+    'Para actualizar el presupuesto, primero debes',
+  );
+});
 
 test('eventos activos aparecen como tarjetas sin búsqueda y cargan todas las páginas', async ({
   page,
@@ -626,6 +681,7 @@ test('presupuesto sin iniciar: asignaciones sin panel financiero y gestión del 
     status: 409,
     message: 'No se pudo cancelar el servicio. Intenta de nuevo.',
   };
+  await page.getByLabel('Escribe CANCELAR para confirmar').fill('CANCELAR');
   await page
     .getByRole('dialog')
     .getByRole('button', { name: 'Confirmar' })
@@ -683,7 +739,7 @@ test('solo lectura: sin operaciones de presupuesto; errores 403 y 404 claros y r
     message: 'El presupuesto no existe.',
     status: 404,
   };
-  await page.getByRole('button', { name: 'Actualizar presupuesto' }).click();
+  await page.reload();
   await acknowledgeFeedback(page, 'no existe');
   state.fail = { ...state.fail, message: 'Acceso denegado.', status: 403 };
   await page.getByRole('button', { name: 'Actualizar presupuesto' }).click();
@@ -714,6 +770,31 @@ test('evento cancelado: conserva detalle sin solicitudes ni decisiones nuevas', 
   expect(overflow).toBe(false);
 });
 
+test('desarrollador usa los permisos efectivos de la empresa', async ({
+  page,
+}) => {
+  const state = await setup(page, {
+    isDeveloper: true,
+    permissions: ['presupuestos.ver'],
+  });
+  await page.goto('/presupuestos');
+  await expect(
+    page.getByRole('button', { name: 'Ver presupuesto de Evento financiero' }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: /Autorizaciones pendientes/ }),
+  ).toHaveCount(0);
+  expect(
+    state.calls.filter((call) => call.path === '/budgets/authorizations'),
+  ).toHaveLength(0);
+  await page
+    .getByRole('button', { name: 'Ver presupuesto de Evento financiero' })
+    .click();
+  await expect(
+    page.getByRole('button', { name: 'Añadir presupuesto' }),
+  ).toHaveCount(0);
+});
+
 test('solicitud valida COP y motivo, conserva formulario ante 403 y oculta autoaprobación', async ({
   page,
 }) => {
@@ -723,6 +804,15 @@ test('solicitud valida COP y motivo, conserva formulario ante 403 y oculta autoa
   await openBudget(page);
   await page.getByRole('button', { name: 'Añadir presupuesto' }).click();
   const dialog = page.getByRole('dialog');
+  await dialog.getByRole('button', { name: 'Enviar solicitud' }).click();
+  await expect(page.getByRole('alertdialog')).toContainText('Revisa los datos');
+  expect(
+    state.calls.filter(
+      (call) => call.path.endsWith('/requests') && call.method === 'POST',
+    ),
+  ).toHaveLength(0);
+  await acknowledgeFeedback(page);
+  await expect(page.getByRole('alertdialog')).toHaveCount(0);
   await dialog.getByLabel('Monto solicitado (COP)').fill('2.5');
   await dialog.getByLabel('Motivo', { exact: true }).fill('corto');
   await dialog.getByRole('button', { name: 'Enviar solicitud' }).click();

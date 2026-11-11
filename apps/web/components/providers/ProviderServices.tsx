@@ -26,11 +26,23 @@ const cop = new Intl.NumberFormat('es-CO', {
 export function ProviderServices({
   event,
   budgetReady = true,
+  budgetMissing = false,
+  updating = false,
+  refreshRevision = 0,
+  committedRevision = refreshRevision,
+  onRefreshingChange,
+  onRefreshResult,
   onChanged,
   inDialog = false,
 }: {
   event: EventItem;
   budgetReady?: boolean;
+  budgetMissing?: boolean;
+  updating?: boolean;
+  refreshRevision?: number;
+  committedRevision?: number;
+  onRefreshingChange?: (refreshing: boolean) => void;
+  onRefreshResult?: (result: { revision: number; errors: string[] }) => void;
   onChanged?: () => void;
   inDialog?: boolean;
 }) {
@@ -39,6 +51,8 @@ export function ProviderServices({
   const [result, setResult] = useState<{
     key: string;
     items?: EventProviderService[];
+    previousItems?: EventProviderService[];
+    refreshRevision: number;
     error?: string;
   }>();
   const [panel, setPanel] = useState<EventProviderService | 'create' | null>(
@@ -48,28 +62,58 @@ export function ProviderServices({
     null,
   );
   const feedback = useFeedback();
-  const { notify } = feedback;
-  const key = `${event.id}:${revision}`;
+  const key = `${event.id}:${revision}:${refreshRevision}`;
+  useEffect(() => {
+    if (result?.key !== key) return;
+    onRefreshResult?.({
+      revision: refreshRevision,
+      errors: result.error ? [`Servicios: ${result.error}`] : [],
+    });
+  }, [key, result, refreshRevision, onRefreshResult]);
+  useEffect(() => {
+    onRefreshingChange?.(result?.key !== key);
+    return () => onRefreshingChange?.(false);
+  }, [key, result?.key, onRefreshingChange]);
   useEffect(() => {
     let active = true;
     getProviderServices(event.id, true)
       .then((items) => {
-        if (active) setResult({ key, items });
+        if (active)
+          setResult((previous) => ({
+            key,
+            items,
+            refreshRevision,
+            previousItems:
+              previous?.refreshRevision === refreshRevision
+                ? previous.previousItems
+                : previous?.items,
+          }));
       })
       .catch((err: unknown) => {
-        if (active) notify(apiErrorMessage(err), 'error');
         if (active)
-          setResult({
+          setResult((previous) => ({
             key,
+            refreshRevision,
+            previousItems:
+              previous?.refreshRevision === refreshRevision
+                ? previous.previousItems
+                : previous?.items,
+            items: previous?.key.startsWith(`${event.id}:`)
+              ? previous.items
+              : undefined,
             error: apiErrorMessage(err),
-          });
+          }));
       });
     return () => {
       active = false;
     };
-  }, [event.id, key, notify]);
-  const items = result?.key === key ? result.items : undefined;
-  const error = result?.key === key ? result.error : undefined;
+  }, [event.id, key, refreshRevision]);
+  const items = result?.key.startsWith(`${event.id}:`)
+    ? result.refreshRevision > committedRevision
+      ? result.previousItems
+      : result.items
+    : undefined;
+  const error = result?.key === key && !updating ? result.error : undefined;
   const cancelled = event.status === 'cancelado';
   function saved(message: string) {
     setPanel(null);
@@ -109,7 +153,7 @@ export function ProviderServices({
             {can('servicios_proveedor.crear') && can('proveedores.ver') && (
               <Button
                 className="disabled:cursor-not-allowed disabled:opacity-50"
-                disabled={cancelled || !budgetReady}
+                disabled={cancelled || !budgetReady || updating}
                 onClick={() => setPanel('create')}
               >
                 {inDialog
@@ -124,7 +168,15 @@ export function ProviderServices({
               no crear ni editar.
             </p>
           )}
-          {!cancelled && !budgetReady && (
+          {!cancelled &&
+            can('servicios_proveedor.crear') &&
+            !can('proveedores.ver') && (
+              <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
+                Necesitas permiso para consultar proveedores antes de asignar un
+                servicio.
+              </p>
+            )}
+          {!cancelled && budgetMissing && (
             <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
               No puedes crear ni editar acuerdos hasta consultar e iniciar el
               presupuesto del evento. Revísalo desde Presupuestos y luego vuelve
@@ -144,7 +196,7 @@ export function ProviderServices({
               cancelarlo, deja de contar y se conserva en el historial.
             </p>
           </div>
-          {error ? (
+          {error && (
             <>
               <p className="rounded-xl bg-red-50 p-4 text-sm text-red-800">
                 {error}
@@ -153,9 +205,10 @@ export function ProviderServices({
                 Reintentar servicios
               </Button>
             </>
-          ) : !items ? (
+          )}
+          {!items && !error ? (
             <LoadingState label="Cargando servicios de proveedores…" />
-          ) : !items.length ? (
+          ) : items?.length === 0 ? (
             inDialog ? (
               <div className="grid justify-items-center gap-4 py-5">
                 <AssignmentIcon name="provedores" />
@@ -166,7 +219,7 @@ export function ProviderServices({
                 No hay servicios de proveedores registrados para este evento.
               </p>
             )
-          ) : (
+          ) : items ? (
             <div
               className={
                 inDialog
@@ -224,6 +277,7 @@ export function ProviderServices({
                         budgetReady && (
                           <Button
                             variant="secondary"
+                            disabled={updating}
                             onClick={() => setPanel(item)}
                           >
                             Editar servicio
@@ -232,6 +286,7 @@ export function ProviderServices({
                       {can('servicios_proveedor.cancelar') && (
                         <Button
                           variant="ghost"
+                          disabled={updating}
                           onClick={() => setCancelling(item)}
                         >
                           Cancelar servicio
@@ -242,7 +297,7 @@ export function ProviderServices({
                 </article>
               ))}
             </div>
-          )}
+          ) : null}
           {panel && (
             <ProviderServiceDialog
               event={event}

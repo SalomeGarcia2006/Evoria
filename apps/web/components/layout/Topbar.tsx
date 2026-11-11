@@ -1,4 +1,5 @@
 import { UserPill } from './UserPill';
+import { ThemeToggle } from './ThemeToggle';
 
 export function Topbar({
   title,
@@ -14,7 +15,10 @@ export function Topbar({
       ) : (
         <h1 className="text-xl font-bold tracking-tight">{title}</h1>
       )}
-      <UserPill />
+      <div className="flex items-center gap-2">
+        <ThemeToggle />
+        <UserPill />
+      </div>
     </header>
   );
 }

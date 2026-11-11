@@ -56,10 +56,7 @@ export function useOperationalOverview(includeAuthorizations = false) {
       active = false;
     };
   }, [user, can, revision, includeAuthorizations]);
-  const data =
-    result?.owner === user && result?.revision === revision
-      ? result.data
-      : undefined;
+  const data = result?.owner === user ? result.data : undefined;
   return {
     data,
     loading: !data,

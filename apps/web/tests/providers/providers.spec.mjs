@@ -40,6 +40,7 @@ const service = {
 };
 
 async function setup(page, options = {}) {
+  const baseURL = test.info().project.use.baseURL || 'http://localhost:3100';
   const state = {
     providers: [{ ...provider }],
     services: [{ ...service, provider: { ...provider } }],
@@ -56,7 +57,7 @@ async function setup(page, options = {}) {
     {
       name: 'evoria_access_token',
       value: 'test-only',
-      url: 'http://localhost:3100',
+      url: baseURL,
     },
   ]);
   await page.route('**/api/**', async (route) => {
@@ -65,7 +66,7 @@ async function setup(page, options = {}) {
     const method = req.method();
     const path = url.pathname.replace('/api', '');
     const headers = {
-      'access-control-allow-origin': 'http://localhost:3100',
+      'access-control-allow-origin': baseURL,
       'access-control-allow-credentials': 'true',
       'access-control-allow-headers': 'content-type',
       'access-control-allow-methods': 'GET,POST,PATCH,DELETE,OPTIONS',
@@ -115,6 +116,15 @@ async function setup(page, options = {}) {
         ],
         pagination: { totalPages: 1 },
       });
+    if (path === '/events/e1')
+      return send({
+        id: 'e1',
+        name: 'Encuentro de diciembre',
+        startAt: '2026-12-05T05:00:00.000Z',
+        endAt: '2026-12-06T04:59:00.000Z',
+        status: 'planificado',
+      });
+    if (path === '/events/e1/budget') return send({ initialized: true });
     if (method !== 'GET') {
       if (state.holdSave)
         await new Promise((resolve) => {
@@ -235,6 +245,82 @@ async function fits(page) {
   ).toBeLessThanOrEqual(page.viewportSize().width + 1);
 }
 
+test('directorio: valida cambios y advierte duplicados', async ({ page }) => {
+  const state = await setup(page);
+  await page.goto('/proveedores');
+  await page.getByRole('button', { name: 'Editar', exact: true }).click();
+  await page.getByRole('button', { name: 'Actualizar información' }).click();
+  const alert = page.getByRole('alertdialog');
+  await expect(alert).toContainText('Modifica algún dato antes de guardar');
+  expect(writes(state)).toHaveLength(0);
+  await alert.getByRole('button', { name: 'Entendido' }).click();
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: 'Cancelar' })
+    .click();
+  await page.getByRole('button', { name: 'Crear proveedor' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('Nombre', { exact: true }).fill(provider.name);
+  await dialog.getByLabel('Espacios', { exact: true }).check();
+  await dialog.getByLabel('Teléfono').fill('3001234567');
+  await dialog.getByLabel('Correo').fill('ana@example.test');
+  await dialog.getByLabel('Ubicación').fill('Pasto');
+  await dialog.getByLabel('Notas').fill('Proveedor de eventos');
+  await dialog.getByRole('button', { name: 'Guardar proveedor' }).click();
+  await expect(alert).toContainText('Ya existe un proveedor con este nombre');
+  expect(writes(state)).toHaveLength(0);
+  await alert.getByRole('button', { name: 'Crear de todos modos' }).click();
+  await expect.poll(() => writes(state).length).toBe(1);
+});
+
+test('directorio: no permite editar proveedores inactivos', async ({
+  page,
+}) => {
+  await setup(page, { providers: [{ ...provider, status: 'inactivo' }] });
+  await page.goto('/proveedores');
+  await expect(page.getByRole('table').getByText('Inactivo')).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Editar', exact: true }),
+  ).toHaveCount(0);
+});
+
+test('servicios: fechas opcionales coinciden con la API', async ({ page }) => {
+  const state = await setup(page, {
+    permissions: [...permissions, 'presupuestos.ver'],
+  });
+  await page.goto('/recursos/asignaciones');
+  await page
+    .getByRole('button', { name: 'Ver asignaciones de Encuentro de diciembre' })
+    .click();
+  await page
+    .getByRole('button', { name: 'Asignar servicio', exact: false })
+    .click();
+  const dialog = page.getByRole('dialog', {
+    name: 'Asignar servicio de proveedor',
+  });
+  await dialog.getByLabel('Proveedor', { exact: true }).selectOption('p1');
+  await dialog.getByLabel('Nombre del servicio').fill('Montaje');
+  await dialog.getByLabel('Fecha acordada de prestación').fill('2026-12-05');
+  await dialog.getByLabel('Valor total acordado (COP)').fill('1000');
+  await dialog.getByLabel('Hora de fin (opcional)').fill('18:00');
+  await dialog.getByRole('button', { name: 'Guardar servicio' }).click();
+  await expect(page.getByRole('alertdialog')).toContainText(
+    'Indica una fecha de fin',
+  );
+  await page
+    .getByRole('alertdialog')
+    .getByRole('button', { name: 'Entendido' })
+    .click();
+  await dialog.getByLabel('Hora de fin (opcional)').fill('');
+  await dialog.getByRole('button', { name: 'Guardar servicio' }).click();
+  await expect.poll(() => writes(state).length).toBe(1);
+  expect(writes(state)[0].body).toMatchObject({
+    startTime: null,
+    endDate: null,
+    endTime: null,
+  });
+});
+
 test('directorio: creación validada, búsqueda, categorías y edición', async ({
   page,
 }, info) => {
@@ -251,14 +337,47 @@ test('directorio: creación validada, búsqueda, categorías y edición', async 
   await page.getByRole('button', { name: 'Crear proveedor' }).click();
   const dialog = page.getByRole('dialog');
   await dialog.getByRole('button', { name: 'Guardar proveedor' }).click();
+  const validation = page.getByRole('alertdialog');
+  await expect(validation).toContainText('Revisa los datos del proveedor');
+  await expect(validation).toContainText(
+    'Escribe un nombre de al menos dos caracteres.',
+  );
+  await expect(validation).toContainText('Selecciona al menos una categoría.');
+  await expect(validation).toContainText('Ingresa el teléfono del proveedor.');
+  await expect(validation).toContainText('Ingresa el correo del proveedor.');
+  await expect(validation).toContainText('Ingresa la ubicación del proveedor.');
+  await expect(validation).toContainText('Ingresa las notas del proveedor.');
+  await validation.getByRole('button', { name: 'Entendido' }).click();
   await expect(
     dialog.getByText('Selecciona al menos una categoría.'),
-  ).toBeVisible();
+  ).toHaveCount(0);
   expect(writes(state)).toHaveLength(0);
   await dialog.getByLabel('Nombre', { exact: true }).fill('Transporte Andino');
   await dialog.getByLabel('Transporte', { exact: true }).check();
   await dialog.getByLabel('Otros', { exact: true }).check();
+  await dialog.getByLabel('Correo').fill('transporte@example.test');
+  await dialog.getByRole('button', { name: 'Guardar proveedor' }).click();
+  await expect(validation).toContainText('Ingresa el teléfono del proveedor.');
+  expect(writes(state)).toHaveLength(0);
+  await validation.getByRole('button', { name: 'Entendido' }).click();
   await dialog.getByLabel('Teléfono').fill('3007654321');
+  await dialog.getByLabel('Correo').fill('');
+  await dialog.getByRole('button', { name: 'Guardar proveedor' }).click();
+  await expect(validation).toContainText('Ingresa el correo del proveedor.');
+  expect(writes(state)).toHaveLength(0);
+  await validation.getByRole('button', { name: 'Entendido' }).click();
+  await dialog.getByLabel('Correo').fill('transporte@example.test');
+  await dialog.getByRole('button', { name: 'Guardar proveedor' }).click();
+  await expect(validation).toContainText('Ingresa la ubicación del proveedor.');
+  await expect(validation).toContainText('Ingresa las notas del proveedor.');
+  expect(writes(state)).toHaveLength(0);
+  await validation.getByRole('button', { name: 'Entendido' }).click();
+  await dialog.getByLabel('Ubicación').fill('Pasto');
+  await dialog.getByRole('button', { name: 'Guardar proveedor' }).click();
+  await expect(validation).toContainText('Ingresa las notas del proveedor.');
+  expect(writes(state)).toHaveLength(0);
+  await validation.getByRole('button', { name: 'Entendido' }).click();
+  await dialog.getByLabel('Notas').fill('Transporte para eventos');
   state.failSave = true;
   await dialog.getByRole('button', { name: 'Guardar proveedor' }).click();
   await expect(dialog.getByRole('alert')).toContainText('Error de prueba');
@@ -286,7 +405,13 @@ test('directorio: creación validada, búsqueda, categorías y edición', async 
     .getByRole('dialog')
     .getByLabel('Persona de contacto')
     .fill('Luis Pérez');
-  await page.getByRole('button', { name: 'Guardar proveedor' }).click();
+  await page.getByRole('button', { name: 'Actualizar información' }).click();
+  const success = page.getByRole('alertdialog');
+  await expect(success.locator('.event-success-modal')).toBeVisible();
+  await expect(success).toContainText(
+    'La información del proveedor se actualizó correctamente.',
+  );
+  await success.getByRole('button', { name: 'Entendido' }).click();
   await expect(page.getByRole('table').getByText('Luis Pérez')).toBeVisible();
   await page.getByLabel('Buscar por nombre o contacto').fill('Luis');
   await expect(
@@ -322,6 +447,12 @@ test('directorio: paginación, vacíos, error recuperable y desactivación confi
     .click();
   expect(writes(state)).toHaveLength(0);
   await page.getByRole('button', { name: 'Desactivar', exact: true }).click();
+  const confirmation = page.getByLabel('Escribe DESACTIVAR para confirmar');
+  await confirmation.fill('CANCELAR');
+  await expect(
+    page.getByRole('dialog').getByRole('button', { name: 'Confirmar' }),
+  ).toBeDisabled();
+  await confirmation.fill('DESACTIVAR');
   await page
     .getByRole('dialog')
     .getByRole('button', { name: 'Confirmar' })
@@ -457,6 +588,7 @@ test('servicios: validación de monto y fin, edición y cancelación con histori
   await page
     .getByRole('button', { name: 'Cancelar servicio', exact: true })
     .click();
+  await page.getByLabel('Escribe CANCELAR para confirmar').fill('CANCELAR');
   await page
     .getByRole('dialog')
     .getByRole('button', { name: 'Confirmar' })
@@ -531,6 +663,7 @@ test('evento cancelado: consulta y cancelación disponibles, creación y edició
   await page
     .getByRole('button', { name: 'Cancelar servicio', exact: true })
     .click();
+  await page.getByLabel('Escribe CANCELAR para confirmar').fill('CANCELAR');
   await page
     .getByRole('dialog')
     .getByRole('button', { name: 'Confirmar' })

@@ -7,7 +7,9 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { LoadingState } from '../../components/ui/LoadingState';
 import { useAuth } from '../../hooks/useAuth';
-import { getDashboard } from '../../services/dashboard.service';
+import { getDashboardSummary } from '../../services/dashboard.service';
+import { getAllBudgets } from '../../services/presupuestos.service';
+import { apiErrorMessage } from '../../services/api';
 import { EVENT_STATUSES } from '../../services/events.service';
 import { FeedbackMessages, useFeedback } from '../../components/ui/Feedback';
 
@@ -31,15 +33,37 @@ export default function DashboardPage() {
   const { user, can } = useAuth();
   const [state, setState] = useState<{
     owner: typeof user;
-    data: Awaited<ReturnType<typeof getDashboard>>;
+    revision: number;
+    data: {
+      summary: Awaited<ReturnType<typeof getDashboardSummary>> | null;
+      budgets: Awaited<ReturnType<typeof getAllBudgets>> | null;
+      errors: string[];
+    };
   } | null>(null);
   const [revision, setRevision] = useState(0);
   useEffect(() => {
     if (!user) return;
     let active = true;
-    getDashboard(can).then((data) => {
+    Promise.allSettled([
+      getDashboardSummary(),
+      can('presupuestos.ver') ? getAllBudgets() : Promise.resolve(null),
+    ]).then(([summaryResult, budgetsResult]) => {
       if (active) {
-        setState({ owner: user, data });
+        const data = {
+          summary:
+            summaryResult.status === 'fulfilled' ? summaryResult.value : null,
+          budgets:
+            budgetsResult.status === 'fulfilled' ? budgetsResult.value : null,
+          errors: [
+            ...(summaryResult.status === 'rejected'
+              ? [`Resumen: ${apiErrorMessage(summaryResult.reason)}`]
+              : []),
+            ...(budgetsResult.status === 'rejected'
+              ? [`Presupuestos: ${apiErrorMessage(budgetsResult.reason)}`]
+              : []),
+          ],
+        };
+        setState({ owner: user, revision, data });
         if (data.errors.length)
           notify(
             `No se pudo completar el resumen. ${data.errors.join('\n')} Puedes reintentar con Actualizar.`,
@@ -47,10 +71,16 @@ export default function DashboardPage() {
           );
         else if (revision > 0)
           notify(
-            data.events || data.inventory || data.budgets
+            data.summary?.events ||
+              data.summary?.inventory ||
+              data.summary?.budgets
               ? 'Resumen de la empresa actualizado correctamente.'
               : 'Solicita permisos de consulta para ver los datos de tu empresa.',
-            data.events || data.inventory || data.budgets ? 'success' : 'info',
+            data.summary?.events ||
+              data.summary?.inventory ||
+              data.summary?.budgets
+              ? 'success'
+              : 'info',
           );
       }
     });
@@ -59,53 +89,40 @@ export default function DashboardPage() {
     };
   }, [user, can, revision, notify]);
   const data = state?.owner === user ? state?.data : null;
+  const summary = data?.summary;
   const now = new Date();
-  const upcoming =
-    data?.events
-      ?.filter(
-        (event) =>
-          event.status !== 'cancelado' &&
-          event.status !== 'finalizado' &&
-          new Date(event.startAt) >= now,
-      )
-      .sort((a, b) => Date.parse(a.startAt) - Date.parse(b.startAt)) ?? [];
+  const upcoming = summary?.events?.upcoming ?? [];
   const metrics = [
-    ...(data?.events
+    ...(summary?.events
       ? [
           {
             label: 'Eventos activos',
-            value: String(
-              data.events.filter((event) =>
-                ['borrador', 'planificado', 'en_progreso'].includes(
-                  event.status,
-                ),
-              ).length,
-            ),
-            hint: `${data.events.length} eventos registrados`,
+            value: String(summary.events.active),
+            hint: `${summary.events.total} eventos registrados`,
             href: '/eventos',
             icon: '▣',
             tone: 'violet',
           },
         ]
       : []),
-    ...(data?.inventory
+    ...(summary?.inventory
       ? [
           {
             label: 'Unidades disponibles',
-            value: String(data.inventory.available),
-            hint: `${data.inventory.total} unidades en inventario`,
+            value: String(summary.inventory.available),
+            hint: `${summary.inventory.total} unidades en inventario`,
             href: '/inventario',
             icon: '◇',
             tone: 'teal',
           },
         ]
       : []),
-    ...(data?.budgets
+    ...(summary?.budgets
       ? [
           {
             label: 'Presupuesto ejecutado',
-            value: money(data.budgets.totals.spentCop),
-            hint: `${money(data.budgets.totals.remainingCop)} disponibles`,
+            value: money(summary.budgets.spentCop),
+            hint: `${money(summary.budgets.remainingCop)} disponibles`,
             href: '/presupuestos',
             icon: '$',
             tone: 'coral',
@@ -135,10 +152,9 @@ export default function DashboardPage() {
           <div className="flex flex-wrap items-center gap-3">
             <Button
               className="dashboard-hero__button"
-              disabled={!data}
+              disabled={!data || state?.revision !== revision}
               onClick={() => {
                 feedback.dismiss();
-                setState(null);
                 setRevision((value) => value + 1);
               }}
             >
@@ -170,9 +186,10 @@ export default function DashboardPage() {
           </p>
         ))}
         {data &&
-          !can('eventos.ver') &&
-          !can('inventario.ver') &&
-          !can('presupuestos.ver') && (
+          summary &&
+          !summary.events &&
+          !summary.inventory &&
+          !summary.budgets && (
             <Card>
               No tienes permisos para consultar los resúmenes operativos.
             </Card>
@@ -202,16 +219,14 @@ export default function DashboardPage() {
           ))}
         </section>
         <section className="grid gap-6 xl:grid-cols-2">
-          {data?.events && (
+          {summary?.events && (
             <Card>
               <h3 className="text-lg font-bold">Eventos por estado</h3>
               <div className="mt-5 grid gap-4">
                 {EVENT_STATUSES.map((status) => {
-                  const count = data.events!.filter(
-                    (event) => event.status === status,
-                  ).length;
-                  const percent = data.events!.length
-                    ? (count / data.events!.length) * 100
+                  const count = summary.events!.byStatus[status];
+                  const percent = summary.events!.total
+                    ? (count / summary.events!.total) * 100
                     : 0;
                   return (
                     <div key={status}>
@@ -231,14 +246,14 @@ export default function DashboardPage() {
                   );
                 })}
               </div>
-              {data.events.length === 0 && (
+              {summary.events.total === 0 && (
                 <p className="mt-4 text-sm text-muted">
                   No hay eventos registrados.
                 </p>
               )}
             </Card>
           )}
-          {data?.budgets && (
+          {summary?.budgets && data?.budgets && (
             <Card>
               <h3 className="text-lg font-bold">Presupuesto por evento</h3>
               <p className="mt-2 text-sm text-muted">
@@ -274,7 +289,7 @@ export default function DashboardPage() {
             </Card>
           )}
         </section>
-        {data?.events && (
+        {summary?.events && (
           <Card>
             <h3 className="text-lg font-bold">Próximos eventos</h3>
             <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">

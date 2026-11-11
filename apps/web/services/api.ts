@@ -20,7 +20,9 @@ export function apiErrorMessage(error: unknown): string {
   if (!(error instanceof ApiError)) return error.message;
   const hint =
     error.status === 403
-      ? 'No tienes permiso para realizar esta acción.'
+      ? /no tienes permisos? para realizar esta acción/i.test(error.message)
+        ? ''
+        : 'No tienes permiso para realizar esta acción.'
       : error.status === 404
         ? 'El registro no existe o no está disponible para tu empresa.'
         : error.status === 409

@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { AppShell } from '../../components/layout/AppShell';
 import { Button } from '../../components/ui/Button';
+import { PageHero } from '../../components/ui/PageHero';
+import { ModuleBanner } from '../../components/ui/ModuleBanner';
 import { Card } from '../../components/ui/Card';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorMessage } from '../../components/ui/ErrorMessage';
@@ -140,42 +142,44 @@ export default function AlertasPage() {
   const pagination = data?.pagination;
 
   return (
-    <AppShell title="Alertas">
+    <AppShell hideTitle title="Alertas">
       <div className="grid gap-6">
-        <header className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="text-sm font-semibold uppercase tracking-[.16em] text-muted">
-              Seguimiento
-            </p>
-            <h2 className="mt-2 text-3xl font-bold">Centro de alertas</h2>
-            <p className="mt-2 text-muted">
-              Consulta las novedades y situaciones que requieren atención en tu
-              empresa.
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="rounded-full bg-violet/10 px-3 py-2 text-sm font-semibold text-violet">
-              {unreadCount} sin leer
-            </span>
-            {canEdit ? (
-              <Button
-                disabled={unreadCount === 0 || busyId === 'all'}
-                onClick={() => void markAllRead()}
-                variant="secondary"
-              >
-                {busyId === 'all'
-                  ? 'Actualizando…'
-                  : 'Marcar todas como leídas'}
+        <PageHero
+          title="Centro de alertas"
+          description="Consulta las novedades y situaciones que requieren atención en tu empresa."
+          actions={
+            <>
+              <span className="rounded-full bg-violet/10 px-3 py-2 text-sm font-semibold text-violet">
+                {unreadCount} sin leer
+              </span>
+              {canEdit ? (
+                <Button
+                  disabled={unreadCount === 0 || busyId === 'all'}
+                  onClick={() => void markAllRead()}
+                  variant="secondary"
+                >
+                  {busyId === 'all'
+                    ? 'Actualizando…'
+                    : 'Marcar todas como leídas'}
+                </Button>
+              ) : null}
+              <Button disabled={loading} onClick={reload}>
+                Actualizar
               </Button>
-            ) : null}
-            <Button disabled={loading} onClick={reload}>
-              Actualizar
-            </Button>
-          </div>
-        </header>
+            </>
+          }
+        />
+        <ModuleBanner
+          icon="alerta.svg"
+          title="Novedades de tu empresa"
+          description="Filtra las alertas por estado, severidad o tipo para encontrar lo que necesitas revisar."
+        />
 
-        <Card>
-          <div className="grid gap-4 md:grid-cols-3">
+        <section className="module-panel" aria-label="Filtros de alertas">
+          <div className="module-panel__heading">
+            <h2 className="text-xl font-bold">Filtrar alertas</h2>
+          </div>
+          <div className="module-panel__content grid gap-4 md:grid-cols-3">
             <label className="grid gap-2 text-sm font-semibold">
               Estado
               <select
@@ -228,10 +232,10 @@ export default function AlertasPage() {
               </select>
             </label>
           </div>
-        </Card>
+        </section>
 
         {error ? <ErrorMessage message={error} /> : null}
-        {loading ? (
+        {loading && !data ? (
           <LoadingState label="Consultando alertas…" />
         ) : data?.items.length ? (
           <section aria-label="Alertas actuales" className="grid gap-3">

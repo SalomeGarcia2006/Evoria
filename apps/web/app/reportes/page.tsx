@@ -3,6 +3,8 @@ import Link from 'next/link';
 import { AppShell } from '../../components/layout/AppShell';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
+import { PageHero } from '../../components/ui/PageHero';
+import { ModuleBanner } from '../../components/ui/ModuleBanner';
 import { LoadingState } from '../../components/ui/LoadingState';
 import { cop } from '../../components/budgets/BudgetAmountsView';
 import { useOperationalOverview } from '../../hooks/useOperationalOverview';
@@ -20,22 +22,22 @@ export default function ReportesPage() {
   const summary = data?.summary;
   const inventory = summary?.inventory;
   return (
-    <AppShell title="Reportes">
+    <AppShell hideTitle title="Reportes">
       <div className="grid min-w-0 gap-6">
-        <header className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="text-sm font-semibold uppercase tracking-[.16em] text-muted">
-              Información de tu empresa
-            </p>
-            <h2 className="mt-2 text-3xl font-bold">Reportes</h2>
-            <p className="mt-2 text-muted">
-              Resumen actual de eventos, recursos y ejecución presupuestal.
-            </p>
-          </div>
-          <Button variant="secondary" onClick={refresh}>
-            Actualizar
-          </Button>
-        </header>
+        <PageHero
+          title="Reportes"
+          description="Resumen actual de eventos, recursos y ejecución presupuestal."
+          actions={
+            <Button variant="secondary" onClick={refresh}>
+              Actualizar
+            </Button>
+          }
+        />
+        <ModuleBanner
+          icon="reporte.svg"
+          title="Tu operación en perspectiva"
+          description="Consulta la actividad de eventos, el uso de recursos y la ejecución presupuestal."
+        />
         {loading ? (
           <LoadingState label="Cargando reportes…" />
         ) : (
@@ -65,102 +67,109 @@ export default function ReportesPage() {
                     presupuestos para ver los reportes de tu empresa.
                   </Card>
                 )}
-              <section
-                aria-label="Resumen operativo"
-                className="grid gap-4 md:grid-cols-2 xl:grid-cols-3"
-              >
-                {summary.events && (
-                  <Card>
-                    <h3 className="text-xl font-bold">Actividad de eventos</h3>
-                    <p className="mt-3 text-3xl font-bold">
-                      {summary.events.length}
-                    </p>
-                    <p className="mt-1 text-sm text-muted">
-                      Eventos registrados
-                    </p>
-                    <dl className="mt-4 grid gap-2">
-                      {Object.entries(statusLabels).map(([status, label]) => (
-                        <div
-                          key={status}
-                          className="flex justify-between gap-3 text-sm"
-                        >
-                          <dt>{label}</dt>
-                          <dd className="font-semibold">
-                            {
-                              summary.events!.filter(
-                                (event) => event.status === status,
-                              ).length
-                            }
-                          </dd>
-                        </div>
-                      ))}
-                    </dl>
-                    <Link
-                      className="mt-5 inline-block font-semibold text-muted underline"
-                      href="/eventos"
-                    >
-                      Consultar eventos →
-                    </Link>
-                  </Card>
-                )}
-                {inventory && (
-                  <Card>
-                    <h3 className="text-xl font-bold">Uso de recursos</h3>
-                    <dl className="mt-4 grid gap-3">
-                      {[
-                        ['Recursos activos', inventory.resources],
-                        ['Unidades totales', inventory.total],
-                        ['Unidades disponibles', inventory.available],
-                        ['Unidades reservadas', inventory.reserved],
-                        ['Recursos en mantenimiento', inventory.maintenance],
-                      ].map(([label, value]) => (
-                        <div
-                          key={label}
-                          className="flex justify-between gap-3 text-sm"
-                        >
-                          <dt>{label}</dt>
-                          <dd className="font-semibold">{value}</dd>
-                        </div>
-                      ))}
-                    </dl>
-                    <Link
-                      className="mt-5 inline-block font-semibold text-muted underline"
-                      href="/inventario"
-                    >
-                      Consultar recursos →
-                    </Link>
-                  </Card>
-                )}
-                {summary.budgets && (
-                  <Card>
-                    <h3 className="text-xl font-bold">
-                      Ejecución presupuestal
-                    </h3>
-                    <p className="mt-2 text-sm text-muted">
-                      Totales de eventos no cancelados.
-                    </p>
-                    <dl className="mt-4 grid gap-4">
-                      {[
-                        ['Asignado', summary.budgets.totals.allocatedCop],
-                        ['Gastado', summary.budgets.totals.spentCop],
-                        ['Disponible', summary.budgets.totals.remainingCop],
-                      ].map(([label, value]) => (
-                        <div key={label}>
-                          <dt className="text-sm text-muted">{label}</dt>
-                          <dd className="mt-1 break-words text-xl font-bold">
-                            {cop(Number(value))}
-                          </dd>
-                        </div>
-                      ))}
-                    </dl>
-                    <Link
-                      className="mt-5 inline-block font-semibold text-muted underline"
-                      href="/presupuestos"
-                    >
-                      Consultar presupuestos →
-                    </Link>
-                  </Card>
-                )}
+              <section aria-label="Resumen operativo" className="module-panel">
+                <div className="module-panel__heading">
+                  <h2 className="text-xl font-bold">Resumen operativo</h2>
+                  <p className="mt-1 text-sm text-muted">
+                    Consulta los datos disponibles de tu empresa.
+                  </p>
+                </div>
+                <div className="module-panel__content grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  {summary.events && (
+                    <Card>
+                      <h3 className="text-xl font-bold">
+                        Actividad de eventos
+                      </h3>
+                      <p className="mt-3 text-3xl font-bold">
+                        {summary.events.length}
+                      </p>
+                      <p className="mt-1 text-sm text-muted">
+                        Eventos registrados
+                      </p>
+                      <dl className="mt-4 grid gap-2">
+                        {Object.entries(statusLabels).map(([status, label]) => (
+                          <div
+                            key={status}
+                            className="flex justify-between gap-3 text-sm"
+                          >
+                            <dt>{label}</dt>
+                            <dd className="font-semibold">
+                              {
+                                summary.events!.filter(
+                                  (event) => event.status === status,
+                                ).length
+                              }
+                            </dd>
+                          </div>
+                        ))}
+                      </dl>
+                      <Link
+                        className="mt-5 inline-block font-semibold text-muted underline"
+                        href="/eventos"
+                      >
+                        Consultar eventos →
+                      </Link>
+                    </Card>
+                  )}
+                  {inventory && (
+                    <Card>
+                      <h3 className="text-xl font-bold">Uso de recursos</h3>
+                      <dl className="mt-4 grid gap-3">
+                        {[
+                          ['Recursos activos', inventory.resources],
+                          ['Unidades totales', inventory.total],
+                          ['Unidades disponibles', inventory.available],
+                          ['Unidades reservadas', inventory.reserved],
+                          ['Recursos en mantenimiento', inventory.maintenance],
+                        ].map(([label, value]) => (
+                          <div
+                            key={label}
+                            className="flex justify-between gap-3 text-sm"
+                          >
+                            <dt>{label}</dt>
+                            <dd className="font-semibold">{value}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                      <Link
+                        className="mt-5 inline-block font-semibold text-muted underline"
+                        href="/inventario"
+                      >
+                        Consultar recursos →
+                      </Link>
+                    </Card>
+                  )}
+                  {summary.budgets && (
+                    <Card>
+                      <h3 className="text-xl font-bold">
+                        Ejecución presupuestal
+                      </h3>
+                      <p className="mt-2 text-sm text-muted">
+                        Totales de eventos no cancelados.
+                      </p>
+                      <dl className="mt-4 grid gap-4">
+                        {[
+                          ['Asignado', summary.budgets.totals.allocatedCop],
+                          ['Gastado', summary.budgets.totals.spentCop],
+                          ['Disponible', summary.budgets.totals.remainingCop],
+                        ].map(([label, value]) => (
+                          <div key={label}>
+                            <dt className="text-sm text-muted">{label}</dt>
+                            <dd className="mt-1 break-words text-xl font-bold">
+                              {cop(Number(value))}
+                            </dd>
+                          </div>
+                        ))}
+                      </dl>
+                      <Link
+                        className="mt-5 inline-block font-semibold text-muted underline"
+                        href="/presupuestos"
+                      >
+                        Consultar presupuestos →
+                      </Link>
+                    </Card>
+                  )}
+                </div>
               </section>
               {summary.budgets && (
                 <section aria-label="Reporte de presupuesto por evento">

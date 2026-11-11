@@ -13,6 +13,8 @@ import {
 import { apiErrorMessage } from '../../services/api';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
+import { PageHero } from '../ui/PageHero';
+import { ModuleBanner } from '../ui/ModuleBanner';
 import { LoadingState } from '../ui/LoadingState';
 import { BudgetEventDialog } from './BudgetEventDialog';
 import { cop, requestLabels } from './BudgetAmountsView';
@@ -67,7 +69,11 @@ function BudgetsWorkspaceContent() {
       })
       .catch((error: unknown) => {
         if (active) {
-          setResult({ revision, error: apiErrorMessage(error) });
+          setResult((previous) => ({
+            revision,
+            items: previous?.items,
+            error: apiErrorMessage(error),
+          }));
           notify(apiErrorMessage(error), 'error');
         }
       });
@@ -85,7 +91,11 @@ function BudgetsWorkspaceContent() {
       })
       .catch((error: unknown) => {
         if (active) {
-          setInbox({ revision, error: apiErrorMessage(error) });
+          setInbox((previous) => ({
+            revision,
+            items: previous?.items,
+            error: apiErrorMessage(error),
+          }));
           notify(apiErrorMessage(error), 'error');
         }
       });
@@ -94,9 +104,9 @@ function BudgetsWorkspaceContent() {
     };
   }, [user, approve, revision, notify]);
 
-  const events = result?.revision === revision ? result.items : undefined;
+  const events = result?.items;
   const error = result?.revision === revision ? result.error : undefined;
-  const pending = inbox?.revision === revision ? inbox : undefined;
+  const pending = inbox;
   function refresh() {
     feedback.dismiss();
     setRevision((value) => value + 1);
@@ -124,94 +134,111 @@ function BudgetsWorkspaceContent() {
   return (
     <div className="grid min-w-0 gap-6">
       <FeedbackMessages feedback={feedback} />
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-[.16em] text-muted">
-            Planeación financiera
-          </p>
-          <h1 className="mt-2 text-3xl font-bold">Presupuestos</h1>
-          <p className="mt-2 text-muted">
-            Controla el presupuesto, los gastos y las solicitudes de cada
-            evento.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-3">
-          <Button variant="secondary" onClick={refresh}>
-            Actualizar
-          </Button>
-          {approve && view !== 'authorizations' && (
-            <Button variant="secondary" onClick={openAuthorizations}>
-              Autorizaciones pendientes
-              {pending?.items ? ` (${pending.items.length})` : ''}
+      <PageHero
+        title="Presupuestos"
+        description="Controla el presupuesto, los gastos y las solicitudes de cada evento."
+        actions={
+          <>
+            <Button variant="secondary" onClick={refresh}>
+              Actualizar
             </Button>
-          )}
-        </div>
-      </header>
+            {approve && view !== 'authorizations' && (
+              <Button variant="secondary" onClick={openAuthorizations}>
+                Autorizaciones pendientes
+                {pending?.items ? ` (${pending.items.length})` : ''}
+              </Button>
+            )}
+          </>
+        }
+      />
+      <ModuleBanner
+        icon="presupuesto.svg"
+        title="Seguimiento financiero"
+        description="Consulta los saldos y revisa las solicitudes de presupuesto de cada evento."
+      />
 
       {view === 'overview' &&
         (allowed ? (
-          <section aria-label="Eventos activos" className="grid gap-5">
-            <div>
+          <section aria-label="Eventos activos" className="module-panel">
+            <div className="module-panel__heading">
               <h2 className="text-xl font-bold">Eventos activos</h2>
               <p className="mt-2 text-sm text-muted">
                 Abre una tarjeta para gestionar el presupuesto de ese evento.
               </p>
             </div>
-            {error ? (
-              <Card>
-                <p className="text-sm text-red-800">{error}</p>
-                <Button className="mt-4" variant="secondary" onClick={refresh}>
-                  Reintentar eventos
-                </Button>
-              </Card>
-            ) : !events ? (
-              <LoadingState label="Cargando eventos activos…" />
-            ) : !events.length ? (
-              <Card>
-                <h3 className="font-bold">Todavía no hay eventos activos</h3>
-                <p className="mt-2 text-sm text-muted">
-                  Los eventos en borrador, planificados o en ejecución
-                  aparecerán aquí cuando estén registrados en tu empresa.
-                </p>
-              </Card>
-            ) : (
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
-                {events.map((event) => (
-                  <button
-                    type="button"
-                    key={event.eventId}
-                    aria-label={`Ver presupuesto de ${event.eventName}`}
-                    aria-haspopup="dialog"
-                    aria-expanded={eventId === event.eventId}
-                    onClick={() => open(event.eventId)}
-                    className="flex h-full min-w-0 flex-col items-start rounded-2xl border border-sky-blue bg-white p-4 text-left shadow-sm transition hover:border-teal hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal"
+            <div className="module-panel__content grid gap-5">
+              {error && events && (
+                <Card>
+                  <p className="text-sm text-red-800">{error}</p>
+                  <Button
+                    className="mt-4"
+                    variant="secondary"
+                    onClick={refresh}
                   >
-                    <div className="flex w-full items-center justify-between gap-3">
-                      <span className="rounded-full bg-teal/10 px-3 py-1 text-xs font-semibold text-muted">
-                        Activo
-                      </span>
-                      <span className="text-xs text-muted">
-                        {statusLabels[event.eventStatus]}
-                      </span>
-                    </div>
-                    <h3
-                      title={event.eventName}
-                      className="mt-3 line-clamp-2 break-words text-base font-bold"
+                    Reintentar eventos
+                  </Button>
+                </Card>
+              )}
+              {error && !events ? (
+                <Card>
+                  <p className="text-sm text-red-800">{error}</p>
+                  <Button
+                    className="mt-4"
+                    variant="secondary"
+                    onClick={refresh}
+                  >
+                    Reintentar eventos
+                  </Button>
+                </Card>
+              ) : !events ? (
+                <LoadingState label="Cargando eventos activos…" />
+              ) : !events.length ? (
+                <Card>
+                  <h3 className="font-bold">Todavía no hay eventos activos</h3>
+                  <p className="mt-2 text-sm text-muted">
+                    Los eventos en borrador, planificados o en ejecución
+                    aparecerán aquí cuando estén registrados en tu empresa.
+                  </p>
+                </Card>
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+                  {events.map((event) => (
+                    <button
+                      type="button"
+                      key={event.eventId}
+                      aria-label={`Ver presupuesto de ${event.eventName}`}
+                      aria-haspopup="dialog"
+                      aria-expanded={eventId === event.eventId}
+                      onClick={() => open(event.eventId)}
+                      className="module-card flex h-full min-w-0 flex-col items-start p-4 text-left focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal"
                     >
-                      {event.eventName}
-                    </h3>
-                    <p className="mt-1.5 text-xs text-muted">
-                      {event.initialized
-                        ? 'Saldo, gastos y solicitudes'
-                        : 'Presupuesto inicial pendiente'}
-                    </p>
-                    <span className="mt-3 text-sm font-semibold text-muted">
-                      Ver presupuesto →
-                    </span>
-                  </button>
-                ))}
-              </div>
-            )}
+                      <div className="flex w-full items-center justify-between gap-3">
+                        <span className="rounded-full bg-teal/10 px-3 py-1 text-xs font-semibold text-muted">
+                          Activo
+                        </span>
+                        <span className="text-xs text-muted">
+                          {statusLabels[event.eventStatus]}
+                        </span>
+                      </div>
+                      <h3
+                        title={event.eventName}
+                        className="mt-3 line-clamp-2 break-words text-base font-bold"
+                      >
+                        {event.eventName}
+                      </h3>
+                      <p className="mt-1.5 text-xs text-muted">
+                        {event.initialized
+                          ? 'Saldo, gastos y solicitudes'
+                          : 'Presupuesto inicial pendiente'}
+                      </p>
+                      <span className="mt-3 text-sm font-semibold text-muted">
+                        Ver presupuesto →
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </section>
         ) : (
           <p>No tienes permiso para consultar presupuestos.</p>
@@ -276,9 +303,10 @@ function BudgetsWorkspaceContent() {
                 decidir.
               </p>
             )}
-            {pending?.error ? (
+            {pending?.error && (
               <p className="text-sm text-red-800">{pending.error}</p>
-            ) : !pending?.items ? (
+            )}
+            {pending?.error && !pending.items ? null : !pending?.items ? (
               <LoadingState label="Cargando autorizaciones…" />
             ) : !pending.items.length ? (
               <p className="py-4 text-muted">

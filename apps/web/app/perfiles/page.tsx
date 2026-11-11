@@ -54,8 +54,8 @@ function PermissionSwitch({
         onChange={onChange}
         type="checkbox"
       />
-      <span className="h-6 w-11 rounded-full bg-sky-blue transition peer-checked:bg-teal peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-navy" />
-      <span className="pointer-events-none absolute left-1 size-4 rounded-full bg-white transition peer-checked:translate-x-5" />
+      <span className="permission-switch-track h-6 w-11 rounded-full transition peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-navy" />
+      <span className="permission-switch-thumb pointer-events-none absolute left-1 size-4 rounded-full transition peer-checked:translate-x-5" />
     </label>
   );
 }

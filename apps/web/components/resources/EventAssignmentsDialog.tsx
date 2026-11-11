@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import {
   getEvent,
@@ -19,6 +19,7 @@ import { LoadingState } from '../ui/LoadingState';
 import { EventResources } from './EventResources';
 import { AssignmentIcon } from './AssignmentIcon';
 import { StatusBadge } from '../ui/StatusBadge';
+import { FeedbackMessages, useFeedback } from '../ui/Feedback';
 
 export const assignmentEventStatusLabels = {
   borrador: 'Borrador',
@@ -50,34 +51,91 @@ export function EventAssignmentsDialog({
   const [attempt, setAttempt] = useState(0);
   const [result, setResult] = useState<{
     attempt: number;
+    eventId: string;
     event?: EventItem;
     error?: string;
   }>();
   const [inventoryBusy, setInventoryBusy] = useState(false);
+  const [inventoryRefreshing, setInventoryRefreshing] = useState(false);
+  const [servicesRefreshing, setServicesRefreshing] = useState(false);
+  const [inventoryResult, setInventoryResult] = useState<{
+    revision: number;
+    errors: string[];
+    inventoryChecked: boolean;
+  }>();
+  const [servicesResult, setServicesResult] = useState<{
+    revision: number;
+    errors: string[];
+  }>();
+  const notifiedAttempt = useRef(0);
+  const feedback = useFeedback();
+  const { notify } = feedback;
   const [budgetRevision, setBudgetRevision] = useState(0);
   const [budgetStatus, setBudgetStatus] = useState<{
     key: string;
     initialized?: boolean;
     error?: string;
   }>();
-  const event = result?.attempt === attempt ? result.event : undefined;
-  const error = result?.attempt === attempt ? result.error : undefined;
+  const [committedAttempt, setCommittedAttempt] = useState(0);
+  const [hasChanges, setHasChanges] = useState(false);
+  const [visibleSnapshot, setVisibleSnapshot] = useState<{
+    event?: EventItem;
+    budget?: { key: string; initialized?: boolean; error?: string };
+  }>({});
+  const event = result?.eventId === eventId ? result.event : undefined;
+  const error =
+    result?.eventId === eventId && result.attempt === attempt
+      ? result.error
+      : undefined;
+  const eventLoading =
+    result?.eventId !== eventId || result.attempt !== attempt;
   const active = !!event && isActiveEvent(event.status);
   const budgetKey = `${eventId}:${budgetRevision}`;
+  const previousBudget = budgetStatus?.key.startsWith(`${eventId}:`)
+    ? budgetStatus
+    : undefined;
   const currentBudget =
-    budgetStatus?.key === budgetKey ? budgetStatus : undefined;
-  const budgetReady = !canViewBudget || currentBudget?.initialized === true;
+    previousBudget?.key === budgetKey ? previousBudget : undefined;
+  const budgetChecking = canViewBudget && active && !currentBudget;
+  const awaitingCommit = attempt !== committedAttempt;
+  const updating =
+    eventLoading ||
+    budgetChecking ||
+    inventoryRefreshing ||
+    servicesRefreshing ||
+    awaitingCommit;
+  const budgetReady = !canViewBudget || previousBudget?.initialized === true;
+  const visibleEvent = awaitingCommit
+    ? (visibleSnapshot.event ?? event)
+    : event;
+  const visibleBudget = awaitingCommit
+    ? visibleSnapshot.budget
+    : previousBudget;
+  const visibleActive = !!visibleEvent && isActiveEvent(visibleEvent.status);
+  const visibleBudgetReady =
+    !canViewBudget || visibleBudget?.initialized === true;
+  const budgetMissing =
+    !!visibleBudget &&
+    !visibleBudget.error &&
+    visibleBudget.initialized === false;
+  const actionsBlocked = updating || !!error || !!currentBudget?.error;
   useEffect(() => {
     if (!allowed) return;
     let current = true;
     getEvent(eventId)
       .then((item) => {
         if (!current) return;
-        setResult({ attempt, event: item });
+        setResult({ attempt, eventId, event: item });
         onEventLoaded(item);
       })
       .catch((error: unknown) => {
-        if (current) setResult({ attempt, error: apiErrorMessage(error) });
+        if (current)
+          setResult((previous) => ({
+            attempt,
+            eventId,
+            event: previous?.eventId === eventId ? previous.event : undefined,
+            error: apiErrorMessage(error),
+          }));
       });
     return () => {
       current = false;
@@ -93,25 +151,110 @@ export function EventAssignmentsDialog({
       })
       .catch((error: unknown) => {
         if (current)
-          setBudgetStatus({ key: budgetKey, error: apiErrorMessage(error) });
+          setBudgetStatus((previous) => ({
+            key: budgetKey,
+            initialized: previous?.key.startsWith(`${eventId}:`)
+              ? previous.initialized
+              : undefined,
+            error: apiErrorMessage(error),
+          }));
       });
     return () => {
       current = false;
     };
   }, [eventId, allowed, active, canViewBudget, budgetKey]);
+  useEffect(() => {
+    if (!attempt || notifiedAttempt.current === attempt || eventLoading) return;
+    if (active && canViewBudget && !currentBudget) return;
+    if (
+      active &&
+      can('asignaciones.ver') &&
+      inventoryResult?.revision !== attempt
+    )
+      return;
+    if (
+      active &&
+      can('asignaciones.ver') &&
+      inventoryResult?.inventoryChecked !==
+        (budgetReady && can('asignaciones.crear') && can('inventario.ver'))
+    )
+      return;
+    if (
+      active &&
+      can('servicios_proveedor.ver') &&
+      servicesResult?.revision !== attempt
+    )
+      return;
+    const errors = [
+      error && `Evento: ${error}`,
+      currentBudget?.error && `Presupuesto: ${currentBudget.error}`,
+      ...(active && can('asignaciones.ver')
+        ? (inventoryResult?.errors ?? [])
+        : []),
+      ...(active && can('servicios_proveedor.ver')
+        ? (servicesResult?.errors ?? [])
+        : []),
+    ].filter(Boolean);
+    notifiedAttempt.current = attempt;
+    // Publish the coordinated results once after all independent requests settle.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setCommittedAttempt(attempt);
+    if (errors.length) {
+      notify(
+        `No se pudo actualizar toda la información. ${errors.join(' ')}`,
+        'error',
+      );
+    } else {
+      setHasChanges(false);
+      notify('Las asignaciones del evento se consultaron correctamente.');
+    }
+  }, [
+    attempt,
+    eventLoading,
+    active,
+    canViewBudget,
+    currentBudget,
+    can,
+    inventoryResult,
+    servicesResult,
+    error,
+    notify,
+    budgetReady,
+  ]);
   function budgetChanged() {
     setBudgetRevision((value) => value + 1);
   }
+  function assignmentChanged() {
+    setHasChanges(true);
+    budgetChanged();
+  }
   function refresh() {
+    setVisibleSnapshot({ event: visibleEvent, budget: visibleBudget });
     setAttempt((value) => value + 1);
     budgetChanged();
   }
+  function updateEvent() {
+    if (!hasChanges) {
+      feedback.guide(
+        'Para actualizar el evento, primero debes añadir o liberar un recurso, o asignar un servicio.',
+        'Revisa las asignaciones del evento',
+        'error',
+      );
+      return;
+    }
+    refresh();
+  }
   return (
     <ProviderDialogShell
-      title={event ? `Asignaciones · ${event.name}` : 'Asignaciones del evento'}
+      title={
+        visibleEvent
+          ? `Asignaciones · ${visibleEvent.name}`
+          : 'Asignaciones del evento'
+      }
       busy={inventoryBusy}
       onClose={onClose}
       size="wide"
+      stickyFooter={false}
       footer={
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-muted">Volver a la selección de eventos</p>
@@ -125,45 +268,54 @@ export function EventAssignmentsDialog({
         </div>
       }
     >
+      <FeedbackMessages feedback={feedback} />
       <div className="grid min-w-0 gap-6">
         {!allowed ? (
           <p role="status">No tienes permiso para consultar este evento.</p>
-        ) : error ? (
+        ) : error && !visibleEvent ? (
           <div>
             <ErrorMessage message={error} />
             <Button className="mt-4" onClick={refresh}>
               Reintentar evento
             </Button>
           </div>
-        ) : !event ? (
+        ) : !visibleEvent ? (
           <LoadingState label="Cargando información del evento…" />
         ) : (
           <>
+            {error && !awaitingCommit && (
+              <div>
+                <ErrorMessage message={error} />
+                <Button className="mt-3" variant="secondary" onClick={refresh}>
+                  Reintentar evento
+                </Button>
+              </div>
+            )}
             <Card
               className="min-w-0"
               style={{
                 backgroundColor:
-                  'color-mix(in srgb, var(--color-sky-blue) 20%, var(--color-white))',
+                  'color-mix(in srgb, var(--color-sky-blue) 20%, var(--evoria-surface))',
               }}
             >
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="min-w-0 flex-1">
                   <StatusBadge
-                    status={assignmentEventStatusLabels[event.status]}
+                    status={assignmentEventStatusLabels[visibleEvent.status]}
                   />
                   <h3 className="mt-2 break-words text-xl font-bold">
-                    {event.name}
+                    {visibleEvent.name}
                   </h3>
-                  {event.description && (
+                  {visibleEvent.description && (
                     <p className="mt-3 whitespace-pre-wrap break-words text-sm text-muted">
-                      {event.description}
+                      {visibleEvent.description}
                     </p>
                   )}
                 </div>
                 <Button
                   variant="secondary"
-                  disabled={inventoryBusy}
-                  onClick={refresh}
+                  disabled={inventoryBusy || updating}
+                  onClick={updateEvent}
                 >
                   Actualizar evento
                 </Button>
@@ -174,7 +326,7 @@ export function EventAssignmentsDialog({
                   <div>
                     <dt className="text-xs text-muted">Inicio</dt>
                     <dd className="mt-1 font-semibold">
-                      {assignmentEventDate(event.startAt)}
+                      {assignmentEventDate(visibleEvent.startAt)}
                     </dd>
                   </div>
                 </div>
@@ -183,35 +335,35 @@ export function EventAssignmentsDialog({
                   <div>
                     <dt className="text-xs text-muted">Fin</dt>
                     <dd className="mt-1 font-semibold">
-                      {assignmentEventDate(event.endAt)}
+                      {assignmentEventDate(visibleEvent.endAt)}
                     </dd>
                   </div>
                 </div>
-                {event.location && (
+                {visibleEvent.location && (
                   <div className="flex min-w-0 items-start gap-3">
                     <AssignmentIcon name="empresas" small />
                     <div className="min-w-0">
                       <dt className="text-xs text-muted">Lugar</dt>
                       <dd className="mt-1 break-words font-semibold">
-                        {event.location}
+                        {visibleEvent.location}
                       </dd>
                     </div>
                   </div>
                 )}
-                {event.type && (
+                {visibleEvent.type && (
                   <div className="flex min-w-0 items-start gap-3">
                     <AssignmentIcon name="eventos" small />
                     <div className="min-w-0">
                       <dt className="text-xs text-muted">Tipo</dt>
                       <dd className="mt-1 break-words font-semibold">
-                        {event.type}
+                        {visibleEvent.type}
                       </dd>
                     </div>
                   </div>
                 )}
               </dl>
             </Card>
-            {!active ? (
+            {!visibleActive ? (
               <Card>
                 <p role="status" className="text-sm text-muted">
                   Este evento ya no está activo. Cierra esta ventana y elige
@@ -221,11 +373,11 @@ export function EventAssignmentsDialog({
             ) : (
               <>
                 {canViewBudget ? (
-                  !currentBudget ? (
+                  !visibleBudget ? (
                     <LoadingState label="Comprobando requisitos del presupuesto…" />
-                  ) : currentBudget.error ? (
+                  ) : visibleBudget.error ? (
                     <Card>
-                      <ErrorMessage message={currentBudget.error} />
+                      <ErrorMessage message={visibleBudget.error} />
                       <Button
                         className="mt-3"
                         variant="secondary"
@@ -235,7 +387,7 @@ export function EventAssignmentsDialog({
                       </Button>
                     </Card>
                   ) : (
-                    !currentBudget.initialized && (
+                    budgetMissing && (
                       <Card>
                         <p className="text-sm text-muted">
                           Para crear asignaciones, inicia primero el presupuesto
@@ -272,17 +424,30 @@ export function EventAssignmentsDialog({
                       editable
                       inDialog
                       budgetReady={budgetReady}
-                      onChanged={budgetChanged}
+                      visibleBudgetReady={visibleBudgetReady}
+                      budgetMissing={budgetMissing}
+                      updating={actionsBlocked}
+                      refreshRevision={attempt}
+                      committedRevision={committedAttempt}
+                      onRefreshingChange={setInventoryRefreshing}
+                      onRefreshResult={setInventoryResult}
+                      onChanged={assignmentChanged}
                       onBusyChange={setInventoryBusy}
                     />
                   )}
                   {can('servicios_proveedor.ver') && (
                     <ProviderServices
                       key={`providers:${eventId}`}
-                      event={event}
+                      event={visibleEvent}
                       inDialog
-                      budgetReady={budgetReady}
-                      onChanged={budgetChanged}
+                      budgetReady={visibleBudgetReady}
+                      budgetMissing={budgetMissing}
+                      updating={actionsBlocked}
+                      refreshRevision={attempt}
+                      committedRevision={committedAttempt}
+                      onRefreshingChange={setServicesRefreshing}
+                      onRefreshResult={setServicesResult}
+                      onChanged={assignmentChanged}
                     />
                   )}
                 </div>
