@@ -1,0 +1,7 @@
+.heading.heading {
+  background: #e9e3ff;
+}
+
+:global(html[data-theme='dark']) .heading {
+  background: #332e59;
+}

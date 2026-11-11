@@ -1,4 +1,5 @@
 'use client';
+import cardStyles from '../ui/InventoryStyleCard.module.css';
 
 import { useEffect, useState } from 'react';
 import type { BudgetEventSummary } from '@evoria/contracts';
@@ -15,6 +16,7 @@ import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { PageHero } from '../ui/PageHero';
 import { ModuleBanner } from '../ui/ModuleBanner';
+import panelHeadingStyles from '../ui/PanelHeading.module.css';
 import { LoadingState } from '../ui/LoadingState';
 import { BudgetEventDialog } from './BudgetEventDialog';
 import { cop, requestLabels } from './BudgetAmountsView';
@@ -160,7 +162,9 @@ function BudgetsWorkspaceContent() {
       {view === 'overview' &&
         (allowed ? (
           <section aria-label="Eventos activos" className="module-panel">
-            <div className="module-panel__heading">
+            <div
+              className={`module-panel__heading ${panelHeadingStyles.heading}`}
+            >
               <h2 className="text-xl font-bold">Eventos activos</h2>
               <p className="mt-2 text-sm text-muted">
                 Abre una tarjeta para gestionar el presupuesto de ese evento.
@@ -210,7 +214,7 @@ function BudgetsWorkspaceContent() {
                       aria-haspopup="dialog"
                       aria-expanded={eventId === event.eventId}
                       onClick={() => open(event.eventId)}
-                      className="module-card flex h-full min-w-0 flex-col items-start p-4 text-left focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal"
+                      className={`${cardStyles.card} ${cardStyles.interactive} flex h-full flex-col items-start text-left focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal`}
                     >
                       <div className="flex w-full items-center justify-between gap-3">
                         <span className="rounded-full bg-teal/10 px-3 py-1 text-xs font-semibold text-muted">
@@ -222,7 +226,7 @@ function BudgetsWorkspaceContent() {
                       </div>
                       <h3
                         title={event.eventName}
-                        className="mt-3 line-clamp-2 break-words text-base font-bold"
+                        className="mt-5 line-clamp-2 break-words text-2xl font-bold leading-tight"
                       >
                         {event.eventName}
                       </h3>
@@ -231,7 +235,7 @@ function BudgetsWorkspaceContent() {
                           ? 'Saldo, gastos y solicitudes'
                           : 'Presupuesto inicial pendiente'}
                       </p>
-                      <span className="mt-3 text-sm font-semibold text-muted">
+                      <span className="mt-auto w-full border-t border-violet/20 pt-4 text-right text-base font-semibold text-violet">
                         Ver presupuesto →
                       </span>
                     </button>
@@ -315,10 +319,7 @@ function BudgetsWorkspaceContent() {
             ) : (
               <div className="grid gap-3 md:grid-cols-2">
                 {pending.items.map((request) => (
-                  <article
-                    className="rounded-xl border border-sky-blue p-4"
-                    key={request.id}
-                  >
+                  <article className={cardStyles.card} key={request.id}>
                     <h3 className="font-semibold">{request.eventName}</h3>
                     <p className="mt-2">
                       {requestLabels[request.type]} · {cop(request.amountCop)}

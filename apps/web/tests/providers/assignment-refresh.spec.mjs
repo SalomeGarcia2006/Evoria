@@ -111,6 +111,32 @@ async function openAssignments(page, baseURL) {
   };
 }
 
+for (const timezoneId of ['America/Bogota', 'Asia/Tokyo']) {
+  test.describe(`fechas en ${timezoneId}`, () => {
+    test.use({ timezoneId });
+    test('muestra las fechas del evento en la zona horaria del dispositivo', async ({
+      page,
+      baseURL,
+    }) => {
+      const { dialog } = await openAssignments(page, baseURL);
+      const formatter = new Intl.DateTimeFormat('es-CO', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+        timeZone: timezoneId,
+      });
+      const start = formatter.format(new Date('2026-12-05T15:00:00Z'));
+      const end = formatter.format(new Date('2026-12-06T02:00:00Z'));
+      await expect(
+        page.getByRole('button', {
+          name: 'Ver asignaciones de Evento de prueba',
+        }),
+      ).toContainText(start);
+      await expect(dialog.getByText(start, { exact: true })).toBeVisible();
+      await expect(dialog.getByText(end, { exact: true })).toBeVisible();
+    });
+  });
+}
+
 test('sin cambios muestra la validación y no vuelve a consultar el evento', async ({
   page,
   baseURL,

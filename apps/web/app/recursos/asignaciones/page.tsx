@@ -1,4 +1,5 @@
 'use client';
+import cardStyles from '../../../components/ui/InventoryStyleCard.module.css';
 
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
@@ -7,6 +8,7 @@ import { Card } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
 import { PageHero } from '../../../components/ui/PageHero';
 import { ModuleBanner } from '../../../components/ui/ModuleBanner';
+import panelHeadingStyles from '../../../components/ui/PanelHeading.module.css';
 import { ErrorMessage } from '../../../components/ui/ErrorMessage';
 import { LoadingState } from '../../../components/ui/LoadingState';
 import { StatusBadge } from '../../../components/ui/StatusBadge';
@@ -156,7 +158,9 @@ function AssignmentsContent() {
             aria-label="Eventos activos para asignar recursos"
             className="module-panel"
           >
-            <div className="module-panel__heading">
+            <div
+              className={`module-panel__heading ${panelHeadingStyles.heading}`}
+            >
               <h2 className="text-xl font-bold">Eventos activos</h2>
               <p className="mt-1 text-sm text-muted">
                 Selecciona un evento para consultar sus asignaciones.
@@ -171,7 +175,7 @@ function AssignmentsContent() {
                   aria-expanded={selectedId === event.id}
                   aria-label={`Ver asignaciones de ${event.name}`}
                   onClick={() => setSelectedId(event.id)}
-                  className="module-card group flex h-full min-w-0 flex-col items-start p-4 text-left focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal"
+                  className={`${cardStyles.card} ${cardStyles.interactive} group flex h-full flex-col items-start text-left focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal`}
                 >
                   <div className="flex w-full flex-wrap items-center justify-between gap-3">
                     <AssignmentIcon name="eventos" small />
@@ -181,7 +185,7 @@ function AssignmentsContent() {
                   </div>
                   <h2
                     title={event.name}
-                    className="mt-3 line-clamp-2 break-words text-base font-bold"
+                    className="mt-5 line-clamp-2 break-words text-2xl font-bold leading-tight"
                   >
                     {event.name}
                   </h2>
@@ -200,7 +204,7 @@ function AssignmentsContent() {
                       </span>
                     </p>
                   )}
-                  <span className="mt-3 w-full border-t border-sky-blue pt-3 text-sm font-semibold text-muted group-hover:text-navy">
+                  <span className="mt-auto w-full border-t border-violet/20 pt-4 text-right text-base font-semibold text-violet">
                     Ver detalles y asignar →
                   </span>
                 </button>
