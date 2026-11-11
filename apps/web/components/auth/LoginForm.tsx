@@ -243,7 +243,7 @@ export function LoginForm() {
           <span aria-hidden="true" className="h-px flex-1 bg-sky-blue" />
         </div>
         <button
-          className="inline-flex min-h-[3.125rem] w-full cursor-pointer items-center justify-center gap-2.5 rounded-[0.875rem] border border-[#747775] bg-white px-4 text-base font-semibold text-[#1f1f1f] transition hover:bg-[#f8fafd] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1a73e8] disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex min-h-[3.125rem] w-full cursor-pointer items-center justify-center gap-2.5 rounded-[0.875rem] border border-[#747775] bg-[#fff] px-4 text-base font-semibold text-[#1f1f1f] transition hover:bg-[#f8fafd] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1a73e8] disabled:cursor-not-allowed disabled:opacity-60"
           disabled={isSubmitting}
           onClick={handleGoogleLogin}
           type="button"

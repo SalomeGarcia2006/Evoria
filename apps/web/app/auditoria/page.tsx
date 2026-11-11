@@ -5,8 +5,11 @@ import { AppShell } from '../../components/layout/AppShell';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { DataTable } from '../../components/ui/DataTable';
+import { DateRangePicker } from '../../components/ui/DateRangePicker';
 import { ErrorMessage } from '../../components/ui/ErrorMessage';
 import { LoadingState } from '../../components/ui/LoadingState';
+import { ModuleBanner } from '../../components/ui/ModuleBanner';
+import { PageHero } from '../../components/ui/PageHero';
 import {
   getAuditLogs,
   type AuditLogItem,
@@ -16,7 +19,7 @@ import {
 import { getUsers, type CompanyUser } from '../../services/users.service';
 
 const fieldClassName =
-  'rounded-lg border border-sky-blue bg-white px-3 py-2 font-normal outline-none focus:border-teal focus:ring-2 focus:ring-sky-blue';
+  'rounded-[0.875rem] border border-sky-blue bg-beige/45 px-3 py-2.5 font-normal outline-none focus:border-teal focus:ring-2 focus:ring-sky-blue';
 
 const initialFilters = {
   userId: '',
@@ -144,20 +147,30 @@ export default function AuditoriaPage() {
 
   return (
     <AppShell title="Auditoría">
-      <div className="grid gap-6">
-        <header>
-          <p className="text-sm font-semibold uppercase tracking-[.16em] text-muted">
-            Seguimiento administrativo
-          </p>
-          <h2 className="mt-2 text-3xl font-bold">Auditoría</h2>
-          <p className="mt-1 text-muted">
-            Consulta las acciones registradas en la plataforma.
-          </p>
-        </header>
+      <div className="grid gap-5">
+        <PageHero
+          description="Consulta las acciones registradas y conserva la trazabilidad de tu operación."
+          title="Auditoría"
+        />
 
-        <Card>
+        <ModuleBanner
+          description="Revisa quién hizo cada cambio y encuentra rápidamente la información que necesitas."
+          icon="auditoria.svg"
+          title="Trazabilidad de tu operación"
+        />
+
+        <Card className="p-0">
+          <div className="border-b border-sky-blue bg-beige/45 px-6 py-5">
+            <p className="text-xs font-semibold uppercase tracking-[.16em] text-muted">
+              Consulta del historial
+            </p>
+            <h2 className="mt-1 text-xl font-bold">Filtra los registros</h2>
+            <p className="mt-1 text-sm text-muted">
+              Combina usuario, módulo, acción y fechas para acotar la búsqueda.
+            </p>
+          </div>
           <form
-            className="grid gap-4 md:grid-cols-2 xl:grid-cols-5"
+            className="grid gap-4 p-6 md:grid-cols-2 xl:grid-cols-5"
             onSubmit={applyFilters}
           >
             <label className="grid gap-2 text-sm font-semibold">
@@ -225,37 +238,19 @@ export default function AuditoriaPage() {
                 ))}
               </datalist>
             </label>
-            <label className="grid gap-2 text-sm font-semibold">
-              Desde
-              <input
-                className={fieldClassName}
-                max={filters.endDate || undefined}
-                onChange={(event) =>
-                  setFilters((current) => ({
-                    ...current,
-                    startDate: event.target.value,
-                  }))
-                }
-                type="date"
-                value={filters.startDate}
-              />
-            </label>
-            <label className="grid gap-2 text-sm font-semibold">
-              Hasta
-              <input
-                className={fieldClassName}
-                min={filters.startDate || undefined}
-                onChange={(event) =>
-                  setFilters((current) => ({
-                    ...current,
-                    endDate: event.target.value,
-                  }))
-                }
-                type="date"
-                value={filters.endDate}
-              />
-            </label>
-            <div className="flex items-end gap-3 md:col-span-2 xl:col-span-5">
+            <DateRangePicker
+              endDate={filters.endDate}
+              label="Periodo consultado"
+              onChange={(startDate, endDate) =>
+                setFilters((current) => ({
+                  ...current,
+                  startDate,
+                  endDate,
+                }))
+              }
+              startDate={filters.startDate}
+            />
+            <div className="flex flex-wrap items-end gap-3 border-t border-sky-blue pt-5 md:col-span-2 xl:col-span-5">
               <Button type="submit">Consultar</Button>
               <Button onClick={clearFilters} type="button" variant="secondary">
                 Limpiar
@@ -266,16 +261,19 @@ export default function AuditoriaPage() {
 
         {error ? <ErrorMessage message={error} /> : null}
         <Card className="p-0">
-          <div className="flex flex-col gap-3 border-b border-sky-blue px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 border-b border-sky-blue bg-beige/45 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h3 className="font-bold">Historial de acciones</h3>
+              <p className="text-xs font-semibold uppercase tracking-[.16em] text-muted">
+                Registro de actividad
+              </p>
+              <h3 className="mt-1 text-xl font-bold">Historial de acciones</h3>
               <p className="mt-1 text-sm text-muted">
                 {pagination
                   ? `${pagination.total} registros encontrados.`
                   : 'Consultando registros.'}
               </p>
             </div>
-            <label className="flex items-center gap-2 text-sm text-muted">
+            <label className="flex items-center gap-2 text-sm font-medium text-muted">
               Mostrar
               <select
                 className="rounded-lg border border-sky-blue bg-white px-2 py-1 text-sm"
@@ -298,7 +296,11 @@ export default function AuditoriaPage() {
                 {
                   key: 'date',
                   header: 'Fecha y hora',
-                  render: (item) => formatDate(item.createdAt),
+                  render: (item) => (
+                    <span className="whitespace-nowrap font-medium text-navy">
+                      {formatDate(item.createdAt)}
+                    </span>
+                  ),
                 },
                 {
                   key: 'user',
@@ -308,17 +310,27 @@ export default function AuditoriaPage() {
                 {
                   key: 'module',
                   header: 'Módulo',
-                  render: (item) => formatLabel(item.module),
+                  render: (item) => (
+                    <span className="font-medium capitalize text-navy">
+                      {formatLabel(item.module)}
+                    </span>
+                  ),
                 },
                 {
                   key: 'action',
                   header: 'Acción',
-                  render: (item) => formatLabel(item.action),
+                  render: (item) => (
+                    <span className="inline-flex rounded-full bg-violet/10 px-3 py-1 text-xs font-semibold capitalize text-violet">
+                      {formatLabel(item.action)}
+                    </span>
+                  ),
                 },
                 {
                   key: 'entity',
                   header: 'Entidad',
-                  render: (item) => item.entity,
+                  render: (item) => (
+                    <span className="font-medium text-navy">{item.entity}</span>
+                  ),
                 },
                 {
                   key: 'detail',

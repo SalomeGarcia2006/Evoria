@@ -6,6 +6,7 @@ import { PermissionGate } from '../../components/auth/PermissionGate';
 import { AppShell } from '../../components/layout/AppShell';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
+import { DateRangePicker } from '../../components/ui/DateRangePicker';
 import { FeedbackMessages, useFeedback } from '../../components/ui/Feedback';
 import { LoadingState } from '../../components/ui/LoadingState';
 import { useAuth } from '../../hooks/useAuth';
@@ -214,6 +215,15 @@ export default function CronogramaPage() {
   }, [selectedEventId]);
 
   function openCreateForm() {
+    const event = events.find((item) => item.id === selectedEventId);
+    if (event && new Date(event.endAt) < new Date()) {
+      feedback.guide(
+        'No puedes crear actividades porque el periodo de este evento ya finalizó.',
+        'Evento finalizado',
+        'warning',
+      );
+      return;
+    }
     setEditing(null);
     setForm(emptyForm(selectedEventId));
     setValidationAlert(null);
@@ -268,6 +278,28 @@ export default function CronogramaPage() {
     if (form.endAt < form.startAt) {
       setValidationAlert(
         'La fecha de finalización no puede ser anterior a la fecha de inicio.',
+      );
+      return;
+    }
+
+    const selectedEvent = events.find((item) => item.id === form.eventId);
+    if (
+      !editing &&
+      selectedEvent &&
+      new Date(selectedEvent.endAt) < new Date()
+    ) {
+      setValidationAlert(
+        'No puedes crear actividades porque el periodo de este evento ya finalizó.',
+      );
+      return;
+    }
+    if (
+      selectedEvent &&
+      (new Date(form.startAt) < new Date(selectedEvent.startAt) ||
+        new Date(form.endAt) > new Date(selectedEvent.endAt))
+    ) {
+      setValidationAlert(
+        'La actividad debe programarse dentro del periodo del evento seleccionado.',
       );
       return;
     }
@@ -351,6 +383,9 @@ export default function CronogramaPage() {
 
   const selectedEvent = events.find((event) => event.id === selectedEventId);
   const formEvent = events.find((event) => event.id === form.eventId);
+  const selectedEventHasEnded = Boolean(
+    selectedEvent && new Date(selectedEvent.endAt) < new Date(),
+  );
   const userNameById = new Map(users.map((user) => [user.id, user.name]));
 
   return (
@@ -369,11 +404,18 @@ export default function CronogramaPage() {
           </div>
           <PermissionGate permission="cronogramas.crear">
             <Button
-              disabled={events.length === 0}
+              disabled={events.length === 0 || selectedEventHasEnded}
               onClick={openCreateForm}
               type="button"
+              title={
+                selectedEventHasEnded
+                  ? 'El periodo de este evento ya finalizó.'
+                  : undefined
+              }
             >
-              + Nueva actividad
+              {selectedEventHasEnded
+                ? 'Evento finalizado'
+                : '+ Nueva actividad'}
             </Button>
           </PermissionGate>
         </header>
@@ -602,16 +644,29 @@ export default function CronogramaPage() {
                 className={fieldClassName}
                 disabled={Boolean(editing)}
                 onChange={(event) =>
-                  setForm({ ...form, eventId: event.target.value })
+                  setForm((current) => ({
+                    ...current,
+                    eventId: event.target.value,
+                    startAt: '',
+                    endAt: '',
+                  }))
                 }
                 required
                 value={form.eventId}
               >
-                {events.map((event) => (
-                  <option key={event.id} value={event.id}>
-                    {event.name}
-                  </option>
-                ))}
+                {events.map((event) => {
+                  const hasEnded = new Date(event.endAt) < new Date();
+                  return (
+                    <option
+                      disabled={!editing && hasEnded}
+                      key={event.id}
+                      value={event.id}
+                    >
+                      {event.name}
+                      {hasEnded ? ' (finalizado)' : ''}
+                    </option>
+                  );
+                })}
               </select>
             </label>
             {formEvent ? (
@@ -647,34 +702,67 @@ export default function CronogramaPage() {
                 value={form.description}
               />
             </label>
+            <DateRangePicker
+              endDate={form.endAt.slice(0, 10)}
+              label="Fechas de la actividad"
+              max={
+                formEvent
+                  ? toLocalDateTime(formEvent.endAt).slice(0, 10)
+                  : undefined
+              }
+              min={
+                formEvent
+                  ? toLocalDateTime(formEvent.startAt).slice(0, 10)
+                  : !editing
+                    ? minimumStartDate
+                    : undefined
+              }
+              onChange={(startDate, endDate) =>
+                setForm((current) => ({
+                  ...current,
+                  startAt: startDate
+                    ? `${startDate}T${current.startAt.slice(11) || '09:00'}`
+                    : '',
+                  endAt: endDate
+                    ? `${endDate}T${current.endAt.slice(11) || '18:00'}`
+                    : '',
+                }))
+              }
+              required
+              startDate={form.startAt.slice(0, 10)}
+            />
             <label className="grid gap-2 text-sm font-semibold">
-              Fecha y hora de inicio
+              Hora de inicio
               <input
                 className={fieldClassName}
-                min={!editing ? `${minimumStartDate}T00:00` : undefined}
                 onChange={(event) =>
-                  setForm({ ...form, startAt: event.target.value })
+                  setForm((current) => ({
+                    ...current,
+                    startAt: current.startAt
+                      ? `${current.startAt.slice(0, 10)}T${event.target.value}`
+                      : '',
+                  }))
                 }
                 required
-                type="datetime-local"
-                value={form.startAt}
+                type="time"
+                value={form.startAt.slice(11)}
               />
             </label>
             <label className="grid gap-2 text-sm font-semibold">
-              Fecha y hora de finalización
+              Hora de finalización
               <input
                 className={fieldClassName}
-                min={
-                  !editing
-                    ? form.startAt || `${minimumStartDate}T00:00`
-                    : undefined
-                }
                 onChange={(event) =>
-                  setForm({ ...form, endAt: event.target.value })
+                  setForm((current) => ({
+                    ...current,
+                    endAt: current.endAt
+                      ? `${current.endAt.slice(0, 10)}T${event.target.value}`
+                      : '',
+                  }))
                 }
                 required
-                type="datetime-local"
-                value={form.endAt}
+                type="time"
+                value={form.endAt.slice(11)}
               />
             </label>
             <label className="grid gap-2 text-sm font-semibold">
