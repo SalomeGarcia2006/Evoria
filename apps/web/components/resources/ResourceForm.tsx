@@ -7,22 +7,24 @@ import {
   type ResourceStatus,
 } from '../../types/recurso';
 import { Button } from '../ui/Button';
-import { FeedbackMessages, useFeedback } from '../ui/Feedback';
 import { apiErrorMessage } from '../../services/api';
 
 export function ResourceForm({
   resource,
+  existingResources,
   onSaved,
   onCancel,
   onSavingChange,
+  onAlert,
 }: {
   resource?: Recurso;
+  existingResources: Recurso[];
   onSaved: (resource: Recurso) => void;
   onCancel?: () => void;
   onSavingChange?: (isSaving: boolean) => void;
+  onAlert: (title: string, message: string) => void;
 }) {
   const [isSaving, setIsSaving] = useState(false);
-  const feedback = useFeedback();
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (isSaving) return;
@@ -46,10 +48,32 @@ export function ResourceForm({
     ].filter(Boolean);
 
     if (missingFields.length > 0) {
-      feedback.guide(
-        `Falta completar: ${missingFields.join(', ')}.`,
+      onAlert(
         'Campos obligatorios',
-        'error',
+        `Falta completar: ${missingFields.join(', ')}.`,
+      );
+      return;
+    }
+
+    const normalizedName = name
+      .normalize('NFD')
+      .replace(/\p{Diacritic}/gu, '')
+      .replace(/\s+/g, ' ')
+      .toLocaleLowerCase('es-CO');
+    const existsWithSameName = existingResources.some(
+      (item) =>
+        item.id !== resource?.id &&
+        item.name
+          .normalize('NFD')
+          .replace(/\p{Diacritic}/gu, '')
+          .replace(/\s+/g, ' ')
+          .trim()
+          .toLocaleLowerCase('es-CO') === normalizedName,
+    );
+    if (existsWithSameName) {
+      onAlert(
+        'Nombre en uso',
+        'Ya existe un recurso con ese nombre. Elige otro para poder guardarlo.',
       );
       return;
     }
@@ -58,20 +82,18 @@ export function ResourceForm({
       name.length < 2 ||
       type.length < 2 ||
       !Number.isFinite(unitCost) ||
-      unitCost < 0 ||
+      unitCost <= 0 ||
       !Number.isInteger(totalQuantity) ||
       totalQuantity < (resource?.reservedQuantity ?? 0)
     ) {
-      feedback.guide(
-        `El nombre y el tipo deben tener al menos dos caracteres. Indica un costo no negativo y una cantidad total entera de al menos ${resource?.reservedQuantity ?? 0} unidades para cubrir las reservas existentes.`,
+      onAlert(
         'Revisa los datos del recurso',
-        'error',
+        `El nombre y el tipo deben tener al menos dos caracteres. Indica un costo unitario mayor que cero y una cantidad total entera de al menos ${resource?.reservedQuantity ?? 0} unidades para cubrir las reservas existentes.`,
       );
       return;
     }
     setIsSaving(true);
     onSavingChange?.(true);
-    feedback.dismiss();
     try {
       onSaved(
         await saveResource(
@@ -87,7 +109,7 @@ export function ResourceForm({
         ),
       );
     } catch (error) {
-      feedback.notify(apiErrorMessage(error), 'error');
+      onAlert('No se pudo guardar el recurso', apiErrorMessage(error));
     } finally {
       setIsSaving(false);
       onSavingChange?.(false);
@@ -97,7 +119,6 @@ export function ResourceForm({
     'min-w-0 rounded-lg border border-sky-blue bg-white px-3 py-2 font-normal';
   return (
     <form noValidate onSubmit={submit} className="grid min-w-0 gap-5">
-      <FeedbackMessages feedback={feedback} />
       <fieldset
         disabled={isSaving}
         className="grid min-w-0 gap-5 sm:grid-cols-2"
@@ -164,7 +185,7 @@ export function ResourceForm({
             name="unitCost"
             className={inputClass}
             type="number"
-            min={0}
+            min="0.01"
             step="0.01"
             required
             defaultValue={resource?.unitCost}

@@ -345,8 +345,12 @@ export function InventoryView({
         {panel && (panel.kind !== 'create' || can('inventario.ajustar')) && (
           <ResourceDialog
             key={panel.kind === 'create' ? 'new' : panel.id}
+            existingResources={recursos}
             resourceId={panel.kind === 'detail' ? panel.id : undefined}
             onClose={closePanel}
+            onFormAlert={(title, message) =>
+              feedback.guide(message, title, 'error')
+            }
             onChanged={(message) => {
               retry();
               if (message) notify(message);
