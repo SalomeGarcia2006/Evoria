@@ -19,6 +19,49 @@ import {
   type UserProfileOption,
 } from '../../services/users.service';
 
+function PasswordVisibilityButton({
+  visible,
+  onClick,
+}: {
+  visible: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      aria-label={visible ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+      className="absolute inset-y-0 right-0 grid w-11 place-items-center text-teal transition hover:text-violet"
+      onClick={onClick}
+      type="button"
+    >
+      <svg
+        aria-hidden="true"
+        fill="none"
+        height="20"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+        viewBox="0 0 24 24"
+        width="20"
+      >
+        {visible ? (
+          <>
+            <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z" />
+            <circle cx="12" cy="12" r="2.5" />
+          </>
+        ) : (
+          <>
+            <path d="m3 3 18 18" />
+            <path d="M10.6 6.2A10.8 10.8 0 0 1 12 6c6.5 0 10 6 10 6a18 18 0 0 1-3 3.8" />
+            <path d="M6.2 6.2C3.6 8 2 12 2 12s3.5 6 10 6c1.3 0 2.5-.2 3.5-.6" />
+            <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" />
+          </>
+        )}
+      </svg>
+    </button>
+  );
+}
+
 export default function UsuariosPage() {
   const { can } = useAuth();
   const feedback = useFeedback();
@@ -28,6 +71,9 @@ export default function UsuariosPage() {
   const [error, setError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [editing, setEditing] = useState<CompanyUser | null>(null);
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const userDialog = useRef<HTMLDialogElement>(null);
   const [form, setForm] = useState({
     name: '',
@@ -36,6 +82,8 @@ export default function UsuariosPage() {
     profileId: '',
     status: 'activo' as 'activo' | 'inactivo',
   });
+  const passwordsDoNotMatch =
+    !editing && confirmPassword.length > 0 && form.password !== confirmPassword;
 
   const loadData = useCallback(() => {
     return Promise.all([
@@ -65,6 +113,9 @@ export default function UsuariosPage() {
 
   function openCreateForm() {
     setEditing(null);
+    setConfirmPassword('');
+    setShowPassword(false);
+    setShowConfirmPassword(false);
     setForm({
       name: '',
       email: '',
@@ -77,6 +128,9 @@ export default function UsuariosPage() {
 
   function openEditForm(user: CompanyUser) {
     setEditing(user);
+    setConfirmPassword('');
+    setShowPassword(false);
+    setShowConfirmPassword(false);
     setForm({
       name: user.name,
       email: user.email,
@@ -94,7 +148,12 @@ export default function UsuariosPage() {
 
   async function saveUser(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError('');
+    feedback.dismiss();
+
+    if (!editing && form.password !== confirmPassword) {
+      return;
+    }
+
     setIsSaving(true);
     try {
       const saved = editing
@@ -114,11 +173,17 @@ export default function UsuariosPage() {
           : [saved, ...current],
       );
       closeForm();
+      feedback.notify(
+        editing
+          ? 'Usuario actualizado correctamente.'
+          : 'Usuario creado correctamente.',
+      );
     } catch (saveError) {
-      setError(
+      feedback.notify(
         saveError instanceof Error
           ? saveError.message
           : 'No fue posible guardar el usuario.',
+        'error',
       );
     } finally {
       setIsSaving(false);
@@ -274,19 +339,64 @@ export default function UsuariosPage() {
                 </select>
               </label>
             ) : (
-              <label className="grid gap-2 text-sm font-semibold">
-                Contraseña inicial
-                <input
-                  className="rounded-lg border border-sky-blue px-3 py-2 font-normal"
-                  minLength={8}
-                  onChange={(event) =>
-                    setForm({ ...form, password: event.target.value })
-                  }
-                  required
-                  type="password"
-                  value={form.password}
-                />
-              </label>
+              <>
+                <label className="grid gap-2 text-sm font-semibold">
+                  Contraseña inicial
+                  <span className="relative block">
+                    <input
+                      aria-invalid={passwordsDoNotMatch}
+                      className={`w-full rounded-lg border px-3 py-2 pr-11 font-normal outline-none focus:ring-2 ${passwordsDoNotMatch ? 'border-red-700 focus:border-red-700 focus:ring-red-100' : 'border-sky-blue focus:border-teal focus:ring-sky-blue'}`}
+                      minLength={8}
+                      onChange={(event) =>
+                        setForm({ ...form, password: event.target.value })
+                      }
+                      required
+                      type={showPassword ? 'text' : 'password'}
+                      value={form.password}
+                    />
+                    <PasswordVisibilityButton
+                      onClick={() => setShowPassword((current) => !current)}
+                      visible={showPassword}
+                    />
+                  </span>
+                </label>
+                <label className="grid gap-2 text-sm font-semibold">
+                  Repite la contraseña
+                  <span className="relative block">
+                    <input
+                      aria-describedby={
+                        passwordsDoNotMatch
+                          ? 'password-confirmation-error'
+                          : undefined
+                      }
+                      aria-invalid={passwordsDoNotMatch}
+                      className={`w-full rounded-lg border px-3 py-2 pr-11 font-normal outline-none focus:ring-2 ${passwordsDoNotMatch ? 'border-red-700 focus:border-red-700 focus:ring-red-100' : 'border-sky-blue focus:border-teal focus:ring-sky-blue'}`}
+                      minLength={8}
+                      onChange={(event) =>
+                        setConfirmPassword(event.target.value)
+                      }
+                      required
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      value={confirmPassword}
+                    />
+                    <PasswordVisibilityButton
+                      onClick={() =>
+                        setShowConfirmPassword((current) => !current)
+                      }
+                      visible={showConfirmPassword}
+                    />
+                  </span>
+                  {passwordsDoNotMatch ? (
+                    <span
+                      className="text-xs font-medium text-red-800"
+                      id="password-confirmation-error"
+                      role="alert"
+                    >
+                      Las contraseñas no coinciden.
+                    </span>
+                  ) : null}
+                </label>
+              </>
             )}
             <div className="flex gap-3 border-t border-sky-blue pt-5 md:col-span-3">
               <PermissionGate
