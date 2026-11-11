@@ -158,6 +158,7 @@ export function EventList({
       `El evento “${event.name}” quedará cancelado y no podrá volver a gestionarse como un evento activo.`,
       'Sí, cancelar evento',
       'warning',
+      'CANCELAR',
     );
     if (!confirmed) return;
 

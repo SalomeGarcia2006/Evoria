@@ -5,6 +5,7 @@ import { AppShell } from '../../components/layout/AppShell';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { DataTable } from '../../components/ui/DataTable';
+import { FeedbackMessages, useFeedback } from '../../components/ui/Feedback';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { PermissionGate } from '../../components/auth/PermissionGate';
 import { useAuth } from '../../hooks/useAuth';
@@ -20,6 +21,7 @@ import {
 
 export default function UsuariosPage() {
   const { can } = useAuth();
+  const feedback = useFeedback();
   const [users, setUsers] = useState<CompanyUser[]>([]);
   const [profiles, setProfiles] = useState<UserProfileOption[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -124,7 +126,14 @@ export default function UsuariosPage() {
   }
 
   async function deactivate(user: CompanyUser) {
-    if (!window.confirm(`¿Desactivar a ${user.name}?`)) return;
+    const confirmed = await feedback.confirm(
+      '¿Vas a desactivar este usuario?',
+      `El usuario “${user.name}” perderá el acceso a la plataforma hasta que se active nuevamente.`,
+      'Sí, desactivar usuario',
+      'warning',
+      'CANCELAR',
+    );
+    if (!confirmed) return;
     setError('');
     try {
       const saved = await deactivateUser(user.id);
@@ -366,6 +375,7 @@ export default function UsuariosPage() {
             />
           )}
         </Card>
+        <FeedbackMessages feedback={feedback} />
       </div>
     </AppShell>
   );
