@@ -108,6 +108,7 @@ export function ResourceDialog({
       `El recurso “${resource.name}” dejará de aparecer entre los recursos activos y no podrá asignarse a nuevos eventos.`,
       'Sí, desactivar recurso',
       'warning',
+      'CANCELAR',
     );
     if (confirmed) await deactivate();
   }

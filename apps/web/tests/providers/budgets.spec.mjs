@@ -681,6 +681,7 @@ test('presupuesto sin iniciar: asignaciones sin panel financiero y gestión del 
     status: 409,
     message: 'No se pudo cancelar el servicio. Intenta de nuevo.',
   };
+  await page.getByLabel('Escribe CANCELAR para confirmar').fill('CANCELAR');
   await page
     .getByRole('dialog')
     .getByRole('button', { name: 'Confirmar' })

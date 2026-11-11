@@ -413,6 +413,7 @@ test('directorio: paginación, vacíos, error recuperable y desactivación confi
     .click();
   expect(writes(state)).toHaveLength(0);
   await page.getByRole('button', { name: 'Desactivar', exact: true }).click();
+  await page.getByLabel('Escribe CANCELAR para confirmar').fill('CANCELAR');
   await page
     .getByRole('dialog')
     .getByRole('button', { name: 'Confirmar' })
@@ -548,6 +549,7 @@ test('servicios: validación de monto y fin, edición y cancelación con histori
   await page
     .getByRole('button', { name: 'Cancelar servicio', exact: true })
     .click();
+  await page.getByLabel('Escribe CANCELAR para confirmar').fill('CANCELAR');
   await page
     .getByRole('dialog')
     .getByRole('button', { name: 'Confirmar' })
@@ -622,6 +624,7 @@ test('evento cancelado: consulta y cancelación disponibles, creación y edició
   await page
     .getByRole('button', { name: 'Cancelar servicio', exact: true })
     .click();
+  await page.getByLabel('Escribe CANCELAR para confirmar').fill('CANCELAR');
   await page
     .getByRole('dialog')
     .getByRole('button', { name: 'Confirmar' })

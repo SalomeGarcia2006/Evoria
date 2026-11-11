@@ -292,6 +292,10 @@ test('asignaciones: paso previo, confirmación y ventana de éxito al liberar', 
     .click();
   await page
     .getByRole('alertdialog')
+    .getByLabel('Escribe CANCELAR para confirmar')
+    .fill('CANCELAR');
+  await page
+    .getByRole('alertdialog')
     .getByRole('button', { name: 'Liberar unidades' })
     .click();
   await acknowledgeFeedback(page, 'Recurso liberado');

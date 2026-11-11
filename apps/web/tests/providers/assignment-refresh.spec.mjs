@@ -155,6 +155,15 @@ test('permite actualizar tras asignar o liberar un recurso y conserva errores', 
   await expect(alert.locator('.login-alert-modal')).toBeVisible();
   await alert.getByRole('button', { name: 'Entendido' }).click();
   await app.dialog.getByRole('button', { name: 'Liberar recurso' }).click();
+  await expect(
+    page
+      .getByRole('alertdialog')
+      .getByRole('button', { name: 'Liberar unidades' }),
+  ).toBeDisabled();
+  await page
+    .getByRole('alertdialog')
+    .getByLabel('Escribe CANCELAR para confirmar')
+    .fill('CANCELAR');
   await page
     .getByRole('alertdialog')
     .getByRole('button', { name: 'Liberar unidades' })

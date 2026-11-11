@@ -292,9 +292,9 @@ export function InventoryView({
                       >
                         {resource.name}
                       </h4>
-                      <div className="mt-6 grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3">
+                      <div className="mt-6 grid grid-cols-[minmax(0,1fr)_7rem] items-end gap-3">
                         <div className="min-w-0">
-                          <p className="break-words text-4xl font-bold leading-none text-violet">
+                          <p className="whitespace-nowrap tabular-nums text-2xl font-bold leading-none tracking-tight text-violet">
                             {new Intl.NumberFormat('es-CO').format(
                               resource.status === 'disponible'
                                 ? resource.availableQuantity
@@ -305,7 +305,7 @@ export function InventoryView({
                             Unidades disponibles
                           </p>
                         </div>
-                        <dl className="grid min-w-32 gap-2 rounded-xl bg-violet/5 px-3 py-3 text-sm">
+                        <dl className="grid gap-2 rounded-xl bg-violet/5 px-3 py-3 text-xs">
                           <div className="flex justify-between gap-3">
                             <dt className="text-muted">Total</dt>
                             <dd className="font-bold">

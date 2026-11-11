@@ -275,6 +275,8 @@ export function EventResources({
         'Liberar recurso',
         `¿Liberar las ${item.quantity} unidades de ${item.inventoryItem.name}? Las unidades volverán a estar disponibles en el inventario y su costo se liberará del presupuesto del evento.`,
         'Liberar unidades',
+        'warning',
+        'CANCELAR',
       ))
     )
       return;
