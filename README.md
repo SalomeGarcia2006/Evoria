@@ -386,6 +386,35 @@ sin configurar ambas claves: el servidor rechazará los inicios de sesión.
 Como la clave pública se integra en el frontend durante la compilación,
 reconstruye la imagen web si la cambias (`docker compose up --build`).
 
+### Envío de correos con Brevo
+
+En Brevo crea y verifica un remitente, activa el envío transaccional y genera
+una **clave SMTP**. En el `.env` de la raíz configura:
+
+```env
+BREVO_SMTP_USER=tu-login-smtp-de-brevo
+BREVO_SMTP_KEY=tu-clave-smtp
+MAIL_FROM_EMAIL=correo-remitente-verificado@ejemplo.com
+```
+
+`BREVO_SMTP_USER` es el login SMTP que aparece en Brevo, no el correo del
+remitente. Para ejecutar la API fuera de Docker, también puedes definir estas
+variables en `apps/api/.env`. No pongas la clave en el frontend ni en Git.
+Después de cambiar las variables de Docker, reinicia los contenedores para que
+la API reciba los valores nuevos; no hace falta ejecutar el seed ni migraciones.
+
+Desde la raíz, comprueba el envío a una dirección real con:
+
+```bash
+npm run email:test -- destinatario@ejemplo.com
+```
+
+Este comando crea solo el contexto de correo, sin iniciar MongoDB ni exponer
+un endpoint de envío. El servicio `MailService` queda disponible para que los
+módulos de la API envíen correos después de validar cada operación. La prueba
+confirma que Brevo aceptó el mensaje, no que llegó a la bandeja de entrada;
+comprueba el estado final en los registros transaccionales de Brevo.
+
 ### Problemas frecuentes al ejecutar el seed
 
 Si aparecen errores como `Cannot find module '@nestjs/jwt'`,
