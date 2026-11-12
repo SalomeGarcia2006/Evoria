@@ -381,9 +381,7 @@ test('eventos activos aparecen como tarjetas sin b√∫squeda y cargan todas las p√
     path: test.info().outputPath('detalle-presupuesto.png'),
     fullPage: true,
   });
-  await page
-    .getByRole('button', { name: 'Volver a eventos activos', exact: false })
-    .click();
+  await page.getByRole('button', { name: 'Cerrar presupuesto' }).click();
   await expect(page.locator('dl')).toHaveCount(0);
   await expect(eventCard).toBeVisible();
 });
@@ -465,9 +463,7 @@ test('tarjetas excluyen eventos finalizados y cancelados y cambian al detalle el
   );
   await page.goto('/presupuestos?eventId=e1');
   await expect(available(page)).toContainText('9.900');
-  await page
-    .getByRole('button', { name: 'Volver a eventos activos', exact: false })
-    .click();
+  await page.getByRole('button', { name: 'Cerrar presupuesto' }).click();
   await expect(
     page.getByRole('button', {
       name: 'Ver presupuesto de Evento finalizado',

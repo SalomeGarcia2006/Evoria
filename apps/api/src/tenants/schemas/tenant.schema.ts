@@ -30,7 +30,7 @@ export type TenantDocument = HydratedDocument<Tenant>;
 
 @Schema({ collection: 'tenants', timestamps: true, versionKey: false })
 export class Tenant {
-  @Prop({ required: true, trim: true, minlength: 2, maxlength: 120 })
+  @Prop({ required: true, trim: true, minlength: 1, maxlength: 120 })
   name!: string;
 
   @Prop({ required: true, trim: true, minlength: 3, maxlength: 30 })

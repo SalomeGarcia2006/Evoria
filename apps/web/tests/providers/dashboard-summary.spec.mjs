@@ -47,7 +47,7 @@ async function setup(page, baseURL, options = {}) {
             finalizado: 2,
             cancelado: 1,
           },
-          upcoming: [
+          upcoming: options.upcoming ?? [
             {
               id: 'e1',
               name: 'Próximo evento',
@@ -72,7 +72,7 @@ async function setup(page, baseURL, options = {}) {
       };
     } else if (path === '/budgets')
       data = {
-        items: [],
+        items: options.budgetItems ?? [],
         totals: { allocatedCop: 1, spentCop: 2, remainingCop: 3 },
         pagination: { totalPages: 1 },
       };
@@ -100,6 +100,121 @@ async function setup(page, baseURL, options = {}) {
     },
   };
 }
+
+test('próximos eventos muestra fecha, etiquetas y enlace a cada evento', async ({
+  page,
+  baseURL,
+}) => {
+  await page.clock.setFixedTime(new Date('2099-12-05T15:00:00Z'));
+  await setup(page, baseURL, {
+    upcoming: [
+      {
+        id: 'hoy',
+        name: 'Evento de hoy',
+        startAt: '2099-12-05T15:00:00Z',
+        status: 'borrador',
+      },
+      {
+        id: 'manana',
+        name: 'Evento de mañana',
+        startAt: '2099-12-06T15:00:00Z',
+        status: 'planificado',
+      },
+      {
+        id: 'futuro',
+        name: 'Evento futuro',
+        startAt: '2099-12-09T15:00:00Z',
+        status: 'en_progreso',
+      },
+    ],
+  });
+  await page.goto('/dashboard');
+  const today = page.getByRole('link', { name: /Evento de hoy/ });
+  await expect(today).toContainText('Hoy');
+  await expect(today).toContainText('Borrador');
+  await expect(today).toContainText('dic');
+  await expect(today).toHaveAttribute('href', '/eventos/hoy');
+  await expect(
+    page.getByRole('link', { name: /Evento de mañana/ }),
+  ).toContainText('Mañana');
+  await expect(page.getByRole('link', { name: /Evento futuro/ })).toContainText(
+    'En 4 días',
+  );
+  await expect(page.getByRole('link', { name: 'Ver todos →' })).toHaveAttribute(
+    'href',
+    '/eventos',
+  );
+});
+
+test('presupuesto por evento muestra ejecución, porcentaje y estados sin división por cero', async ({
+  page,
+  baseURL,
+}) => {
+  await setup(page, baseURL, {
+    budgetItems: [
+      {
+        eventId: 'e1',
+        eventName: 'Sabores sin Fronteras',
+        eventStatus: 'planificado',
+        initialized: true,
+        spentCop: 1180000,
+        allocatedCop: 18000000,
+      },
+      {
+        eventId: 'e2',
+        eventName: 'Congreso',
+        eventStatus: 'planificado',
+        initialized: true,
+        spentCop: 0,
+        allocatedCop: 25000000,
+      },
+      {
+        eventId: 'e3',
+        eventName: 'Sin iniciar',
+        eventStatus: 'borrador',
+        initialized: false,
+        spentCop: 0,
+        allocatedCop: 0,
+      },
+      {
+        eventId: 'e4',
+        eventName: 'Cancelado',
+        eventStatus: 'cancelado',
+        initialized: true,
+        spentCop: 10,
+        allocatedCop: 20,
+      },
+      {
+        eventId: 'e5',
+        eventName: 'Sin asignación',
+        eventStatus: 'planificado',
+        initialized: true,
+        spentCop: 10,
+        allocatedCop: 0,
+      },
+    ],
+  });
+  await page.goto('/dashboard');
+  const first = page.getByRole('link', { name: /Sabores sin Fronteras/ });
+  await expect(first).toContainText('6,6 %');
+  await expect(first).toContainText('1.180.000');
+  await expect(first).toContainText('18.000.000');
+  await expect(first.getByRole('progressbar')).toHaveAttribute(
+    'aria-valuetext',
+    '6,6 % ejecutado',
+  );
+  await expect(page.getByRole('link', { name: /Congreso/ })).toContainText(
+    '0 %',
+  );
+  await expect(page.getByRole('link', { name: /Sin iniciar/ })).toContainText(
+    'Sin presupuesto inicial',
+  );
+  await expect(
+    page.getByRole('link', { name: /Sin asignación/ }),
+  ).toContainText('Sin asignación');
+  await expect(page.getByRole('link', { name: /Cancelado/ })).toHaveCount(0);
+  await expect(first).toHaveAttribute('href', '/presupuestos?eventId=e1');
+});
 
 test('el botón de actualización es legible en modo claro y oscuro', async ({
   page,

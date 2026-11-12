@@ -1,0 +1,268 @@
+.panelHeading.panelHeading {
+  background: #e9e3ff;
+}
+
+:global(html[data-theme='dark']) .panelHeading {
+  background: #332e59;
+}
+
+.summaryCard {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.cardHeading {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.icon {
+  display: grid;
+  width: 2.75rem;
+  height: 2.75rem;
+  flex: none;
+  place-items: center;
+  border-radius: 0.85rem;
+  background: var(--evoria-action);
+}
+
+.summaryValue {
+  margin-top: 1rem;
+  color: var(--color-violet);
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.summaryList,
+.budgetTotals {
+  margin: 1rem 0;
+  font-size: 0.875rem;
+}
+
+.summaryList > div,
+.budgetTotals > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--evoria-border);
+}
+
+.summaryList dt {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.summaryList dd,
+.budgetTotals dd {
+  text-align: right;
+  font-weight: 700;
+}
+
+.dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  flex: none;
+  border-radius: 50%;
+  background: #9aa8bb;
+}
+.dot_planificado {
+  background: #8c6bdb;
+}
+.dot_en_progreso {
+  background: #12b5a6;
+}
+.dot_finalizado {
+  background: #258764;
+}
+.dot_cancelado {
+  background: #d66b70;
+}
+
+.cardLink,
+.rowLink {
+  color: var(--evoria-focus);
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.cardLink {
+  margin-top: auto;
+  padding-top: 1rem;
+}
+
+.cardLink:hover,
+.rowLink:hover {
+  text-decoration: underline;
+}
+
+.rows {
+  container-type: inline-size;
+  padding: 0 1.5rem;
+}
+
+.budgetRow,
+.eventRow {
+  display: grid;
+  gap: 1rem;
+  align-items: center;
+  padding: 1.25rem 0;
+}
+
+.budgetRow + .budgetRow,
+.eventRow + .eventRow {
+  border-top: 1px solid var(--evoria-border);
+}
+
+.rowTitle {
+  min-width: 0;
+}
+.rowTitle h3 {
+  overflow-wrap: anywhere;
+  font-weight: 700;
+}
+.rowTitle > .status {
+  margin-top: 0.4rem;
+}
+.rowTitle p {
+  overflow-wrap: anywhere;
+}
+
+.rowAmounts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+  gap: 0.75rem;
+}
+
+.rowAmounts dt,
+.rowProgress > p {
+  margin-bottom: 0.25rem;
+  color: var(--evoria-muted);
+  font-size: 0.75rem;
+}
+
+.rowAmounts dd {
+  overflow-wrap: anywhere;
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+.rowProgress {
+  min-width: 0;
+}
+.execution {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+.track {
+  height: 0.55rem;
+  min-width: 2rem;
+  flex: 1;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--evoria-border);
+}
+.fill {
+  height: 100%;
+  border-radius: inherit;
+  background: #12b5a6;
+}
+.percent {
+  flex: none;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.status {
+  display: inline-block;
+  width: fit-content;
+  max-width: 100%;
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+  background: #e8edf6;
+  color: #34455d;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.status_borrador {
+  background: #fff0cc;
+  color: #794700;
+}
+.status_planificado {
+  background: #eae5ff;
+  color: #49309c;
+}
+.status_en_progreso {
+  background: #d4f5ed;
+  color: #075e53;
+}
+.status_finalizado {
+  background: #daf3df;
+  color: #205c34;
+}
+.status_cancelado {
+  background: #fce3e5;
+  color: #923f48;
+}
+
+.eventDate {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: fit-content;
+  padding: 0.25rem 0.65rem 0.25rem 0.3rem;
+  border-radius: 999px;
+  background: #ddf5f3;
+  color: #315d88;
+  font-size: 0.875rem;
+}
+
+:global(html[data-theme='dark']) .eventDate {
+  background: #214451;
+  color: #b3cce8;
+}
+
+.dateIcon {
+  display: grid;
+  width: 1.5rem;
+  height: 1.5rem;
+  flex: none;
+  place-items: center;
+  border-radius: 0.25rem;
+  background: #31c9bf;
+}
+
+@container (min-width: 850px) {
+  .budgetRow {
+    grid-template-columns:
+      minmax(10rem, 1.2fr) minmax(17rem, 2fr) minmax(8rem, 1fr)
+      auto;
+  }
+  .budgetRow > p {
+    grid-column: 2 / 4;
+  }
+  .budgetRow > .rowLink {
+    grid-column: 4;
+  }
+  .eventRow {
+    grid-template-columns:
+      minmax(7rem, 0.8fr) minmax(10rem, 2fr) minmax(7rem, 1fr)
+      auto;
+  }
+}
+
+@media (max-width: 767px) {
+  .rows {
+    padding: 0 1rem;
+  }
+  .budgetRow,
+  .eventRow {
+    gap: 0.75rem;
+  }
+}

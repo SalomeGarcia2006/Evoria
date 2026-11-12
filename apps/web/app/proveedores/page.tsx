@@ -11,7 +11,8 @@ import { AppShell } from '../../components/layout/AppShell';
 import { Button } from '../../components/ui/Button';
 import { PageHero } from '../../components/ui/PageHero';
 import { ModuleBanner } from '../../components/ui/ModuleBanner';
-import { DataTable } from '../../components/ui/DataTable';
+import panelHeadingStyles from '../../components/ui/PanelHeading.module.css';
+import cardStyles from '../../components/ui/InventoryStyleCard.module.css';
 import { LoadingState } from '../../components/ui/LoadingState';
 import { ErrorMessage } from '../../components/ui/ErrorMessage';
 import { FeedbackMessages, useFeedback } from '../../components/ui/Feedback';
@@ -116,7 +117,9 @@ function ProvidersContent() {
           className="module-panel"
           aria-label="Directorio de proveedores"
         >
-          <div className="module-panel__heading">
+          <div
+            className={`module-panel__heading ${panelHeadingStyles.heading}`}
+          >
             <h2 className="text-xl font-bold">Directorio de proveedores</h2>
             <p className="mt-1 text-sm text-muted">
               Busca y administra los contactos de tu empresa.
@@ -195,54 +198,50 @@ function ProvidersContent() {
                     No hay proveedores que coincidan con estos filtros.
                   </p>
                 ) : (
-                  <DataTable
-                    rows={data.items}
-                    rowKey={(item) => item.id}
-                    columns={[
-                      {
-                        key: 'name',
-                        header: 'Proveedor',
-                        render: (item) => <strong>{item.name}</strong>,
-                      },
-                      {
-                        key: 'categories',
-                        header: 'Categorías',
-                        render: (item) =>
-                          item.categoryKeys
-                            .map((value) => categoryLabels[value])
-                            .join(', '),
-                      },
-                      ...(
-                        ['contactName', 'phone', 'email', 'location'] as const
-                      ).map((value, index) => ({
-                        key: value,
-                        header: ['Contacto', 'Teléfono', 'Correo', 'Ubicación'][
-                          index
-                        ],
-                        render: (item: Provider) => item[value] || '—',
-                      })),
-                      {
-                        key: 'status',
-                        header: 'Estado',
-                        render: (item) => (
-                          <span
-                            className={
-                              item.status === 'activo'
-                                ? 'font-semibold text-muted'
-                                : 'text-slate-500'
-                            }
-                          >
+                  <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                    {data.items.map((item) => (
+                      <article
+                        key={item.id}
+                        className={`${cardStyles.card} flex flex-col`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <p className="break-words text-xs font-bold uppercase tracking-[.14em] text-muted">
+                            {item.categoryKeys
+                              .map((value) => categoryLabels[value])
+                              .join(', ')}
+                          </p>
+                          <span className="shrink-0 rounded-full bg-violet/10 px-3 py-1 text-xs font-semibold text-violet">
                             {item.status === 'activo' ? 'Activo' : 'Inactivo'}
                           </span>
-                        ),
-                      },
-                      {
-                        key: 'actions',
-                        header: 'Acciones',
-                        render: (item) => (
-                          <div className="flex gap-2">
-                            {can('proveedores.editar') &&
-                              item.status === 'activo' && (
+                        </div>
+                        <h3 className="mt-5 break-words text-2xl font-bold leading-tight">
+                          {item.name}
+                        </h3>
+                        <dl className="my-5 grid gap-2 rounded-xl bg-violet/5 p-3 text-sm">
+                          {(
+                            [
+                              ['Contacto', item.contactName],
+                              ['Teléfono', item.phone],
+                              ['Correo', item.email],
+                              ['Ubicación', item.location],
+                            ] as const
+                          ).map(([label, value]) => (
+                            <div
+                              key={label}
+                              className="flex flex-wrap justify-between gap-x-3"
+                            >
+                              <dt className="text-muted">{label}</dt>
+                              <dd className="min-w-0 break-all text-right font-semibold">
+                                {value || '—'}
+                              </dd>
+                            </div>
+                          ))}
+                        </dl>
+                        {item.status === 'activo' &&
+                          (can('proveedores.editar') ||
+                            can('proveedores.desactivar')) && (
+                            <div className="mt-auto flex flex-wrap justify-end gap-2 border-t border-violet/20 pt-3">
+                              {can('proveedores.editar') && (
                                 <Button
                                   variant="ghost"
                                   onClick={() => setPanel(item)}
@@ -250,8 +249,7 @@ function ProvidersContent() {
                                   Editar
                                 </Button>
                               )}
-                            {can('proveedores.desactivar') &&
-                              item.status === 'activo' && (
+                              {can('proveedores.desactivar') && (
                                 <Button
                                   variant="ghost"
                                   onClick={() => setDeactivating(item)}
@@ -259,11 +257,11 @@ function ProvidersContent() {
                                   Desactivar
                                 </Button>
                               )}
-                          </div>
-                        ),
-                      },
-                    ]}
-                  />
+                            </div>
+                          )}
+                      </article>
+                    ))}
+                  </div>
                 )}
                 <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
                   <p className="text-sm">

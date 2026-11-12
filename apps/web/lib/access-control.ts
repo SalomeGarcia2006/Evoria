@@ -32,7 +32,12 @@ export const navigationItems: NavigationItem[] = [
   { label: 'Auditoría', href: '/auditoria', permission: 'auditoria.ver' },
   { label: 'Usuarios', href: '/usuarios', permission: 'usuarios.ver' },
   { label: 'Perfiles', href: '/perfiles', permission: 'perfiles.ver' },
-  { label: 'Empresas', href: '/empresas', permission: 'empresas.ver' },
+  {
+    label: 'Empresas',
+    href: '/empresas',
+    permission: 'empresas.ver',
+    alternativePermission: 'empresa_contexto.ver',
+  },
 ];
 
 const routePermissions = [
