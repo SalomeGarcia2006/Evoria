@@ -15,12 +15,16 @@ import { apiErrorMessage } from '../../services/api';
 
 export function ResourceDialog({
   resourceId,
+  existingResources,
   onClose,
   onChanged,
+  onFormAlert,
 }: {
   resourceId?: string;
+  existingResources: Recurso[];
   onClose: () => void;
   onChanged: (message?: string) => void;
+  onFormAlert: (title: string, message: string) => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const titleId = useId();
@@ -179,6 +183,8 @@ export function ResourceDialog({
           </>
         ) : !resourceId && canAdjust ? (
           <ResourceForm
+            existingResources={existingResources}
+            onAlert={onFormAlert}
             onSaved={saved}
             onCancel={close}
             onSavingChange={setBusy}
@@ -188,6 +194,8 @@ export function ResourceDialog({
             {editing && canAdjust ? (
               <ResourceForm
                 resource={resource}
+                existingResources={existingResources}
+                onAlert={onFormAlert}
                 onSaved={saved}
                 onCancel={() => setEditing(false)}
                 onSavingChange={setBusy}

@@ -11,6 +11,7 @@ import {
 } from '../../services/events.service';
 import { getUsers, type CompanyUser } from '../../services/users.service';
 import { Button } from '../ui/Button';
+import { DateRangePicker } from '../ui/DateRangePicker';
 import { ErrorMessage } from '../ui/ErrorMessage';
 import { OpenStreetMapLocationPicker } from './OpenStreetMapLocationPicker';
 
@@ -301,28 +302,16 @@ export function EventForm({
               value={form.description}
             />
           </label>
-          <label className="grid gap-2">
-            <span className="text-sm font-semibold">Fecha de inicio</span>
-            <input
-              className="rounded-lg border border-sky-blue px-3 py-2 outline-none focus:border-teal focus:ring-2 focus:ring-sky-blue"
-              min={isEditing ? undefined : minimumStartDate}
-              onChange={(event) => updateField('startDate', event.target.value)}
-              required
-              type="date"
-              value={form.startDate}
-            />
-          </label>
-          <label className="grid gap-2">
-            <span className="text-sm font-semibold">Fecha de finalización</span>
-            <input
-              className="rounded-lg border border-sky-blue px-3 py-2 outline-none focus:border-teal focus:ring-2 focus:ring-sky-blue"
-              min={form.startDate || minimumStartDate}
-              onChange={(event) => updateField('endDate', event.target.value)}
-              required
-              type="date"
-              value={form.endDate}
-            />
-          </label>
+          <DateRangePicker
+            endDate={form.endDate}
+            label="Fechas del evento"
+            min={isEditing ? undefined : minimumStartDate}
+            onChange={(startDate, endDate) =>
+              setForm((current) => ({ ...current, startDate, endDate }))
+            }
+            required
+            startDate={form.startDate}
+          />
           <label className="grid gap-2">
             <span className="text-sm font-semibold">Hora de inicio</span>
             <input
