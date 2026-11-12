@@ -11,6 +11,7 @@ import { ModuleBanner } from '../../../components/ui/ModuleBanner';
 import panelHeadingStyles from '../../../components/ui/PanelHeading.module.css';
 import { ErrorMessage } from '../../../components/ui/ErrorMessage';
 import { LoadingState } from '../../../components/ui/LoadingState';
+import { Pagination } from '../../../components/ui/Pagination';
 import { StatusBadge } from '../../../components/ui/StatusBadge';
 import { AssignmentIcon } from '../../../components/resources/AssignmentIcon';
 import {
@@ -35,6 +36,7 @@ function AssignmentsContent() {
   const { can } = useAuth();
   const canSeeEvents = can('eventos.ver');
   const [selectedId, setSelectedId] = useState('');
+  const [page, setPage] = useState(1);
   const [attempt, setAttempt] = useState(0);
   const [result, setResult] = useState<{
     attempt: number;
@@ -61,6 +63,9 @@ function AssignmentsContent() {
     };
   }, [attempt, canSeeEvents]);
   const events = result?.events?.filter((event) => isActiveEvent(event.status));
+  const totalPages = Math.max(1, Math.ceil((events?.length ?? 0) / 12));
+  const currentPage = Math.min(page, totalPages);
+  const visibleEvents = events?.slice((currentPage - 1) * 12, currentPage * 12);
   const error = result?.attempt === attempt ? result.error : undefined;
   const onEventLoaded = useCallback((event: EventItem) => {
     setResult((previous) =>
@@ -167,7 +172,7 @@ function AssignmentsContent() {
               </p>
             </div>
             <div className="module-panel__content grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
-              {events.map((event) => (
+              {visibleEvents?.map((event) => (
                 <button
                   type="button"
                   key={event.id}
@@ -209,6 +214,15 @@ function AssignmentsContent() {
                   </span>
                 </button>
               ))}
+            </div>
+            <div className="px-6 pb-5">
+              <Pagination
+                page={currentPage}
+                totalPages={totalPages}
+                total={events.length}
+                label="eventos"
+                onPageChange={setPage}
+              />
             </div>
           </section>
         )}

@@ -18,6 +18,7 @@ import { PageHero } from '../ui/PageHero';
 import { ModuleBanner } from '../ui/ModuleBanner';
 import panelHeadingStyles from '../ui/PanelHeading.module.css';
 import { LoadingState } from '../ui/LoadingState';
+import { Pagination } from '../ui/Pagination';
 import { BudgetEventDialog } from './BudgetEventDialog';
 import { cop, requestLabels } from './BudgetAmountsView';
 import { FeedbackMessages, useFeedback } from '../ui/Feedback';
@@ -43,6 +44,7 @@ function BudgetsWorkspaceContent() {
   const view =
     params.get('view') === 'authorizations' ? 'authorizations' : 'overview';
   const [revision, setRevision] = useState(0);
+  const [page, setPage] = useState(1);
   const allowed = can('presupuestos.ver');
   const approve = can('presupuestos.aprobar');
   const [result, setResult] = useState<{
@@ -107,6 +109,9 @@ function BudgetsWorkspaceContent() {
   }, [user, approve, revision, notify]);
 
   const events = result?.items;
+  const totalPages = Math.max(1, Math.ceil((events?.length ?? 0) / 12));
+  const currentPage = Math.min(page, totalPages);
+  const visibleEvents = events?.slice((currentPage - 1) * 12, currentPage * 12);
   const error = result?.revision === revision ? result.error : undefined;
   const pending = inbox;
   function refresh() {
@@ -205,42 +210,51 @@ function BudgetsWorkspaceContent() {
                   </p>
                 </Card>
               ) : (
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
-                  {events.map((event) => (
-                    <button
-                      type="button"
-                      key={event.eventId}
-                      aria-label={`Ver presupuesto de ${event.eventName}`}
-                      aria-haspopup="dialog"
-                      aria-expanded={eventId === event.eventId}
-                      onClick={() => open(event.eventId)}
-                      className={`${cardStyles.card} ${cardStyles.interactive} flex h-full flex-col items-start text-left focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal`}
-                    >
-                      <div className="flex w-full items-center justify-between gap-3">
-                        <span className="rounded-full bg-teal/10 px-3 py-1 text-xs font-semibold text-muted">
-                          Activo
-                        </span>
-                        <span className="text-xs text-muted">
-                          {statusLabels[event.eventStatus]}
-                        </span>
-                      </div>
-                      <h3
-                        title={event.eventName}
-                        className="mt-5 line-clamp-2 break-words text-2xl font-bold leading-tight"
+                <>
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+                    {visibleEvents?.map((event) => (
+                      <button
+                        type="button"
+                        key={event.eventId}
+                        aria-label={`Ver presupuesto de ${event.eventName}`}
+                        aria-haspopup="dialog"
+                        aria-expanded={eventId === event.eventId}
+                        onClick={() => open(event.eventId)}
+                        className={`${cardStyles.card} ${cardStyles.interactive} flex h-full flex-col items-start text-left focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal`}
                       >
-                        {event.eventName}
-                      </h3>
-                      <p className="mt-1.5 text-xs text-muted">
-                        {event.initialized
-                          ? 'Saldo, gastos y solicitudes'
-                          : 'Presupuesto inicial pendiente'}
-                      </p>
-                      <span className="mt-auto w-full border-t border-violet/20 pt-4 text-right text-base font-semibold text-violet">
-                        Ver presupuesto →
-                      </span>
-                    </button>
-                  ))}
-                </div>
+                        <div className="flex w-full items-center justify-between gap-3">
+                          <span className="rounded-full bg-teal/10 px-3 py-1 text-xs font-semibold text-muted">
+                            Activo
+                          </span>
+                          <span className="text-xs text-muted">
+                            {statusLabels[event.eventStatus]}
+                          </span>
+                        </div>
+                        <h3
+                          title={event.eventName}
+                          className="mt-5 line-clamp-2 break-words text-2xl font-bold leading-tight"
+                        >
+                          {event.eventName}
+                        </h3>
+                        <p className="mt-1.5 text-xs text-muted">
+                          {event.initialized
+                            ? 'Saldo, gastos y solicitudes'
+                            : 'Presupuesto inicial pendiente'}
+                        </p>
+                        <span className="mt-auto w-full border-t border-violet/20 pt-4 text-right text-base font-semibold text-violet">
+                          Ver presupuesto →
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                  <Pagination
+                    page={currentPage}
+                    totalPages={totalPages}
+                    total={events.length}
+                    label="eventos"
+                    onPageChange={setPage}
+                  />
+                </>
               )}
             </div>
           </section>

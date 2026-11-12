@@ -14,6 +14,8 @@ import { FeedbackMessages, useFeedback } from '../ui/Feedback';
 import { LoadingState } from '../ui/LoadingState';
 import panelHeadingStyles from '../ui/PanelHeading.module.css';
 import cardStyles from '../ui/InventoryStyleCard.module.css';
+import { ContextListInput } from './ContextListInput';
+import { EventTypesInput } from './EventTypesInput';
 
 type AreaDraft = {
   name: string;
@@ -157,7 +159,7 @@ export function TenantContextPanel() {
         <h2 className="text-xl font-bold">Contexto operativo</h2>
         <p className="mt-1 text-sm text-muted">
           Describe cómo trabaja tu empresa para orientar la organización de sus
-          perfiles.
+          perfiles. Esta información no asigna permisos automáticamente.
         </p>
       </div>
       <div className="module-panel__content">
@@ -181,14 +183,14 @@ export function TenantContextPanel() {
           <LoadingState label="Cargando contexto operativo…" />
         ) : (
           <form onSubmit={save} className="grid gap-5">
-            <fieldset
-              disabled={!editing || busy}
-              className="grid min-w-0 gap-5 sm:grid-cols-2"
-            >
+            <fieldset className="grid min-w-0 gap-5 sm:grid-cols-2">
               <label className="grid gap-2 text-sm font-semibold">
                 Sector
                 <input
                   className={inputClass}
+                  aria-label="Sector"
+                  disabled={!editing || busy}
+                  placeholder="Ej. Organización de eventos culturales"
                   maxLength={80}
                   value={draft.sector}
                   onChange={(e) =>
@@ -200,6 +202,8 @@ export function TenantContextPanel() {
                 Modalidad de operación
                 <select
                   className={inputClass}
+                  aria-label="Modalidad de operación"
+                  disabled={!editing || busy}
                   value={draft.operationMode ?? ''}
                   onChange={(e) =>
                     setDraft({
@@ -209,7 +213,7 @@ export function TenantContextPanel() {
                     })
                   }
                 >
-                  <option value="">Sin definir</option>
+                  <option value="">Selecciona una modalidad</option>
                   <option value="propios">Eventos propios</option>
                   <option value="clientes">Eventos para clientes</option>
                   <option value="ambos">Ambos</option>
@@ -219,6 +223,9 @@ export function TenantContextPanel() {
                 Descripción de la operación
                 <textarea
                   className={inputClass}
+                  aria-label="Descripción de la operación"
+                  disabled={!editing || busy}
+                  placeholder="Ej. Organizamos eventos culturales y coordinamos proveedores y logística."
                   maxLength={1500}
                   rows={3}
                   value={draft.operationalDescription}
@@ -230,18 +237,12 @@ export function TenantContextPanel() {
                   }
                 />
               </label>
-              <label className="grid gap-2 text-sm font-semibold sm:col-span-2">
-                Tipos de eventos{' '}
-                <span className="font-normal text-muted">Uno por línea.</span>
-                <textarea
-                  className={inputClass}
-                  rows={3}
-                  value={draft.eventTypes}
-                  onChange={(e) =>
-                    setDraft({ ...draft, eventTypes: e.target.value })
-                  }
-                />
-              </label>
+              <EventTypesInput
+                key={editing ? 'editando' : 'consultando'}
+                value={draft.eventTypes}
+                onChange={(eventTypes) => setDraft({ ...draft, eventTypes })}
+                readOnly={!editing || busy}
+              />
               <div className="grid gap-3 sm:col-span-2">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <h3 className="font-bold">Áreas operativas</h3>
@@ -269,6 +270,10 @@ export function TenantContextPanel() {
                     </Button>
                   )}
                 </div>
+                <p className="text-sm text-muted">
+                  Organiza las funciones de tu equipo en áreas, como Logística,
+                  Finanzas o Coordinación.
+                </p>
                 {!draft.operationalAreas.length && (
                   <p className="text-sm text-muted">
                     No hay áreas registradas.
@@ -285,6 +290,7 @@ export function TenantContextPanel() {
                   return (
                     <fieldset
                       key={index}
+                      disabled={!editing || busy}
                       className={`${cardStyles.card} grid gap-4 sm:grid-cols-2`}
                     >
                       <legend className="px-1 font-semibold">
@@ -294,6 +300,8 @@ export function TenantContextPanel() {
                         Nombre del área
                         <input
                           className={inputClass}
+                          aria-label="Nombre del área"
+                          placeholder="Ej. Logística"
                           maxLength={80}
                           value={area.name}
                           onChange={(e) => change('name', e.target.value)}
@@ -303,6 +311,8 @@ export function TenantContextPanel() {
                         Descripción del área
                         <input
                           className={inputClass}
+                          aria-label="Descripción del área"
+                          placeholder="Ej. Coordina los recursos para cada evento."
                           maxLength={500}
                           value={area.description}
                           onChange={(e) =>
@@ -310,34 +320,24 @@ export function TenantContextPanel() {
                           }
                         />
                       </label>
-                      <label className="grid gap-2 text-sm font-semibold">
-                        Responsabilidades{' '}
-                        <span className="font-normal text-muted">
-                          Una por línea.
-                        </span>
-                        <textarea
-                          className={inputClass}
-                          rows={3}
-                          value={area.responsibilities}
-                          onChange={(e) =>
-                            change('responsibilities', e.target.value)
-                          }
-                        />
-                      </label>
-                      <label className="grid gap-2 text-sm font-semibold">
-                        Autorizaciones{' '}
-                        <span className="font-normal text-muted">
-                          Una por línea.
-                        </span>
-                        <textarea
-                          className={inputClass}
-                          rows={3}
-                          value={area.authorizations}
-                          onChange={(e) =>
-                            change('authorizations', e.target.value)
-                          }
-                        />
-                      </label>
+                      <ContextListInput
+                        title="Responsabilidades"
+                        itemLabel="Responsabilidad"
+                        placeholder="Ej. Coordinar el montaje"
+                        value={area.responsibilities}
+                        onChange={(next) => change('responsibilities', next)}
+                        maxLength={250}
+                        readOnly={!editing || busy}
+                      />
+                      <ContextListInput
+                        title="Autorizaciones"
+                        itemLabel="Autorización"
+                        placeholder="Ej. Aprobar la reserva de recursos"
+                        value={area.authorizations}
+                        onChange={(next) => change('authorizations', next)}
+                        maxLength={250}
+                        readOnly={!editing || busy}
+                      />
                       {editing && (
                         <Button
                           type="button"
@@ -364,6 +364,9 @@ export function TenantContextPanel() {
                 Notas operativas
                 <textarea
                   className={inputClass}
+                  aria-label="Notas operativas"
+                  disabled={!editing || busy}
+                  placeholder="Ej. Trabajamos con proveedores externos según el evento."
                   maxLength={2000}
                   rows={3}
                   value={draft.operationalNotes}
