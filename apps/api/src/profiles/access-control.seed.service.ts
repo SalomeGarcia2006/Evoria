@@ -61,7 +61,6 @@ export class AccessControlSeedService {
       {
         name: ADMINISTRATOR_PROFILE_NAME,
         scope: 'tenant',
-        isSystem: true,
       },
       { $set: { permissionIds: tenantPermissionIds } },
     );

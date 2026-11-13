@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { Types } from 'mongoose';
 import {
   createHttpTestApi,
   createTenantTestContext,
@@ -9,7 +10,7 @@ import {
 test('HTTP: el contexto operativo se administra de forma aislada por empresa', async () => {
   const api = await createHttpTestApi('tenant_context_test');
   try {
-    const { developerSession, ownerSession } =
+    const { developerSession, ownerSession, tenantId } =
       await createTenantTestContext(api);
 
     const initialContext = await api.request('tenants/context', {
@@ -28,6 +29,23 @@ test('HTTP: el contexto operativo se administra de forma aislada por empresa', a
     assert.equal(initialContextBody.data.sector, null);
     assert.deepEqual(initialContextBody.data.eventTypes, []);
     assert.deepEqual(initialContextBody.data.operationalAreas, []);
+
+    await api.connection
+      .collection('profiles')
+      .updateOne(
+        { name: 'Administrador', tenantId: new Types.ObjectId(tenantId) },
+        { $set: { permissionIds: [] } },
+      );
+    await api.seedAccessControl();
+    const repairedOwnerSession = await api.login(
+      'owner@example.test',
+      'prueba-segura',
+    );
+    assert.equal(
+      (await api.request('tenants/context', { session: repairedOwnerSession }))
+        .status,
+      200,
+    );
 
     const update = await api.request('tenants/context', {
       method: 'PATCH',
