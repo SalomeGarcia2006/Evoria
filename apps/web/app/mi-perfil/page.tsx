@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AppShell } from '../../components/layout/AppShell';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -10,7 +10,9 @@ import { PageHero } from '../../components/ui/PageHero';
 import { useAuth } from '../../hooks/useAuth';
 import { apiErrorMessage } from '../../services/api';
 import {
+  confirmGoogleChange,
   getGoogleConnection,
+  requestGoogleChange,
   startGoogleLink,
   type GoogleConnection,
 } from '../../services/auth.service';
@@ -20,6 +22,10 @@ export default function MyProfilePage() {
   const [connection, setConnection] = useState<GoogleConnection | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLinking, setIsLinking] = useState(false);
+  const [isChanging, setIsChanging] = useState(false);
+  const [codeRequested, setCodeRequested] = useState(false);
+  const [code, setCode] = useState<string[]>(Array(6).fill(''));
+  const codeInputs = useRef<(HTMLInputElement | null)[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
@@ -27,14 +33,18 @@ export default function MyProfilePage() {
     queueMicrotask(() => {
       if (result === 'linked') {
         setNotice('Tu cuenta de Google quedó vinculada.');
+      } else if (result === 'changed') {
+        setNotice('Tu cuenta de Google vinculada se cambió correctamente.');
       } else if (result === 'already-used') {
         setError(
           'Esta cuenta de Google ya está vinculada a otro usuario o ya tienes otra vinculada.',
         );
       } else if (result === 'cancelled') {
-        setNotice('Cancelaste la vinculación con Google.');
+        setNotice('Cancelaste la operación con Google.');
       } else if (result === 'error') {
-        setError('No se pudo vincular la cuenta de Google. Intenta de nuevo.');
+        setError(
+          'No se pudo completar la operación con Google. Intenta de nuevo.',
+        );
       }
     });
     window.history.replaceState(null, '', '/mi-perfil');
@@ -44,6 +54,30 @@ export default function MyProfilePage() {
       .catch((cause) => setError(apiErrorMessage(cause)));
   }, []);
 
+  useEffect(() => {
+    if (!notice) return;
+    const timeout = window.setTimeout(() => setNotice(null), 5000);
+    return () => window.clearTimeout(timeout);
+  }, [notice]);
+
+  function fillCode(index: number, value: string) {
+    const characters = value
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, '')
+      .slice(0, 6 - index);
+    setCode((current) => {
+      const next = [...current];
+      if (!characters) next[index] = '';
+      for (let offset = 0; offset < characters.length; offset++) {
+        next[index + offset] = characters[offset];
+      }
+      return next;
+    });
+    if (characters) {
+      codeInputs.current[Math.min(index + characters.length, 5)]?.focus();
+    }
+  }
+
   async function linkGoogle() {
     setError(null);
     setIsLinking(true);
@@ -52,6 +86,37 @@ export default function MyProfilePage() {
     } catch (cause) {
       setError(apiErrorMessage(cause));
       setIsLinking(false);
+    }
+  }
+
+  async function requestChangeCode() {
+    setError(null);
+    setNotice(null);
+    setIsChanging(true);
+    try {
+      await requestGoogleChange();
+      setCodeRequested(true);
+      setCode(Array(6).fill(''));
+      setNotice(
+        'Te enviamos un código al correo de Google vinculado. Caduca en 10 minutos.',
+      );
+    } catch (cause) {
+      setError(apiErrorMessage(cause));
+    } finally {
+      setIsChanging(false);
+    }
+  }
+
+  async function confirmChangeCode(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+    setNotice(null);
+    setIsChanging(true);
+    try {
+      window.location.assign(await confirmGoogleChange(code.join('')));
+    } catch (cause) {
+      setError(apiErrorMessage(cause));
+      setIsChanging(false);
     }
   }
 
@@ -164,17 +229,19 @@ export default function MyProfilePage() {
                   : 'Vincula una cuenta para usarla al iniciar sesión.'}
               </p>
             </div>
-
             <div className="mt-5 flex flex-wrap items-center gap-3">
               {connection?.linked ? (
-                <>
-                  <Button disabled type="button">
-                    Cambiar cuenta de Google
-                  </Button>
-                  <span className="rounded-full bg-violet/10 px-3 py-1 text-xs font-semibold text-violet">
-                    Próximamente
-                  </span>
-                </>
+                <Button
+                  disabled={isChanging}
+                  onClick={requestChangeCode}
+                  type="button"
+                >
+                  {isChanging
+                    ? 'Enviando código…'
+                    : codeRequested
+                      ? 'Reenviar código'
+                      : 'Cambiar cuenta de Google'}
+                </Button>
               ) : (
                 <Button
                   className="inline-flex items-center gap-2.5"
@@ -193,6 +260,60 @@ export default function MyProfilePage() {
                 </Button>
               )}
             </div>
+
+            {connection?.linked && codeRequested ? (
+              <form
+                className="mt-5 flex flex-col items-start gap-3"
+                onSubmit={confirmChangeCode}
+              >
+                <fieldset className="min-w-0">
+                  <legend className="mb-2 text-sm font-medium text-navy">
+                    Código recibido en {connection.email}
+                  </legend>
+                  <div className="flex gap-2">
+                    {code.map((character, index) => (
+                      <input
+                        key={index}
+                        ref={(element) => {
+                          codeInputs.current[index] = element;
+                        }}
+                        aria-label={`Carácter ${index + 1} de 6`}
+                        autoComplete={index === 0 ? 'one-time-code' : 'off'}
+                        className="google-change-code-input h-12 w-10 border-0 border-b-2 bg-transparent text-center text-xl font-semibold text-navy uppercase focus-visible:outline-none"
+                        maxLength={1}
+                        onChange={(event) =>
+                          fillCode(index, event.target.value)
+                        }
+                        onFocus={(event) => event.target.select()}
+                        onKeyDown={(event) => {
+                          if (
+                            event.key === 'Backspace' &&
+                            !character &&
+                            index > 0
+                          ) {
+                            fillCode(index - 1, '');
+                            codeInputs.current[index - 1]?.focus();
+                          }
+                        }}
+                        onPaste={(event) => {
+                          event.preventDefault();
+                          fillCode(index, event.clipboardData.getData('text'));
+                        }}
+                        pattern="[A-Z0-9]"
+                        required
+                        value={character}
+                      />
+                    ))}
+                  </div>
+                </fieldset>
+                <Button
+                  disabled={isChanging || code.some((character) => !character)}
+                  type="submit"
+                >
+                  {isChanging ? 'Verificando…' : 'Verificar y cambiar cuenta'}
+                </Button>
+              </form>
+            ) : null}
 
             {notice ? (
               <p

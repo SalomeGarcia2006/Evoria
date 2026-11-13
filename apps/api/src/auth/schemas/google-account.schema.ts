@@ -17,6 +17,18 @@ export class GoogleAccount {
   @Prop({ type: Date, default: null })
   lastUsedAt!: Date | null;
 
+  @Prop({ type: String, default: null })
+  changeCodeHash!: string | null;
+
+  @Prop({ type: Date, default: null })
+  changeCodeExpiresAt!: Date | null;
+
+  @Prop({ type: Date, default: null })
+  changeCodeSentAt!: Date | null;
+
+  @Prop({ type: Number, default: 0 })
+  changeCodeAttempts!: number;
+
   createdAt!: Date;
 }
 

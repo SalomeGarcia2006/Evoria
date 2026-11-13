@@ -89,6 +89,17 @@ export function startGoogleLink(): Promise<string> {
   return beginGoogle('/auth/google/link');
 }
 
+export async function requestGoogleChange(): Promise<void> {
+  await apiRequest<ApiResponse<null>>('/auth/google/change/request', {
+    method: 'POST',
+    credentials: 'include',
+  });
+}
+
+export function confirmGoogleChange(code: string): Promise<string> {
+  return beginGoogle('/auth/google/change/confirm', { code });
+}
+
 export function startGoogleLogin(captchaToken?: string): Promise<string> {
   return beginGoogle('/auth/google/login', { captchaToken });
 }

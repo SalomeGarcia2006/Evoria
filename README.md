@@ -367,6 +367,15 @@ El botón **Continuar con Google** solo permite entrar a cuentas vinculadas: no
 crea usuarios nuevos. El correo de Google puede ser distinto del correo de
 Evoria; la vinculación se identifica por el ID verificado de Google.
 
+Para cambiar la cuenta de Google vinculada, la API ofrece
+`POST /api/auth/google/change/request` (envía un código al correo de Google
+actual) y `POST /api/auth/google/change/confirm` con `{ "code": "A1B2C3" }`
+(devuelve la URL de autorización de Google). El código de seis caracteres dura
+10 minutos, admite cinco intentos y solo se usa una vez; se puede solicitar otro
+después de un minuto. El cambio se completa en el callback de Google y no
+modifica el correo principal de Evoria. El botón **Cambiar cuenta de Google**
+en «Mi perfil» solicita el código y permite confirmarlo desde esa misma vista.
+
 Para habilitarlo, configura la pantalla de consentimiento y crea un cliente
 OAuth de tipo **Aplicación web** en Google Cloud. Registra como URI de
 redirección autorizada
@@ -385,6 +394,35 @@ secreto junto con `CAPTCHA_ENABLED` en `apps/api/.env`. No actives CAPTCHA
 sin configurar ambas claves: el servidor rechazará los inicios de sesión.
 Como la clave pública se integra en el frontend durante la compilación,
 reconstruye la imagen web si la cambias (`docker compose up --build`).
+
+### Envío de correos con Brevo
+
+En Brevo crea y verifica un remitente, activa el envío transaccional y genera
+una **clave SMTP**. En el `.env` de la raíz configura:
+
+```env
+BREVO_SMTP_USER=tu-login-smtp-de-brevo
+BREVO_SMTP_KEY=tu-clave-smtp
+MAIL_FROM_EMAIL=correo-remitente-verificado@ejemplo.com
+```
+
+`BREVO_SMTP_USER` es el login SMTP que aparece en Brevo, no el correo del
+remitente. Para ejecutar la API fuera de Docker, también puedes definir estas
+variables en `apps/api/.env`. No pongas la clave en el frontend ni en Git.
+Después de cambiar las variables de Docker, reinicia los contenedores para que
+la API reciba los valores nuevos; no hace falta ejecutar el seed ni migraciones.
+
+Desde la raíz, comprueba el envío a una dirección real con:
+
+```bash
+npm run email:test -- destinatario@ejemplo.com
+```
+
+Este comando crea solo el contexto de correo, sin iniciar MongoDB ni exponer
+un endpoint de envío. El servicio `MailService` queda disponible para que los
+módulos de la API envíen correos después de validar cada operación. La prueba
+confirma que Brevo aceptó el mensaje, no que llegó a la bandeja de entrada;
+comprueba el estado final en los registros transaccionales de Brevo.
 
 ### Problemas frecuentes al ejecutar el seed
 

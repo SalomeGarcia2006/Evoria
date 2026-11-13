@@ -12,6 +12,7 @@ import { BudgetsModule } from './budgets/budgets.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { EventsModule } from './events/events.module';
 import { InventoryModule } from './inventory/inventory.module';
+import { MailModule } from './mail/mail.module';
 import { MembershipsModule } from './memberships/memberships.module';
 import { ProfilesModule } from './profiles/profiles.module';
 import { ProviderServicesModule } from './provider-services/provider-services.module';
@@ -72,6 +73,7 @@ export function getMongoUri(configService: ConfigService): string {
     DashboardModule,
     EventsModule,
     InventoryModule,
+    MailModule,
     MembershipsModule,
     ProfilesModule,
     ProviderServicesModule,

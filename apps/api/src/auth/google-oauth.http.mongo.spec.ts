@@ -159,3 +159,271 @@ test('HTTP: Google solo inicia sesión después de vincularse y respeta la empre
     await api.close();
   }
 });
+
+test('HTTP: cambiar Google exige código de un solo uso y sustituye la identidad', async () => {
+  const sent: { to: string; text: string; html?: string }[] = [];
+  const api = await createHttpTestApi(
+    'google_change_test',
+    {
+      async authorization(state) {
+        return {
+          codeVerifier: 'verificador-de-prueba',
+          url: `https://accounts.google.test/authorize?state=${state}`,
+        };
+      },
+      async exchange(code) {
+        return { subject: `google-${code}`, email: `${code}@google.test` };
+      },
+    },
+    {
+      async send(to, _subject, text, html) {
+        sent.push({ to, text, html });
+      },
+    },
+  );
+  try {
+    const { developerSession, ownerSession } =
+      await createTenantTestContext(api);
+    assert.equal(
+      (await api.request('auth/google/change/request', { method: 'POST' }))
+        .status,
+      401,
+    );
+    assert.equal(
+      (
+        await api.request('auth/google/change/request', {
+          method: 'POST',
+          session: ownerSession,
+        })
+      ).status,
+      404,
+    );
+
+    const link = await api.request('auth/google/link', {
+      method: 'POST',
+      session: ownerSession,
+    });
+    const linkState = stateFrom(await link.json());
+    assert.match(
+      (
+        await api.request(`auth/google/callback?state=${linkState}&code=old`, {
+          session: ownerSession,
+          redirect: 'manual',
+        })
+      ).headers.get('location') ?? '',
+      /google=linked/,
+    );
+
+    const requested = await api.request('auth/google/change/request', {
+      method: 'POST',
+      session: ownerSession,
+    });
+    assert.equal(requested.status, 200);
+    assert.equal(sent.length, 1);
+    assert.equal(sent[0].to, 'old@google.test');
+    const code = /es ([A-Z0-9]{6})\./.exec(sent[0].text)?.[1];
+    assert.ok(code);
+    assert.match(code, /[A-Z]/);
+    assert.match(code, /[0-9]/);
+    assert.match(sent[0].html ?? '', new RegExp(code));
+    assert.equal(
+      (
+        await api.request('auth/google/change/request', {
+          method: 'POST',
+          session: ownerSession,
+        })
+      ).status,
+      429,
+    );
+    assert.equal(
+      (
+        await api.request('auth/google/change/confirm', {
+          method: 'POST',
+          body: { code },
+        })
+      ).status,
+      401,
+    );
+    assert.equal(
+      (
+        await api.request('auth/google/change/confirm', {
+          method: 'POST',
+          session: ownerSession,
+          body: { code: 'INVALID' },
+        })
+      ).status,
+      400,
+    );
+    assert.equal(
+      (
+        await api.request('auth/google/change/confirm', {
+          method: 'POST',
+          session: ownerSession,
+          body: { code: 'ZZZZZZ' },
+        })
+      ).status,
+      401,
+    );
+    const confirmed = await api.request('auth/google/change/confirm', {
+      method: 'POST',
+      session: ownerSession,
+      body: { code: code.toLowerCase() },
+    });
+    assert.equal(confirmed.status, 200);
+    const changeState = stateFrom(await confirmed.json());
+    assert.equal(
+      (
+        await api.request('auth/google/change/confirm', {
+          method: 'POST',
+          session: ownerSession,
+          body: { code },
+        })
+      ).status,
+      401,
+    );
+    const changed = await api.request(
+      `auth/google/callback?state=${changeState}&code=new`,
+      { session: ownerSession, redirect: 'manual' },
+    );
+    assert.match(changed.headers.get('location') ?? '', /google=changed/);
+    const connection = await api.request('auth/google/connection', {
+      session: ownerSession,
+    });
+    assert.equal((await connection.json()).data.email, 'new@google.test');
+
+    const oldLogin = await api.request('auth/google/login', {
+      method: 'POST',
+      body: {},
+    });
+    const oldState = stateFrom(await oldLogin.json());
+    const oldCookies = oldLogin.headers.getSetCookie()[0].split(';', 1)[0];
+    assert.match(
+      (
+        await api.request(`auth/google/callback?state=${oldState}&code=old`, {
+          session: { cookies: oldCookies, data: null },
+          redirect: 'manual',
+        })
+      ).headers.get('location') ?? '',
+      /google=unlinked/,
+    );
+    const newLogin = await api.request('auth/google/login', {
+      method: 'POST',
+      body: {},
+    });
+    const newState = stateFrom(await newLogin.json());
+    const newCookies = newLogin.headers.getSetCookie()[0].split(';', 1)[0];
+    assert.match(
+      (
+        await api.request(`auth/google/callback?state=${newState}&code=new`, {
+          session: { cookies: newCookies, data: null },
+          redirect: 'manual',
+        })
+      ).headers.get('location') ?? '',
+      /google=signed-in/,
+    );
+
+    await api.connection
+      .collection('google_accounts')
+      .updateOne(
+        { email: 'new@google.test' },
+        { $set: { changeCodeSentAt: new Date(0) } },
+      );
+    await api.request('auth/google/change/request', {
+      method: 'POST',
+      session: ownerSession,
+    });
+    const expiredCode = /es ([A-Z0-9]{6})\./.exec(sent.at(-1)!.text)?.[1];
+    assert.ok(expiredCode);
+    await api.connection.collection('google_accounts').updateOne(
+      { email: 'new@google.test' },
+      {
+        $set: {
+          changeCodeExpiresAt: new Date(0),
+          changeCodeSentAt: new Date(0),
+        },
+      },
+    );
+    assert.equal(
+      (
+        await api.request('auth/google/change/confirm', {
+          method: 'POST',
+          session: ownerSession,
+          body: { code: expiredCode },
+        })
+      ).status,
+      401,
+    );
+    await api.request('auth/google/change/request', {
+      method: 'POST',
+      session: ownerSession,
+    });
+    const lockedCode = /es ([A-Z0-9]{6})\./.exec(sent.at(-1)!.text)?.[1];
+    assert.ok(lockedCode);
+    const wrongCode = lockedCode === 'AAAAAA' ? 'BBBBBB' : 'AAAAAA';
+    for (let attempt = 0; attempt < 5; attempt++) {
+      assert.equal(
+        (
+          await api.request('auth/google/change/confirm', {
+            method: 'POST',
+            session: ownerSession,
+            body: { code: wrongCode },
+          })
+        ).status,
+        401,
+      );
+    }
+    assert.equal(
+      (
+        await api.request('auth/google/change/confirm', {
+          method: 'POST',
+          session: ownerSession,
+          body: { code: lockedCode },
+        })
+      ).status,
+      401,
+    );
+
+    const otherLink = await api.request('auth/google/link', {
+      method: 'POST',
+      session: developerSession,
+    });
+    const otherState = stateFrom(await otherLink.json());
+    await api.request(`auth/google/callback?state=${otherState}&code=taken`, {
+      session: developerSession,
+      redirect: 'manual',
+    });
+    await api.connection
+      .collection('google_accounts')
+      .updateOne(
+        { email: 'new@google.test' },
+        { $set: { changeCodeSentAt: new Date(0) } },
+      );
+    await api.request('auth/google/change/request', {
+      method: 'POST',
+      session: ownerSession,
+    });
+    const nextCode = /es ([A-Z0-9]{6})\./.exec(sent.at(-1)!.text)?.[1];
+    assert.ok(nextCode);
+    const nextStart = await api.request('auth/google/change/confirm', {
+      method: 'POST',
+      session: ownerSession,
+      body: { code: nextCode },
+    });
+    assert.equal(nextStart.status, 200);
+    const nextState = stateFrom(await nextStart.json());
+    const duplicate = await api.request(
+      `auth/google/callback?state=${nextState}&code=taken`,
+      { session: ownerSession, redirect: 'manual' },
+    );
+    assert.match(
+      duplicate.headers.get('location') ?? '',
+      /google=already-used/,
+    );
+    const stillLinked = await api.request('auth/google/connection', {
+      session: ownerSession,
+    });
+    assert.equal((await stillLinked.json()).data.email, 'new@google.test');
+  } finally {
+    await api.close();
+  }
+});
