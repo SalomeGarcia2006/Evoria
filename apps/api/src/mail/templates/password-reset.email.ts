@@ -1,0 +1,7 @@
+export function passwordResetEmail(code: string) {
+  return {
+    subject: 'Código para recuperar tu contraseña en Evoria',
+    text: `Tu código para recuperar tu contraseña en Evoria es ${code}. Caduca en 10 minutos. Si no solicitaste este cambio, ignora este mensaje.`,
+    html: `<!doctype html><html lang="es"><body style="margin:0;padding:32px 16px;background:#f3f5fb;font-family:Arial,Helvetica,sans-serif;color:#14213d"><table role="presentation" width="100%" style="max-width:560px;margin:auto;background:#fff;border:1px solid #e3e8f3;border-radius:18px"><tr><td style="padding:28px 32px;background:#14213d;color:#fff"><p style="margin:0 0 12px;font-size:18px;font-weight:700;letter-spacing:2px">EVORIA<span style="color:#12b5a6">.</span></p><h1 style="margin:0;font-size:26px">Recupera tu contraseña</h1></td></tr><tr><td style="padding:32px"><p style="color:#5d6b86;font-size:16px;line-height:1.6">Usa este código para establecer una nueva contraseña:</p><p style="margin:24px 0;padding:22px;text-align:center;background:#f3f5fb;border-left:4px solid #12b5a6;border-radius:12px;font-size:32px;font-weight:700;letter-spacing:7px">${code}</p><p style="color:#5d6b86;font-size:14px;line-height:1.6">Caduca en <strong>10 minutos</strong> y solo puede usarse una vez.</p><p style="color:#5d6b86;font-size:13px;line-height:1.6">Si no solicitaste este cambio, ignora este correo.</p></td></tr></table></body></html>`,
+  };
+}

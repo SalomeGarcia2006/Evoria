@@ -223,7 +223,12 @@ export function LoginForm() {
             </button>
           </div>
           <p className="mt-2 text-right text-sm text-muted">
-            ¿Olvidaste tu contraseña?
+            <a
+              className="underline underline-offset-2 hover:text-navy"
+              href="/recuperar-contrasena"
+            >
+              ¿Olvidaste tu contraseña?
+            </a>
           </p>
         </div>
 

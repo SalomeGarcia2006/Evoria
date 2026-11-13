@@ -42,7 +42,7 @@ test('HTTP: sesión, empresa, perfiles y permisos se aplican al iniciar sesión'
         nit: '900123456-7',
         ownerName: 'Administradora de prueba',
         ownerEmail: 'owner@example.test',
-        ownerPassword: 'prueba-segura',
+        ownerPassword: 'Prueba-segura1',
       },
     });
     assert.equal(tenantResponse.status, 201);
@@ -50,7 +50,7 @@ test('HTTP: sesión, empresa, perfiles y permisos se aplican al iniciar sesión'
 
     const ownerSession = await api.login<SessionData>(
       'owner@example.test',
-      'prueba-segura',
+      'Prueba-segura1',
     );
     assert.equal(ownerSession.data.scope, 'tenant');
     assert.equal(ownerSession.data.tenant?.id, tenant.data.id);
@@ -81,7 +81,7 @@ test('HTTP: sesión, empresa, perfiles y permisos se aplican al iniciar sesión'
       body: {
         name: 'Usuario restringido',
         email: 'restricted@example.test',
-        password: 'prueba-segura',
+        password: 'Prueba-segura1',
         profileId: profile.data.id,
       },
     });
@@ -89,7 +89,7 @@ test('HTTP: sesión, empresa, perfiles y permisos se aplican al iniciar sesión'
 
     const restrictedSession = await api.login<SessionData>(
       'restricted@example.test',
-      'prueba-segura',
+      'Prueba-segura1',
     );
     assert.equal(restrictedSession.data.scope, 'tenant');
     assert.deepEqual(restrictedSession.data.permissions, ['eventos.ver']);

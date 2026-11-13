@@ -35,14 +35,14 @@ test('HTTP: presupuestos, alertas, auditoría y métricas usan la sesión autori
       body: {
         name: 'Solicitante de prueba',
         email: 'requester@example.test',
-        password: 'prueba-segura',
+        password: 'Prueba-segura1',
         profileId: profile.data.id,
       },
     });
     assert.equal(requesterResponse.status, 201);
     const requesterSession = await api.login(
       'requester@example.test',
-      'prueba-segura',
+      'Prueba-segura1',
     );
 
     const eventResponse = await api.request('events', {

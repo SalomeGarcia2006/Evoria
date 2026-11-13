@@ -131,12 +131,12 @@ test('HTTP: una sesión solo accede a las rutas de sus permisos', async () => {
       body: {
         name: 'Lector de prueba',
         email: 'reader@example.test',
-        password: 'prueba-segura',
+        password: 'Prueba-segura1',
         profileId: profile.data.id,
       },
     });
     assert.equal(userResponse.status, 201);
-    const reader = await api.login('reader@example.test', 'prueba-segura');
+    const reader = await api.login('reader@example.test', 'Prueba-segura1');
 
     for (const [method, path] of protectedRoutes) {
       const actualPath =

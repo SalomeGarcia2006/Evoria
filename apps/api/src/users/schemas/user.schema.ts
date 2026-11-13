@@ -27,6 +27,18 @@ export class User {
   @Prop({ type: String, select: false, default: null })
   refreshTokenHash!: string | null;
 
+  @Prop({ type: String, select: false, default: null })
+  passwordResetCodeHash!: string | null;
+
+  @Prop({ type: Date, select: false, default: null })
+  passwordResetCodeExpiresAt!: Date | null;
+
+  @Prop({ type: Date, select: false, default: null })
+  passwordResetCodeSentAt!: Date | null;
+
+  @Prop({ type: Number, select: false, default: 0 })
+  passwordResetCodeAttempts!: number;
+
   @Prop({ required: true, enum: USER_STATUSES, default: 'activo', index: true })
   status!: UserStatus;
 

@@ -149,7 +149,7 @@ export async function createHttpTestApi(
     },
     async seedDeveloper(input = {}) {
       const email = input.email ?? 'developer@example.test';
-      const password = input.password ?? 'prueba-segura';
+      const password = input.password ?? 'Prueba-segura1';
       const profile = await connection.collection('profiles').findOne({
         name: DEVELOPER_PROFILE_NAME,
         scope: 'platform',
@@ -190,14 +190,14 @@ export async function createTenantTestContext(
       nit: '900123456-7',
       ownerName: 'Administrador de prueba',
       ownerEmail: 'owner@example.test',
-      ownerPassword: 'prueba-segura',
+      ownerPassword: 'Prueba-segura1',
     },
   });
   if (tenantResponse.status !== 201) {
     throw new Error(`No se pudo crear la empresa: ${tenantResponse.status}.`);
   }
   const tenant = (await tenantResponse.json()) as { data: { id: string } };
-  const ownerSession = await api.login('owner@example.test', 'prueba-segura');
+  const ownerSession = await api.login('owner@example.test', 'Prueba-segura1');
 
   return { developerSession, ownerSession, tenantId: tenant.data.id };
 }

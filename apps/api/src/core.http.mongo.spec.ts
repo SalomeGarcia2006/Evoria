@@ -49,7 +49,7 @@ test('HTTP y Mongo aislado: autenticación, empresa y gestión básica', async (
       _id: developerId,
       name: 'Desarrollador de prueba',
       email: 'developer@example.test',
-      passwordHash: app.get(PasswordService).hash('prueba-segura'),
+      passwordHash: app.get(PasswordService).hash('Prueba-segura1'),
       platformProfileId: developerProfile._id,
       status: 'activo',
       loginAttempts: 0,
@@ -65,7 +65,7 @@ test('HTTP y Mongo aislado: autenticación, empresa y gestión básica', async (
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         email: 'developer@example.test',
-        password: 'prueba-segura',
+        password: 'Prueba-segura1',
       }),
     });
     assert.equal(login.status, 200);
@@ -92,7 +92,7 @@ test('HTTP y Mongo aislado: autenticación, empresa y gestión básica', async (
         nit: '900123456-7',
         ownerName: 'Administradora de prueba',
         ownerEmail: 'owner@example.test',
-        ownerPassword: 'prueba-segura',
+        ownerPassword: 'Prueba-segura1',
       }),
     });
     assert.equal(tenantResponse.status, 201);
@@ -139,7 +139,7 @@ test('HTTP y Mongo aislado: autenticación, empresa y gestión básica', async (
       body: JSON.stringify({
         name: 'Usuario de prueba',
         email: 'user@example.test',
-        password: 'prueba-segura',
+        password: 'Prueba-segura1',
         profileId: profile.data.id,
       }),
     });

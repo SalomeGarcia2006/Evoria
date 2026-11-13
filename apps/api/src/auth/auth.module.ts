@@ -13,6 +13,7 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { CaptchaService } from './captcha.service';
 import { GoogleOAuthService } from './google-oauth.service';
+import { PasswordResetService } from './password-reset.service';
 import { GoogleProviderService } from './google-provider.service';
 import {
   GoogleAccount,
@@ -49,6 +50,7 @@ import { TenantSessionsController } from './tenant-sessions.controller';
     CaptchaService,
     GoogleProviderService,
     GoogleOAuthService,
+    PasswordResetService,
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,

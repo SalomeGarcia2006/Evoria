@@ -1,4 +1,14 @@
-import { IsEmail, IsString, MaxLength, MinLength } from 'class-validator';
+import {
+  IsEmail,
+  IsString,
+  Matches,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
+import {
+  PASSWORD_PATTERN,
+  PASSWORD_REQUIREMENTS,
+} from '../../users/password.policy';
 
 export class CreateTenantDto {
   @IsString()
@@ -21,6 +31,6 @@ export class CreateTenantDto {
   ownerEmail!: string;
 
   @IsString()
-  @MinLength(8)
+  @Matches(PASSWORD_PATTERN, { message: PASSWORD_REQUIREMENTS })
   ownerPassword!: string;
 }

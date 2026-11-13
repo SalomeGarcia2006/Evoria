@@ -6,6 +6,7 @@ import type { Model } from 'mongoose';
 import { DEVELOPER_PROFILE_NAME } from '../profiles/profiles.constants';
 import { Profile } from '../profiles/schemas/profile.schema';
 import { PasswordService } from './password.service';
+import { isStrongPassword, PASSWORD_REQUIREMENTS } from './password.policy';
 import { User } from './schemas/user.schema';
 
 export interface InitialAdminSeedResult {
@@ -100,8 +101,8 @@ export class InitialAdminSeedService {
       throw new Error('SEED_ADMIN_EMAIL debe contener un correo válido.');
     }
 
-    if (password.length < 8) {
-      throw new Error('SEED_ADMIN_PASSWORD debe tener al menos 8 caracteres.');
+    if (!isStrongPassword(password)) {
+      throw new Error(`SEED_ADMIN_PASSWORD: ${PASSWORD_REQUIREMENTS}`);
     }
   }
 }
