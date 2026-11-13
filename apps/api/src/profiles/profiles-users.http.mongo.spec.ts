@@ -88,7 +88,7 @@ test('HTTP: perfiles, permisos y usuarios se administran dentro de la empresa', 
       body: {
         name: 'Operador de prueba',
         email: 'operator@example.test',
-        password: 'prueba-segura',
+        password: 'Prueba-segura1',
         profileId: profile.data.id,
       },
     });

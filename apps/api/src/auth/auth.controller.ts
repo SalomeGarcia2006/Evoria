@@ -18,9 +18,13 @@ import type { AuthenticatedUser } from './auth.types';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { Public } from './decorators/public.decorator';
 import { CaptchaDto } from './dto/captcha.dto';
+import { ConfirmPasswordResetDto } from './dto/confirm-password-reset.dto';
 import { LoginDto } from './dto/login.dto';
+import { RequestPasswordResetDto } from './dto/request-password-reset.dto';
+import { VerifyPasswordResetDto } from './dto/verify-password-reset.dto';
 import { GoogleChangeCodeDto } from './dto/google-change-code.dto';
 import { GoogleOAuthService } from './google-oauth.service';
+import { PasswordResetService } from './password-reset.service';
 
 const GOOGLE_STATE_COOKIE = 'evoria_google_state';
 
@@ -31,6 +35,7 @@ export class AuthController {
     private readonly authConfigService: AuthConfigService,
     private readonly captchaService: CaptchaService,
     private readonly googleOAuthService: GoogleOAuthService,
+    private readonly passwordResetService: PasswordResetService,
   ) {}
 
   @Post('login')
@@ -50,6 +55,40 @@ export class AuthController {
       data: result.session,
       message: 'Inicio de sesión realizado correctamente.',
     };
+  }
+
+  @Post('password-reset/request')
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  async requestPasswordReset(@Body() body: RequestPasswordResetDto) {
+    await this.passwordResetService.request(body.email);
+    return {
+      data: null,
+      message: 'Si el correo existe, recibirás un código de recuperación.',
+    };
+  }
+
+  @Post('password-reset/verify')
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  async verifyPasswordReset(@Body() body: VerifyPasswordResetDto) {
+    await this.passwordResetService.verify(body.email, body.code);
+    return { data: null, message: 'Código válido.' };
+  }
+
+  @Post('password-reset/confirm')
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  async confirmPasswordReset(@Body() body: ConfirmPasswordResetDto) {
+    await this.passwordResetService.confirm(
+      body.email,
+      body.code,
+      body.newPassword,
+    );
+    return { data: null, message: 'Contraseña actualizada correctamente.' };
   }
 
   @Get('google/connection')

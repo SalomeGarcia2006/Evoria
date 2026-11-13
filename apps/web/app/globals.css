@@ -238,6 +238,18 @@ textarea:focus {
   flex-shrink: 0;
 }
 
+.login-success {
+  margin: -0.25rem 0 0.75rem;
+  padding: 0.75rem 0.875rem;
+  border: 1px solid rgb(18 181 166 / 28%);
+  border-radius: 0.75rem;
+  background: rgb(18 181 166 / 8%);
+  color: #087a70;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
 .login-field {
   margin-bottom: 1.25rem;
 }

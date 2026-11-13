@@ -104,6 +104,37 @@ export function startGoogleLogin(captchaToken?: string): Promise<string> {
   return beginGoogle('/auth/google/login', { captchaToken });
 }
 
+export async function requestPasswordReset(email: string): Promise<void> {
+  await apiRequest<ApiResponse<null>>('/auth/password-reset/request', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+}
+
+export async function confirmPasswordReset(
+  email: string,
+  code: string,
+  newPassword: string,
+): Promise<void> {
+  await apiRequest<ApiResponse<null>>('/auth/password-reset/confirm', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, code, newPassword }),
+  });
+}
+
+export async function verifyPasswordReset(
+  email: string,
+  code: string,
+): Promise<void> {
+  await apiRequest<ApiResponse<null>>('/auth/password-reset/verify', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, code }),
+  });
+}
+
 export async function changeTenant(tenantId: string | null): Promise<AuthUser> {
   const response = await apiRequest<ApiResponse<AuthSession>>(
     tenantId

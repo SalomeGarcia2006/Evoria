@@ -39,7 +39,7 @@ test('HTTP: el contexto operativo se administra de forma aislada por empresa', a
     await api.seedAccessControl();
     const repairedOwnerSession = await api.login(
       'owner@example.test',
-      'prueba-segura',
+      'Prueba-segura1',
     );
     assert.equal(
       (await api.request('tenants/context', { session: repairedOwnerSession }))
@@ -122,14 +122,14 @@ test('HTTP: el contexto operativo se administra de forma aislada por empresa', a
       body: {
         name: 'Usuario restringido',
         email: 'restricted@example.test',
-        password: 'prueba-segura',
+        password: 'Prueba-segura1',
         profileId: profile.data.id,
       },
     });
     assert.equal(restrictedUser.status, 201);
     const restrictedSession = await api.login(
       'restricted@example.test',
-      'prueba-segura',
+      'Prueba-segura1',
     );
     assert.equal(
       (await api.request('tenants/context', { session: restrictedSession }))
@@ -155,7 +155,7 @@ test('HTTP: el contexto operativo se administra de forma aislada por empresa', a
         nit: '900123457-8',
         ownerName: 'Otro administrador',
         ownerEmail: 'other-owner@example.test',
-        ownerPassword: 'prueba-segura',
+        ownerPassword: 'Prueba-segura1',
       },
     });
     assert.equal(secondTenant.status, 201);
@@ -164,7 +164,7 @@ test('HTTP: el contexto operativo se administra de forma aislada por empresa', a
     };
     const otherOwner = await api.login(
       'other-owner@example.test',
-      'prueba-segura',
+      'Prueba-segura1',
     );
     assert.equal(
       (
