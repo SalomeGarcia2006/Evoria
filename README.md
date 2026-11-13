@@ -367,6 +367,15 @@ El botón **Continuar con Google** solo permite entrar a cuentas vinculadas: no
 crea usuarios nuevos. El correo de Google puede ser distinto del correo de
 Evoria; la vinculación se identifica por el ID verificado de Google.
 
+Para cambiar la cuenta de Google vinculada, la API ofrece
+`POST /api/auth/google/change/request` (envía un código al correo de Google
+actual) y `POST /api/auth/google/change/confirm` con `{ "code": "A1B2C3" }`
+(devuelve la URL de autorización de Google). El código de seis caracteres dura
+10 minutos, admite cinco intentos y solo se usa una vez; se puede solicitar otro
+después de un minuto. El cambio se completa en el callback de Google y no
+modifica el correo principal de Evoria. El botón **Cambiar cuenta de Google**
+en «Mi perfil» solicita el código y permite confirmarlo desde esa misma vista.
+
 Para habilitarlo, configura la pantalla de consentimiento y crea un cliente
 OAuth de tipo **Aplicación web** en Google Cloud. Registra como URI de
 redirección autorizada

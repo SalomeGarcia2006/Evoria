@@ -7,7 +7,12 @@ import nodemailer from 'nodemailer';
 export class MailService {
   constructor(private readonly config: ConfigService) {}
 
-  async send(to: string, subject: string, text: string): Promise<void> {
+  async send(
+    to: string,
+    subject: string,
+    text: string,
+    html?: string,
+  ): Promise<void> {
     const user = this.config.get<string>('BREVO_SMTP_USER')?.trim();
     const pass = this.config.get<string>('BREVO_SMTP_KEY')?.trim();
     const from = this.config.get<string>('MAIL_FROM_EMAIL')?.trim();
@@ -33,6 +38,7 @@ export class MailService {
       to,
       subject,
       text,
+      ...(html === undefined ? {} : { html }),
     });
   }
 }

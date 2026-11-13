@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import { ForbiddenException } from '@nestjs/common';
 import { ProfilesService } from './profiles.service';
 
-test('no consulta perfiles fuera de una empresa activa', async () => {
+test('|', async () => {
   const service = new ProfilesService(
     {} as never,
     {} as never,

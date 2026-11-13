@@ -87,6 +87,11 @@ textarea::placeholder {
   color: var(--evoria-muted);
 }
 
+.google-change-code-input {
+  border-color: var(--evoria-control-border);
+  border-radius: 0;
+}
+
 select:focus,
 input:focus,
 textarea:focus {

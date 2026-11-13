@@ -19,6 +19,7 @@ import { CurrentUser } from './decorators/current-user.decorator';
 import { Public } from './decorators/public.decorator';
 import { CaptchaDto } from './dto/captcha.dto';
 import { LoginDto } from './dto/login.dto';
+import { GoogleChangeCodeDto } from './dto/google-change-code.dto';
 import { GoogleOAuthService } from './google-oauth.service';
 
 const GOOGLE_STATE_COOKIE = 'evoria_google_state';
@@ -74,6 +75,35 @@ export class AuthController {
     return { data: { url: result.url }, message: 'Vinculación iniciada.' };
   }
 
+  @Post('google/change/request')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  async requestGoogleChange(@CurrentUser() user: AuthenticatedUser) {
+    await this.googleOAuthService.requestChange(user.id);
+    return {
+      data: null,
+      message: 'Código enviado al correo de Google vinculado.',
+    };
+  }
+
+  @Post('google/change/confirm')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 15, ttl: 60_000 } })
+  async confirmGoogleChange(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: GoogleChangeCodeDto,
+    @Req() request: Request,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const result = await this.googleOAuthService.confirmChange(
+      user,
+      request.cookies?.[this.authConfigService.accessTokenCookieName],
+      body.code,
+    );
+    this.setGoogleStateCookie(response, result.state);
+    return { data: { url: result.url }, message: 'Código confirmado.' };
+  }
+
   @Post('google/login')
   @Public()
   @HttpCode(HttpStatus.OK)
@@ -117,7 +147,7 @@ export class AuthController {
         this.setAuthenticationCookies(response, result.loginResult.tokens);
       }
       const path =
-        result.mode === 'link'
+        result.mode !== 'login'
           ? `/mi-perfil?google=${result.status}`
           : `/login?google=${result.status}`;
       return response.redirect(new URL(path, webOrigin).toString());

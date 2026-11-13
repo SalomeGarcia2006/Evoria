@@ -7,6 +7,7 @@ import type { AddressInfo } from 'node:net';
 import { Types, type Connection } from 'mongoose';
 import { AppModule } from '../app.module';
 import { GoogleProviderService } from '../auth/google-provider.service';
+import { MailService } from '../mail/mail.service';
 import { AccessControlSeedService } from '../profiles/access-control.seed.service';
 import { DEVELOPER_PROFILE_NAME } from '../profiles/profiles.constants';
 import { PasswordService } from '../users/password.service';
@@ -74,6 +75,7 @@ function mergeCookies(current: string, response: Response): string {
 export async function createHttpTestApi(
   name: string,
   googleProvider?: Pick<GoogleProviderService, 'authorization' | 'exchange'>,
+  mailService?: Pick<MailService, 'send'>,
 ): Promise<HttpTestApi> {
   const database = `evoria_${name}_${new Types.ObjectId().toString()}`;
   const mongoUri = new URL(
@@ -84,14 +86,19 @@ export async function createHttpTestApi(
   process.env.JWT_ACCESS_SECRET = `${name}-access-secret`;
   process.env.JWT_REFRESH_SECRET = `${name}-refresh-secret`;
 
-  const app = googleProvider
-    ? (
-        await Test.createTestingModule({ imports: [AppModule] })
-          .overrideProvider(GoogleProviderService)
-          .useValue(googleProvider)
-          .compile()
-      ).createNestApplication({ logger: false })
-    : await NestFactory.create(AppModule, { logger: false });
+  let app;
+  if (googleProvider || mailService) {
+    let builder = Test.createTestingModule({ imports: [AppModule] });
+    if (googleProvider)
+      builder = builder
+        .overrideProvider(GoogleProviderService)
+        .useValue(googleProvider);
+    if (mailService)
+      builder = builder.overrideProvider(MailService).useValue(mailService);
+    app = (await builder.compile()).createNestApplication({ logger: false });
+  } else {
+    app = await NestFactory.create(AppModule, { logger: false });
+  }
   app.setGlobalPrefix('api');
   app.use(cookieParser());
   app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }));

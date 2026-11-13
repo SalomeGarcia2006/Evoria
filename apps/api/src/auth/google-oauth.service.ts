@@ -1,7 +1,22 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  HttpException,
+  Injectable,
+  NotFoundException,
+  ServiceUnavailableException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
+import {
+  createHash,
+  createHmac,
+  randomBytes,
+  randomInt,
+  timingSafeEqual,
+} from 'node:crypto';
 import type { Model } from 'mongoose';
+import { MailService } from '../mail/mail.service';
+import { googleChangeCodeEmail } from '../mail/templates/google-change-code.email';
+import { AuthConfigService } from './auth.config';
 import type { AuthenticatedUser } from './auth.types';
 import { AuthService, type LoginResult } from './auth.service';
 import { CaptchaService } from './captcha.service';
@@ -10,14 +25,15 @@ import { GoogleAccount } from './schemas/google-account.schema';
 import { GoogleOAuthState } from './schemas/google-oauth-state.schema';
 
 type GoogleResult = {
-  mode: 'login' | 'link';
+  mode: 'login' | 'link' | 'change';
   status:
     | 'linked'
     | 'signed-in'
     | 'cancelled'
     | 'error'
     | 'unlinked'
-    | 'already-used';
+    | 'already-used'
+    | 'changed';
   loginResult?: LoginResult;
 };
 
@@ -31,6 +47,8 @@ export class GoogleOAuthService {
     private readonly authService: AuthService,
     private readonly captchaService: CaptchaService,
     private readonly googleProvider: GoogleProviderService,
+    private readonly mailService: MailService,
+    private readonly authConfig: AuthConfigService,
   ) {}
 
   async connection(userId: string) {
@@ -57,6 +75,115 @@ export class GoogleOAuthService {
     );
   }
 
+  async requestChange(userId: string): Promise<void> {
+    const code = this.generateCode();
+    const hash = this.codeHash(userId, code);
+    const now = new Date();
+    const account = await this.accounts.findOneAndUpdate(
+      {
+        userId,
+        $or: [
+          { changeCodeSentAt: null },
+          { changeCodeSentAt: { $lte: new Date(now.getTime() - 60_000) } },
+        ],
+      },
+      {
+        $set: {
+          changeCodeHash: hash,
+          changeCodeExpiresAt: new Date(now.getTime() + 10 * 60_000),
+          changeCodeSentAt: now,
+          changeCodeAttempts: 0,
+        },
+      },
+      { returnDocument: 'after' },
+    );
+    if (!account) {
+      if (!(await this.accounts.exists({ userId }))) {
+        throw new NotFoundException('No hay una cuenta de Google vinculada.');
+      }
+      throw new HttpException(
+        'Espera un minuto antes de pedir otro código.',
+        429,
+      );
+    }
+    const email = googleChangeCodeEmail(code);
+    try {
+      await this.mailService.send(
+        account.email,
+        email.subject,
+        email.text,
+        email.html,
+      );
+    } catch {
+      await this.accounts.updateOne(
+        { _id: account._id, changeCodeHash: hash },
+        {
+          $set: {
+            changeCodeHash: null,
+            changeCodeExpiresAt: null,
+            changeCodeSentAt: null,
+            changeCodeAttempts: 0,
+          },
+        },
+      );
+      throw new ServiceUnavailableException('No se pudo enviar el código.');
+    }
+  }
+
+  async confirmChange(
+    user: AuthenticatedUser,
+    accessToken: string | undefined,
+    code: string,
+  ) {
+    if (!accessToken)
+      throw new UnauthorizedException('La sesión no es válida.');
+    const account = await this.accounts.findOneAndUpdate(
+      {
+        userId: user.id,
+        changeCodeHash: { $ne: null },
+        changeCodeExpiresAt: { $gt: new Date() },
+        changeCodeAttempts: { $lt: 5 },
+      },
+      { $inc: { changeCodeAttempts: 1 } },
+      { returnDocument: 'after' },
+    );
+    if (
+      !account?.changeCodeHash ||
+      !this.equal(
+        account.changeCodeHash,
+        this.codeHash(user.id, code.toUpperCase()),
+      )
+    ) {
+      throw new UnauthorizedException('El código no es válido o expiró.');
+    }
+    const consumed = await this.accounts.updateOne(
+      {
+        _id: account._id,
+        changeCodeHash: account.changeCodeHash,
+        changeCodeExpiresAt: { $gt: new Date() },
+      },
+      {
+        $set: {
+          changeCodeHash: null,
+          changeCodeExpiresAt: null,
+          changeCodeSentAt: null,
+          changeCodeAttempts: 0,
+        },
+      },
+    );
+    if (!consumed.modifiedCount) {
+      throw new UnauthorizedException('El código no es válido o expiró.');
+    }
+    return this.start(
+      'change',
+      user.id,
+      this.hash(accessToken),
+      user.scope,
+      user.membershipId,
+      account.subject,
+    );
+  }
+
   async complete(
     state: string | undefined,
     stateCookie: string | undefined,
@@ -78,7 +205,7 @@ export class GoogleOAuthService {
     }
     if (error || !code) return { mode: pending.mode, status: 'cancelled' };
     if (
-      pending.mode === 'link' &&
+      pending.mode !== 'login' &&
       (!accessToken ||
         !pending.accessTokenHash ||
         !this.equal(pending.accessTokenHash, this.hash(accessToken)))
@@ -99,7 +226,7 @@ export class GoogleOAuthService {
       return { mode: pending.mode, status: 'error' };
     }
 
-    if (pending.mode === 'link') {
+    if (pending.mode === 'link' || pending.mode === 'change') {
       if (!pending.userId || !pending.scope) throw new UnauthorizedException();
       try {
         await this.authService.getSession(
@@ -108,7 +235,27 @@ export class GoogleOAuthService {
           pending.membershipId ?? undefined,
         );
       } catch {
-        return { mode: 'link', status: 'error' };
+        return { mode: pending.mode, status: 'error' };
+      }
+      if (pending.mode === 'change') {
+        if (!pending.previousSubject)
+          return { mode: 'change', status: 'error' };
+        try {
+          const changed = await this.accounts.findOneAndUpdate(
+            { userId: pending.userId, subject: pending.previousSubject },
+            { $set: { subject: identity.subject, email: identity.email } },
+            { returnDocument: 'after' },
+          );
+          return {
+            mode: 'change',
+            status: changed ? 'changed' : 'error',
+          };
+        } catch (cause) {
+          if (this.isDuplicate(cause)) {
+            return { mode: 'change', status: 'already-used' };
+          }
+          throw cause;
+        }
       }
       const existing = await this.accounts.findOne({ userId: pending.userId });
       if (existing?.subject === identity.subject) {
@@ -147,11 +294,12 @@ export class GoogleOAuthService {
   }
 
   private async start(
-    mode: 'login' | 'link',
+    mode: 'login' | 'link' | 'change',
     userId?: string,
     accessTokenHash?: string,
     scope?: 'platform' | 'tenant',
     membershipId?: string,
+    previousSubject?: string,
   ) {
     const state = randomBytes(32).toString('base64url');
     const nonce = randomBytes(32).toString('base64url');
@@ -165,6 +313,7 @@ export class GoogleOAuthService {
       accessTokenHash: accessTokenHash ?? null,
       scope: scope ?? null,
       membershipId: membershipId ?? null,
+      previousSubject: previousSubject ?? null,
       expiresAt: new Date(Date.now() + 5 * 60_000),
     });
     return { url: authorization.url, state };
@@ -172,6 +321,26 @@ export class GoogleOAuthService {
 
   private hash(value: string): string {
     return createHash('sha256').update(value).digest('hex');
+  }
+
+  private codeHash(userId: string, code: string): string {
+    return createHmac(
+      'sha256',
+      this.authConfig.configuration.refreshTokenSecret,
+    )
+      .update(`${userId}:${code}`)
+      .digest('hex');
+  }
+
+  private generateCode(): string {
+    const characters = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const code = [characters[randomInt(10)], characters[10 + randomInt(26)]];
+    while (code.length < 6) code.push(characters[randomInt(characters.length)]);
+    for (let i = code.length - 1; i > 0; i--) {
+      const j = randomInt(i + 1);
+      [code[i], code[j]] = [code[j], code[i]];
+    }
+    return code.join('');
   }
 
   private equal(left: string, right: string): boolean {

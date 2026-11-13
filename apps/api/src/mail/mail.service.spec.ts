@@ -40,6 +40,14 @@ test('envía el correo por Brevo con TLS y el remitente configurado', async (t) 
     subject: 'Asunto',
     text: 'Contenido',
   });
+
+  await service.send(
+    'proveedor@ejemplo.com',
+    'Asunto',
+    'Contenido',
+    '<p>Contenido</p>',
+  );
+  assert.equal((message as SendMailOptions).html, '<p>Contenido</p>');
 });
 
 test('rechaza configuración incompleta y destinatarios inválidos', async () => {

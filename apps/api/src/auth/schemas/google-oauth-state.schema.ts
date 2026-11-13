@@ -8,8 +8,8 @@ export class GoogleOAuthState {
   @Prop({ required: true, unique: true })
   stateHash!: string;
 
-  @Prop({ required: true, enum: ['login', 'link'] })
-  mode!: 'login' | 'link';
+  @Prop({ required: true, enum: ['login', 'link', 'change'] })
+  mode!: 'login' | 'link' | 'change';
 
   @Prop({ required: true })
   nonce!: string;
@@ -28,6 +28,9 @@ export class GoogleOAuthState {
 
   @Prop({ type: String, default: null })
   accessTokenHash!: string | null;
+
+  @Prop({ type: String, default: null })
+  previousSubject!: string | null;
 
   @Prop({ required: true })
   expiresAt!: Date;

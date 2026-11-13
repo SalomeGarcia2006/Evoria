@@ -3,6 +3,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
 import { MongooseModule } from '@nestjs/mongoose';
 import { MembershipsModule } from '../memberships/memberships.module';
+import { MailModule } from '../mail/mail.module';
 import { PermissionsModule } from '../permissions/permissions.module';
 import { ProfilesModule } from '../profiles/profiles.module';
 import { TenantsModule } from '../tenants/tenants.module';
@@ -35,6 +36,7 @@ import { TenantSessionsController } from './tenant-sessions.controller';
       { name: GoogleOAuthState.name, schema: GoogleOAuthStateSchema },
     ]),
     MembershipsModule,
+    MailModule,
     UsersModule,
     ProfilesModule,
     PermissionsModule,
