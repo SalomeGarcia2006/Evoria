@@ -5,6 +5,10 @@ import './globals.css';
 export const metadata: Metadata = {
   title: 'EVORIA',
   description: 'Monorepo Next.js + NestJS',
+  icons: {
+    icon: [{ url: '/images/evoria-favicon.svg', type: 'image/svg+xml' }],
+    apple: [{ url: '/images/evoria-favicon.svg', type: 'image/svg+xml' }],
+  },
 };
 
 export default function RootLayout({

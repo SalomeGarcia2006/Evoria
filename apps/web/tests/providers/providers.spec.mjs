@@ -278,7 +278,12 @@ test('directorio: no permite editar proveedores inactivos', async ({
 }) => {
   await setup(page, { providers: [{ ...provider, status: 'inactivo' }] });
   await page.goto('/proveedores');
-  await expect(page.getByRole('table').getByText('Inactivo')).toBeVisible();
+  await expect(
+    page
+      .getByRole('region', { name: 'Directorio de proveedores' })
+      .getByRole('article')
+      .getByText('Inactivo'),
+  ).toBeVisible();
   await expect(
     page.getByRole('button', { name: 'Editar', exact: true }),
   ).toHaveCount(0);
@@ -327,7 +332,9 @@ test('directorio: creación validada, búsqueda, categorías y edición', async 
   const state = await setup(page);
   await page.goto('/proveedores');
   await expect(
-    page.getByRole('table').getByText('Hacienda El Jardín'),
+    page
+      .getByRole('region', { name: 'Directorio de proveedores' })
+      .getByText('Hacienda El Jardín'),
   ).toBeVisible();
   await fits(page);
   await page.screenshot({
@@ -391,14 +398,18 @@ test('directorio: creación validada, búsqueda, categorías y edición', async 
     .getByLabel('Categoría', { exact: true })
     .selectOption('transporte');
   await expect(
-    page.getByRole('table').getByText('Transporte Andino'),
+    page
+      .getByRole('region', { name: 'Directorio de proveedores' })
+      .getByText('Transporte Andino'),
   ).toBeVisible();
   await expect(
     page.getByText('Hacienda El Jardín', { exact: true }),
   ).toHaveCount(0);
   await page.getByLabel('Categoría', { exact: true }).selectOption('otros');
   await expect(
-    page.getByRole('table').getByText('Transporte Andino'),
+    page
+      .getByRole('region', { name: 'Directorio de proveedores' })
+      .getByText('Transporte Andino'),
   ).toBeVisible();
   await page.getByRole('button', { name: 'Editar', exact: true }).click();
   await page
@@ -412,10 +423,16 @@ test('directorio: creación validada, búsqueda, categorías y edición', async 
     'La información del proveedor se actualizó correctamente.',
   );
   await success.getByRole('button', { name: 'Entendido' }).click();
-  await expect(page.getByRole('table').getByText('Luis Pérez')).toBeVisible();
+  await expect(
+    page
+      .getByRole('region', { name: 'Directorio de proveedores' })
+      .getByText('Luis Pérez'),
+  ).toBeVisible();
   await page.getByLabel('Buscar por nombre o contacto').fill('Luis');
   await expect(
-    page.getByRole('table').getByText('Transporte Andino'),
+    page
+      .getByRole('region', { name: 'Directorio de proveedores' })
+      .getByText('Transporte Andino'),
   ).toBeVisible();
   expect(state.errors).toEqual([]);
 });
@@ -458,12 +475,49 @@ test('directorio: paginación, vacíos, error recuperable y desactivación confi
     .getByRole('button', { name: 'Confirmar' })
     .click();
   await expect(
-    page.getByRole('table').getByText('Inactivo', { exact: true }),
+    page
+      .getByRole('region', { name: 'Directorio de proveedores' })
+      .getByRole('article')
+      .getByText('Inactivo', { exact: true }),
   ).toBeVisible();
   await page.getByLabel('Buscar por nombre o contacto').fill('inexistente');
   await expect(
     page.getByText('No hay proveedores que coincidan con estos filtros.'),
   ).toBeVisible();
+});
+
+test.describe('fechas de servicios en la zona del dispositivo', () => {
+  test.use({ timezoneId: 'America/Los_Angeles' });
+
+  test('compara la fecha del servicio con los días locales del evento', async ({
+    page,
+  }) => {
+    await setup(page);
+    await page.goto('/recursos/asignaciones');
+    await page
+      .getByRole('button', {
+        name: 'Ver asignaciones de Encuentro de diciembre',
+      })
+      .click();
+    await page
+      .getByRole('button', { name: 'Asignar servicio', exact: false })
+      .click();
+    const dialog = page.getByRole('dialog', {
+      name: 'Asignar servicio de proveedor',
+    });
+    await dialog
+      .getByLabel('Fecha acordada de prestación', { exact: true })
+      .fill('2026-12-04');
+    await expect(dialog.getByText(/La fecha acordada está fuera/)).toHaveCount(
+      0,
+    );
+    await dialog
+      .getByLabel('Fecha acordada de prestación', { exact: true })
+      .fill('2026-12-03');
+    await expect(
+      dialog.getByText(/La fecha acordada está fuera/),
+    ).toBeVisible();
+  });
 });
 
 test('servicios: varios acuerdos del mismo proveedor, fechas sin UTC y refresco independiente', async ({
@@ -730,7 +784,11 @@ test('permisos: servicios sin inventario; edición sin permiso para consultar pr
 test('permisos: directorio solo lectura y ruta protegida', async ({ page }) => {
   await setup(page, { permissions: ['proveedores.ver'] });
   await page.goto('/proveedores');
-  await expect(page.getByRole('table')).toBeVisible();
+  await expect(
+    page
+      .getByRole('region', { name: 'Directorio de proveedores' })
+      .getByText(provider.name),
+  ).toBeVisible();
   await expect(
     page.getByRole('button', { name: /Crear proveedor|Editar|Desactivar/ }),
   ).toHaveCount(0);

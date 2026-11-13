@@ -1,0 +1,20 @@
+.card.card {
+  min-width: 0;
+  border: 1px solid color-mix(in srgb, var(--color-violet) 20%, transparent);
+  border-top: 3px solid var(--color-violet);
+  border-radius: 1.375rem;
+  background: var(--evoria-surface);
+  padding: 1.25rem;
+  box-shadow: 0 14px 30px rgba(20, 33, 61, 0.12);
+}
+
+.interactive.interactive {
+  transition:
+    box-shadow 180ms ease,
+    transform 180ms ease;
+}
+
+.interactive:hover {
+  box-shadow: 0 16px 32px rgba(20, 33, 61, 0.18);
+  transform: translateY(-2px);
+}

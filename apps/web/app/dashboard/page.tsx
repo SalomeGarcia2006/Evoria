@@ -27,6 +27,19 @@ const labels = {
   cancelado: 'Cancelado',
 };
 
+function daysUntil(date: Date, today: Date) {
+  const calendarDay = (value: Date) =>
+    Date.UTC(value.getFullYear(), value.getMonth(), value.getDate());
+  return Math.round((calendarDay(date) - calendarDay(today)) / 86_400_000);
+}
+
+function relativeDay(days: number) {
+  if (days === 0) return 'Hoy';
+  if (days === 1) return 'Mañana';
+  if (days === -1) return 'Ayer';
+  return days > 0 ? `En ${days} días` : `Hace ${Math.abs(days)} días`;
+}
+
 export default function DashboardPage() {
   const feedback = useFeedback();
   const { notify } = feedback;
@@ -90,6 +103,9 @@ export default function DashboardPage() {
   }, [user, can, revision, notify]);
   const data = state?.owner === user ? state?.data : null;
   const summary = data?.summary;
+  const budgetItems = data?.budgets?.items.filter(
+    (budget) => budget.eventStatus !== 'cancelado',
+  );
   const now = new Date();
   const upcoming = summary?.events?.upcoming ?? [];
   const metrics = [
@@ -256,32 +272,69 @@ export default function DashboardPage() {
           {summary?.budgets && data?.budgets && (
             <Card>
               <h3 className="text-lg font-bold">Presupuesto por evento</h3>
-              <p className="mt-2 text-sm text-muted">
-                Asignado y ejecutado en eventos no cancelados.
+              <p className="mt-1 text-sm text-muted">
+                Ejecutado frente a asignado, sin eventos cancelados
               </p>
-              <div className="mt-5 grid gap-4">
-                {data.budgets.items.map((budget) => (
-                  <Link
-                    href={`/presupuestos?eventId=${encodeURIComponent(budget.eventId)}`}
-                    className="rounded-xl border border-sky-blue bg-beige p-4 focus-visible:outline-2 focus-visible:outline-teal"
-                    key={budget.eventId}
-                  >
-                    <p className="font-semibold">{budget.eventName}</p>
-                    <p className="mt-2 text-sm text-muted">
-                      {budget.initialized
-                        ? `${money(budget.spentCop)} ejecutados de ${money(budget.allocatedCop)}`
-                        : 'Sin presupuesto inicial'}
-                    </p>
-                  </Link>
-                ))}
+              <div className="mt-5 divide-y divide-sky-blue">
+                {budgetItems?.map((budget) => {
+                  const percentage =
+                    budget.allocatedCop > 0
+                      ? (budget.spentCop / budget.allocatedCop) * 100
+                      : budget.spentCop === 0
+                        ? 0
+                        : null;
+                  const percentageLabel =
+                    percentage === null
+                      ? 'Sin asignación'
+                      : `${new Intl.NumberFormat('es-CO', { maximumFractionDigits: 1 }).format(percentage)} %`;
+                  return (
+                    <Link
+                      href={`/presupuestos?eventId=${encodeURIComponent(budget.eventId)}`}
+                      className="block rounded-sm py-4 first:pt-0 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal"
+                      key={budget.eventId}
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <p className="min-w-0 break-words font-bold">
+                          {budget.eventName}
+                        </p>
+                        <span className="shrink-0 text-sm">
+                          {budget.initialized ? percentageLabel : 'Sin iniciar'}
+                        </span>
+                      </div>
+                      {budget.initialized && percentage !== null && (
+                        <div
+                          role="progressbar"
+                          aria-label={`Ejecución presupuestal de ${budget.eventName}`}
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                          aria-valuenow={Math.min(100, Math.max(0, percentage))}
+                          aria-valuetext={`${percentageLabel} ejecutado`}
+                          className="mt-2 h-2.5 overflow-hidden rounded-full bg-sky-blue"
+                        >
+                          <div
+                            className="h-full rounded-full bg-[#20bfae]"
+                            style={{
+                              width: `${Math.min(100, Math.max(0, percentage))}%`,
+                            }}
+                          />
+                        </div>
+                      )}
+                      <p className="mt-2 text-sm text-muted">
+                        {budget.initialized
+                          ? `${money(budget.spentCop)} de ${money(budget.allocatedCop)}`
+                          : 'Sin presupuesto inicial'}
+                      </p>
+                    </Link>
+                  );
+                })}
               </div>
-              {data.budgets.items.length === 0 && (
+              {budgetItems?.length === 0 && (
                 <p className="mt-4 text-sm text-muted">
                   No hay eventos registrados.
                 </p>
               )}
               <Link
-                className="mt-4 inline-block text-sm font-semibold text-muted"
+                className="mt-4 inline-block text-sm font-semibold text-violet"
                 href="/presupuestos"
               >
                 Ver presupuestos →
@@ -291,40 +344,64 @@ export default function DashboardPage() {
         </section>
         {summary?.events && (
           <Card>
-            <h3 className="text-lg font-bold">Próximos eventos</h3>
-            <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {upcoming.map((event) => (
-                <Link
-                  href={`/eventos/${encodeURIComponent(event.id)}`}
-                  key={event.id}
-                  className="flex min-w-0 flex-wrap justify-between gap-3 rounded-xl border border-sky-blue p-4 focus-visible:outline-2 focus-visible:outline-teal"
-                >
-                  <div>
-                    <p className="font-semibold">{event.name}</p>
-                    <p className="mt-1 text-sm text-muted">
-                      {new Intl.DateTimeFormat('es-CO', {
-                        dateStyle: 'medium',
-                        timeStyle: 'short',
-                      }).format(new Date(event.startAt))}
-                    </p>
-                  </div>
-                  <span className="text-sm text-muted">
-                    {labels[event.status]}
-                  </span>
-                </Link>
-              ))}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h3 className="text-lg font-bold">Próximos eventos</h3>
+              <Link
+                href="/eventos"
+                className="text-sm font-semibold text-violet"
+              >
+                Ver todos →
+              </Link>
+            </div>
+            <div className="mt-4 divide-y divide-sky-blue">
+              {upcoming.map((event) => {
+                const start = new Date(event.startAt);
+                const days = daysUntil(start, now);
+                return (
+                  <Link
+                    href={`/eventos/${encodeURIComponent(event.id)}`}
+                    key={event.id}
+                    className="flex min-w-0 items-center gap-4 rounded-sm py-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal sm:gap-6"
+                  >
+                    <div className="dashboard-event-date flex h-16 w-16 shrink-0 flex-col items-center justify-center rounded-2xl bg-[#eeeaff] text-center text-[#6a4cff] sm:h-[76px] sm:w-[76px]">
+                      <p className="text-2xl leading-none font-bold">
+                        {start.getDate()}
+                      </p>
+                      <p className="mt-1 text-xs font-bold uppercase">
+                        {new Intl.DateTimeFormat('es-CO', { month: 'short' })
+                          .format(start)
+                          .replace('.', '')}
+                      </p>
+                    </div>
+                    <div className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-x-4 gap-y-2">
+                      <div className="min-w-0">
+                        <p className="break-words font-bold">{event.name}</p>
+                        <p className="text-sm text-muted">
+                          {new Intl.DateTimeFormat('es-CO', {
+                            timeStyle: 'short',
+                          }).format(start)}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+                        <span
+                          className={`rounded-full px-3 py-1 text-xs font-semibold ${days === 0 ? 'bg-[#3e32a4] text-white' : 'bg-[#e9e8fb] text-[#29218a]'}`}
+                        >
+                          {relativeDay(days)}
+                        </span>
+                        <span className="rounded-full bg-[#fff0cc] px-3 py-1 text-xs font-semibold text-[#794700]">
+                          {labels[event.status]}
+                        </span>
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
             </div>
             {upcoming.length === 0 && (
               <p className="mt-4 text-sm text-muted">
                 No hay próximos eventos.
               </p>
             )}
-            <Link
-              href="/eventos"
-              className="mt-4 inline-block text-sm font-semibold text-muted"
-            >
-              Ver todos →
-            </Link>
           </Card>
         )}
       </div>

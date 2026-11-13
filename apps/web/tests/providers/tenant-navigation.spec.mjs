@@ -58,6 +58,8 @@ test('el desarrollador puede volver a plataforma desde una empresa', async ({
   await expect(
     page.getByText('Estás en tu sesión de Desarrollador.', { exact: false }),
   ).toBeVisible();
-  await expect(page.getByRole('combobox', { name: 'Empresa' })).toBeVisible();
+  await expect(
+    page.getByRole('article', { name: 'Empresa Empresa de prueba' }),
+  ).toBeVisible();
   expect(calls).toContain('POST /tenants/leave');
 });

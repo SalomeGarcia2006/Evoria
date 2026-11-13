@@ -1,4 +1,7 @@
 'use client';
+import cardStyles from '../../components/ui/InventoryStyleCard.module.css';
+
+import Image from 'next/image';
 import Link from 'next/link';
 import { AppShell } from '../../components/layout/AppShell';
 import { Card } from '../../components/ui/Card';
@@ -8,14 +11,67 @@ import { ModuleBanner } from '../../components/ui/ModuleBanner';
 import { LoadingState } from '../../components/ui/LoadingState';
 import { cop } from '../../components/budgets/BudgetAmountsView';
 import { useOperationalOverview } from '../../hooks/useOperationalOverview';
+import styles from './reportes.module.css';
 
-const statusLabels = {
+const statusLabels: Record<string, string> = {
   borrador: 'Borrador',
   planificado: 'Planificado',
   en_progreso: 'En ejecución',
   finalizado: 'Finalizado',
   cancelado: 'Cancelado',
 };
+
+function Status({ status }: { status: string }) {
+  return (
+    <span className={`${styles.status} ${styles[`status_${status}`] ?? ''}`}>
+      {statusLabels[status] ?? status}
+    </span>
+  );
+}
+
+function SectionHeading({
+  icon,
+  children,
+}: {
+  icon: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={styles.cardHeading}>
+      <span className={styles.icon} aria-hidden="true">
+        <Image src={`/icons/${icon}`} alt="" width={22} height={22} />
+      </span>
+      <h3>{children}</h3>
+    </div>
+  );
+}
+
+function Execution({ allocated, spent }: { allocated: number; spent: number }) {
+  if (allocated <= 0 && spent !== 0) {
+    return <span className="text-sm text-muted">Sin asignación</span>;
+  }
+  const percent = allocated > 0 ? (spent / allocated) * 100 : 0;
+  const label = `${new Intl.NumberFormat('es-CO', { maximumFractionDigits: 1 }).format(percent)} %`;
+  return (
+    <div className={styles.execution}>
+      <div
+        role="progressbar"
+        aria-label="Ejecución presupuestal"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.max(0, Math.min(100, percent))}
+        aria-valuetext={`${label} ejecutado`}
+        className={styles.track}
+      >
+        <div
+          className={styles.fill}
+          style={{ width: `${Math.max(0, Math.min(100, percent))}%` }}
+        />
+      </div>
+      <span className={styles.percent}>{label}</span>
+    </div>
+  );
+}
 
 export default function ReportesPage() {
   const { data, loading, refresh } = useOperationalOverview();
@@ -68,7 +124,7 @@ export default function ReportesPage() {
                   </Card>
                 )}
               <section aria-label="Resumen operativo" className="module-panel">
-                <div className="module-panel__heading">
+                <div className={`module-panel__heading ${styles.panelHeading}`}>
                   <h2 className="text-xl font-bold">Resumen operativo</h2>
                   <p className="mt-1 text-sm text-muted">
                     Consulta los datos disponibles de tu empresa.
@@ -76,24 +132,26 @@ export default function ReportesPage() {
                 </div>
                 <div className="module-panel__content grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                   {summary.events && (
-                    <Card>
-                      <h3 className="text-xl font-bold">
+                    <Card
+                      className={`${styles.summaryCard} ${cardStyles.card}`}
+                    >
+                      <SectionHeading icon="eventos.svg">
                         Actividad de eventos
-                      </h3>
-                      <p className="mt-3 text-3xl font-bold">
+                      </SectionHeading>
+                      <p className={styles.summaryValue}>
                         {summary.events.length}
                       </p>
-                      <p className="mt-1 text-sm text-muted">
-                        Eventos registrados
-                      </p>
-                      <dl className="mt-4 grid gap-2">
+                      <p className="text-sm text-muted">Eventos registrados</p>
+                      <dl className={styles.summaryList}>
                         {Object.entries(statusLabels).map(([status, label]) => (
-                          <div
-                            key={status}
-                            className="flex justify-between gap-3 text-sm"
-                          >
-                            <dt>{label}</dt>
-                            <dd className="font-semibold">
+                          <div key={status}>
+                            <dt>
+                              <span
+                                className={`${styles.dot} ${styles[`dot_${status}`]}`}
+                              />
+                              {label}
+                            </dt>
+                            <dd>
                               {
                                 summary.events!.filter(
                                   (event) => event.status === status,
@@ -103,68 +161,65 @@ export default function ReportesPage() {
                           </div>
                         ))}
                       </dl>
-                      <Link
-                        className="mt-5 inline-block font-semibold text-muted underline"
-                        href="/eventos"
-                      >
+                      <Link className={styles.cardLink} href="/eventos">
                         Consultar eventos →
                       </Link>
                     </Card>
                   )}
                   {inventory && (
-                    <Card>
-                      <h3 className="text-xl font-bold">Uso de recursos</h3>
-                      <dl className="mt-4 grid gap-3">
+                    <Card
+                      className={`${styles.summaryCard} ${cardStyles.card}`}
+                    >
+                      <SectionHeading icon="recursos.svg">
+                        Uso de recursos
+                      </SectionHeading>
+                      <p className={styles.summaryValue}>{inventory.total}</p>
+                      <p className="text-sm text-muted">Unidades totales</p>
+                      <dl className={styles.summaryList}>
                         {[
                           ['Recursos activos', inventory.resources],
-                          ['Unidades totales', inventory.total],
                           ['Unidades disponibles', inventory.available],
                           ['Unidades reservadas', inventory.reserved],
                           ['Recursos en mantenimiento', inventory.maintenance],
                         ].map(([label, value]) => (
-                          <div
-                            key={label}
-                            className="flex justify-between gap-3 text-sm"
-                          >
+                          <div key={label}>
                             <dt>{label}</dt>
-                            <dd className="font-semibold">{value}</dd>
+                            <dd>{value}</dd>
                           </div>
                         ))}
                       </dl>
-                      <Link
-                        className="mt-5 inline-block font-semibold text-muted underline"
-                        href="/inventario"
-                      >
+                      <Link className={styles.cardLink} href="/inventario">
                         Consultar recursos →
                       </Link>
                     </Card>
                   )}
                   {summary.budgets && (
-                    <Card>
-                      <h3 className="text-xl font-bold">
+                    <Card
+                      className={`${styles.summaryCard} ${cardStyles.card}`}
+                    >
+                      <SectionHeading icon="presupuesto.svg">
                         Ejecución presupuestal
-                      </h3>
-                      <p className="mt-2 text-sm text-muted">
+                      </SectionHeading>
+                      <p className="mt-3 text-sm text-muted">
                         Totales de eventos no cancelados.
                       </p>
-                      <dl className="mt-4 grid gap-4">
+                      <dl className={styles.budgetTotals}>
                         {[
                           ['Asignado', summary.budgets.totals.allocatedCop],
                           ['Gastado', summary.budgets.totals.spentCop],
                           ['Disponible', summary.budgets.totals.remainingCop],
                         ].map(([label, value]) => (
                           <div key={label}>
-                            <dt className="text-sm text-muted">{label}</dt>
-                            <dd className="mt-1 break-words text-xl font-bold">
-                              {cop(Number(value))}
-                            </dd>
+                            <dt>{label}</dt>
+                            <dd>{cop(Number(value))}</dd>
                           </div>
                         ))}
                       </dl>
-                      <Link
-                        className="mt-5 inline-block font-semibold text-muted underline"
-                        href="/presupuestos"
-                      >
+                      <Execution
+                        allocated={summary.budgets.totals.allocatedCop}
+                        spent={summary.budgets.totals.spentCop}
+                      />
+                      <Link className={styles.cardLink} href="/presupuestos">
                         Consultar presupuestos →
                       </Link>
                     </Card>
@@ -172,107 +227,130 @@ export default function ReportesPage() {
                 </div>
               </section>
               {summary.budgets && (
-                <section aria-label="Reporte de presupuesto por evento">
-                  <h3 className="mb-4 text-xl font-bold">
-                    Presupuesto por evento
-                  </h3>
+                <section
+                  aria-label="Reporte de presupuesto por evento"
+                  className="module-panel"
+                >
+                  <div
+                    className={`module-panel__heading ${styles.panelHeading}`}
+                  >
+                    <h2 className="text-xl font-bold">
+                      Presupuesto por evento
+                    </h2>
+                    <p className="mt-1 text-sm text-muted">
+                      Consulta la asignación y ejecución de cada evento.
+                    </p>
+                  </div>
                   {!summary.budgets.items.length ? (
-                    <Card>
+                    <p className="module-panel__content text-sm text-muted">
                       No hay eventos con información presupuestal registrada.
-                    </Card>
+                    </p>
                   ) : (
-                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+                    <div className={styles.rows}>
                       {summary.budgets.items.map((item) => (
-                        <Card
+                        <article
                           key={item.eventId}
-                          density="compact"
-                          className="min-w-0"
+                          className={styles.budgetRow}
                         >
-                          <h4 className="break-words text-base font-bold">
-                            {item.eventName}
-                          </h4>
-                          <p className="mt-2 text-sm text-muted">
-                            {statusLabels[
-                              item.eventStatus as keyof typeof statusLabels
-                            ] ?? item.eventStatus}
-                          </p>
+                          <div className={styles.rowTitle}>
+                            <h3>{item.eventName}</h3>
+                            <Status status={item.eventStatus} />
+                          </div>
                           {item.initialized ? (
-                            <dl className="my-3 grid gap-2 text-xs">
-                              {[
-                                ['Asignado', item.allocatedCop],
-                                ['Gastado', item.spentCop],
-                                ['Disponible', item.remainingCop],
-                              ].map(([label, value]) => (
-                                <div
-                                  key={label}
-                                  className="flex flex-wrap justify-between gap-2"
-                                >
-                                  <dt>{label}</dt>
-                                  <dd className="font-semibold">
-                                    {cop(Number(value))}
-                                  </dd>
-                                </div>
-                              ))}
-                            </dl>
+                            <>
+                              <dl className={styles.rowAmounts}>
+                                {[
+                                  ['Asignado', item.allocatedCop],
+                                  ['Gastado', item.spentCop],
+                                  ['Disponible', item.remainingCop],
+                                ].map(([label, value]) => (
+                                  <div key={label}>
+                                    <dt>{label}</dt>
+                                    <dd>{cop(Number(value))}</dd>
+                                  </div>
+                                ))}
+                              </dl>
+                              <div className={styles.rowProgress}>
+                                <p>Ejecución</p>
+                                <Execution
+                                  allocated={item.allocatedCop}
+                                  spent={item.spentCop}
+                                />
+                              </div>
+                            </>
                           ) : (
-                            <p className="my-4 text-sm text-muted">
+                            <p className="text-sm text-muted">
                               Presupuesto inicial pendiente.
                             </p>
                           )}
                           <Link
                             href={`/presupuestos?eventId=${encodeURIComponent(item.eventId)}`}
-                            className="font-semibold text-muted underline"
+                            className={styles.rowLink}
                           >
                             Ver detalle →
                           </Link>
-                        </Card>
+                        </article>
                       ))}
                     </div>
                   )}
                 </section>
               )}
               {summary.events && (
-                <section aria-label="Reporte de eventos">
-                  <h3 className="mb-4 text-xl font-bold">
-                    Eventos registrados
-                  </h3>
+                <section
+                  aria-label="Reporte de eventos"
+                  className="module-panel"
+                >
+                  <div
+                    className={`module-panel__heading ${styles.panelHeading}`}
+                  >
+                    <h2 className="text-xl font-bold">Eventos registrados</h2>
+                    <p className="mt-1 text-sm text-muted">
+                      Consulta los eventos de tu empresa y su estado actual.
+                    </p>
+                  </div>
                   {!summary.events.length ? (
-                    <Card>Todavía no hay eventos registrados.</Card>
+                    <p className="module-panel__content text-sm text-muted">
+                      Todavía no hay eventos registrados.
+                    </p>
                   ) : (
-                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+                    <div className={styles.rows}>
                       {summary.events.map((event) => (
-                        <Card
-                          key={event.id}
-                          density="compact"
-                          className="min-w-0"
-                        >
-                          <h4 className="break-words text-base font-bold">
-                            {event.name}
-                          </h4>
-                          <p className="mt-2 text-sm text-muted">
-                            {statusLabels[event.status]}
-                          </p>
-                          <p className="mt-3 text-sm">
+                        <article key={event.id} className={styles.eventRow}>
+                          <div className={styles.eventDate}>
+                            <span
+                              className={styles.dateIcon}
+                              aria-hidden="true"
+                            >
+                              <Image
+                                src="/icons/FECHA.svg"
+                                alt=""
+                                width={16}
+                                height={16}
+                              />
+                            </span>
                             {new Intl.DateTimeFormat('es-CO', {
-                              dateStyle: 'medium',
+                              day: '2-digit',
+                              month: '2-digit',
+                              year: 'numeric',
                               timeZone: 'America/Bogota',
                             }).format(new Date(event.startAt))}
-                          </p>
-                          {event.location && (
-                            <p
-                              className="mt-2 line-clamp-1 break-words text-xs text-muted"
-                              title={event.location}
-                            >
-                              {event.location}
-                            </p>
-                          )}
+                          </div>
+                          <div className={styles.rowTitle}>
+                            <h3>{event.name}</h3>
+                            {event.location && (
+                              <p className="text-sm text-muted">
+                                {event.location}
+                              </p>
+                            )}
+                          </div>
+                          <Status status={event.status} />
                           <Link
                             href={`/eventos/${encodeURIComponent(event.id)}`}
-                            className="mt-4 inline-block font-semibold text-muted underline"
+                            className={styles.rowLink}
                           >
                             Ver evento →
                           </Link>
-                        </Card>
+                        </article>
                       ))}
                     </div>
                   )}
