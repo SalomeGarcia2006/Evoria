@@ -116,13 +116,17 @@ export class PasswordResetService {
 
   async verify(email: string, code: string): Promise<void> {
     const user = await this.userModel
-      .findOne({
-        email: email.trim().toLowerCase(),
-        status: 'activo',
-        passwordResetCodeHash: { $ne: null },
-        passwordResetCodeExpiresAt: { $gt: new Date() },
-        passwordResetCodeAttempts: { $lt: 5 },
-      })
+      .findOneAndUpdate(
+        {
+          email: email.trim().toLowerCase(),
+          status: 'activo',
+          passwordResetCodeHash: { $ne: null },
+          passwordResetCodeExpiresAt: { $gt: new Date() },
+          passwordResetCodeAttempts: { $lt: 5 },
+        },
+        { $inc: { passwordResetCodeAttempts: 1 } },
+        { returnDocument: 'after' },
+      )
       .select('+passwordResetCodeHash');
 
     if (
