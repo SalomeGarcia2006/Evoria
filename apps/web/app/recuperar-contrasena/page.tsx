@@ -18,7 +18,9 @@ export default function RecoverPasswordPage() {
     setLoading(true);
     try {
       await requestPasswordReset(email);
-      router.push(`/verificar-contrasena?email=${encodeURIComponent(email)}`);
+      sessionStorage.setItem('passwordResetEmail', email);
+      sessionStorage.removeItem('passwordResetCode');
+      router.push('/verificar-contrasena');
     } catch (cause) {
       setError(apiErrorMessage(cause));
     } finally {
@@ -43,8 +45,21 @@ export default function RecoverPasswordPage() {
             <p>Recupera el acceso a tu cuenta</p>
           </div>
         </header>
-        <section className="login-card">
+        <section className="login-card recovery-card">
+          <a className="recovery-back" href="/login">
+            <span aria-hidden="true">←</span> Volver al inicio de sesión
+          </a>
+          <div className="recovery-progress" aria-label="Paso 1 de 3">
+            <span className="active" />
+            <span />
+            <span />
+          </div>
+          <span className="recovery-step">01 · RECUPERA TU CUENTA</span>
           <h2>Recuperar contraseña</h2>
+          <p className="recovery-description">
+            Ingresa el correo de tu cuenta y te enviaremos un código para
+            recuperar el acceso.
+          </p>
           <hr className="login-separator" />
           <form className="login-form" onSubmit={submit}>
             <div className="login-field">
@@ -52,6 +67,7 @@ export default function RecoverPasswordPage() {
               <div className="login-input-container">
                 <input
                   id="recover-email"
+                  placeholder="nombre@ejemplo.com"
                   onChange={(event) => setEmail(event.target.value)}
                   required
                   type="email"
@@ -67,12 +83,6 @@ export default function RecoverPasswordPage() {
             <button className="login-button" disabled={loading} type="submit">
               {loading ? 'Enviando…' : 'Enviar código'}
             </button>
-            <a
-              className="text-center text-sm text-muted underline underline-offset-2"
-              href="/login"
-            >
-              Volver al inicio de sesión
-            </a>
           </form>
         </section>
       </div>
