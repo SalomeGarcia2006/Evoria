@@ -9,7 +9,10 @@ import {
   Query,
 } from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { RequirePermissions } from '../auth/decorators/require-permissions.decorator';
+import {
+  RequireAnyPermission,
+  RequirePermissions,
+} from '../auth/decorators/require-permissions.decorator';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { CreateEventDto } from './dto/create-event.dto';
 import { FindEventsDto } from './dto/find-events.dto';
@@ -41,6 +44,15 @@ export class EventsController {
     return {
       data: await this.eventsService.findAll(query, user),
       message: 'Eventos obtenidos correctamente.',
+    };
+  }
+
+  @Get('types')
+  @RequireAnyPermission('eventos.crear', 'eventos.editar')
+  async types(@CurrentUser() user: AuthenticatedUser) {
+    return {
+      data: await this.eventsService.eventTypes(user),
+      message: 'Tipos de eventos obtenidos correctamente.',
     };
   }
 

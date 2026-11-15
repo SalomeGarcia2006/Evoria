@@ -23,6 +23,22 @@ import { CreateEventDto } from './dto/create-event.dto';
 import { FindEventsDto } from './dto/find-events.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
 import { Event, type EventDocument } from './schemas/event.schema';
+import { Tenant } from '../tenants/schemas/tenant.schema';
+
+const DEFAULT_EVENT_TYPES = [
+  'Congreso',
+  'Seminario',
+  'Taller',
+  'Conferencia',
+  'Feria',
+  'Concierto',
+  'Boda',
+  'Graduación',
+  'Evento corporativo',
+  'Lanzamiento de producto',
+  'Evento deportivo',
+  'Evento benéfico',
+];
 
 @Injectable()
 export class EventsService {
@@ -34,7 +50,47 @@ export class EventsService {
     private readonly budgetsService: BudgetsService,
     private readonly auditsService: AuditsService,
     @Optional() private readonly alerts?: AlertsService,
+    @Optional()
+    @InjectModel(Tenant.name)
+    private readonly tenantModel?: Model<Tenant>,
   ) {}
+
+  async eventTypes(user: AuthenticatedUser) {
+    const tenantId = this.getTenantId(user);
+    const tenant = await this.tenantModel!.findOne({
+      _id: tenantId,
+      status: 'activo',
+    })
+      .select('eventTypes')
+      .lean();
+    if (!tenant)
+      throw new ForbiddenException('La empresa activa no está disponible.');
+    const types = tenant.eventTypes ?? [];
+    return {
+      types: types.length ? types : DEFAULT_EVENT_TYPES,
+      source: types.length ? 'tenant' : 'default',
+    };
+  }
+
+  private async validateEventType(
+    value: string,
+    user: AuthenticatedUser,
+  ): Promise<string> {
+    const { types } = await this.eventTypes(user);
+    const normalized = value
+      .trim()
+      .replace(/\s+/g, ' ')
+      .toLocaleLowerCase('es');
+    const match = types.find(
+      (type) =>
+        type.trim().replace(/\s+/g, ' ').toLocaleLowerCase('es') === normalized,
+    );
+    if (!match)
+      throw new BadRequestException(
+        'El tipo de evento no está configurado para esta empresa.',
+      );
+    return match;
+  }
 
   async create(createEventDto: CreateEventDto, user: AuthenticatedUser) {
     const tenantId = this.getTenantId(user);
@@ -42,6 +98,9 @@ export class EventsService {
     this.validateDates(createEventDto.startAt, createEventDto.endAt);
     if (createEventDto.status === 'cancelado') {
       throw new BadRequestException('No puedes crear un evento cancelado.');
+    }
+    if (createEventDto.type !== undefined && !createEventDto.type.trim()) {
+      throw new BadRequestException('El tipo de evento no puede estar vacío.');
     }
 
     const event = await this.eventModel.create({
@@ -52,7 +111,9 @@ export class EventsService {
       startAt: new Date(createEventDto.startAt),
       endAt: new Date(createEventDto.endAt),
       location: this.trimOptional(createEventDto.location),
-      type: this.trimOptional(createEventDto.type),
+      type: createEventDto.type
+        ? await this.validateEventType(createEventDto.type, user)
+        : null,
       baseBudget: createEventDto.baseBudget,
       status: createEventDto.status,
       responsibleUserId: createEventDto.responsibleUserId ?? null,
@@ -187,7 +248,14 @@ export class EventsService {
       event.location = this.trimOptional(updateEventDto.location);
     }
     if (updateEventDto.type !== undefined) {
-      event.type = this.trimOptional(updateEventDto.type);
+      const nextType = this.trimOptional(updateEventDto.type);
+      if (nextType !== event.type) {
+        if (!nextType)
+          throw new BadRequestException(
+            'El tipo de evento no puede estar vacío.',
+          );
+        event.type = await this.validateEventType(nextType, user);
+      }
     }
     if (updateEventDto.startAt)
       event.startAt = new Date(updateEventDto.startAt);

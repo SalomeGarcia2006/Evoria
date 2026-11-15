@@ -31,6 +31,7 @@ const protectedRoutes = [
   ['DELETE', 'users/000000000000000000000000'],
   ['POST', 'events'],
   ['GET', 'events'],
+  ['GET', 'events/types'],
   ['GET', 'events/000000000000000000000000'],
   ['PATCH', 'events/000000000000000000000000'],
   ['DELETE', 'events/000000000000000000000000'],
