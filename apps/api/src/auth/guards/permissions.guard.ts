@@ -11,7 +11,10 @@ import type { Model } from 'mongoose';
 import { Permission } from '../../permissions/schemas/permission.schema';
 import { Profile } from '../../profiles/schemas/profile.schema';
 import type { AuthenticatedRequest } from '../auth.types';
-import { REQUIRED_PERMISSIONS_KEY } from '../decorators/require-permissions.decorator';
+import {
+  ANY_PERMISSION_KEY,
+  REQUIRED_PERMISSIONS_KEY,
+} from '../decorators/require-permissions.decorator';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 
 @Injectable()
@@ -39,7 +42,12 @@ export class PermissionsGuard implements CanActivate {
         context.getClass(),
       ]) ?? [];
 
-    if (requiredPermissions.length === 0) {
+    const anyPermissions =
+      this.reflector.getAllAndOverride<string[]>(ANY_PERMISSION_KEY, [
+        context.getHandler(),
+        context.getClass(),
+      ]) ?? [];
+    if (requiredPermissions.length === 0 && anyPermissions.length === 0) {
       return true;
     }
 
@@ -76,7 +84,13 @@ export class PermissionsGuard implements CanActivate {
       grantedPermissions.has(permission),
     );
 
-    if (!hasAllPermissions) {
+    if (
+      !hasAllPermissions ||
+      (anyPermissions.length > 0 &&
+        !anyPermissions.some((permission) =>
+          grantedPermissions.has(permission),
+        ))
+    ) {
       throw new ForbiddenException(
         'No tienes permisos para realizar esta acción.',
       );

@@ -168,6 +168,17 @@ export class TenantsService {
         typeof value === 'string' ? value.trim() : value,
       ]),
     );
+    if (dto.eventTypes !== undefined) {
+      const seen = new Set<string>();
+      changes.eventTypes = dto.eventTypes
+        .map((item) => item.trim().replace(/\s+/g, ' '))
+        .filter((item) => {
+          const key = item.toLocaleLowerCase('es');
+          if (!key || seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+    }
     if (!Object.keys(changes).length)
       throw new BadRequestException('Debes indicar al menos un cambio.');
     Object.assign(tenant, changes);
