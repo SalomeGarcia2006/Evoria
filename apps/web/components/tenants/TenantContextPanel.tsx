@@ -13,22 +13,14 @@ import { Button } from '../ui/Button';
 import { FeedbackMessages, useFeedback } from '../ui/Feedback';
 import { LoadingState } from '../ui/LoadingState';
 import panelHeadingStyles from '../ui/PanelHeading.module.css';
-import cardStyles from '../ui/InventoryStyleCard.module.css';
-import { ContextListInput } from './ContextListInput';
 import { EventTypesInput } from './EventTypesInput';
+import styles from './TenantContextPanel.module.css';
 
-type AreaDraft = {
-  name: string;
-  description: string;
-  responsibilities: string;
-  authorizations: string;
-};
 type Draft = {
   sector: string;
   operationalDescription: string;
   eventTypes: string;
   operationMode: TenantContext['operationMode'];
-  operationalAreas: AreaDraft[];
   operationalNotes: string;
 };
 const inputClass =
@@ -43,30 +35,24 @@ const toDraft = (context: TenantContext): Draft => ({
   operationalDescription: context.operationalDescription ?? '',
   eventTypes: context.eventTypes.join('\n'),
   operationMode: context.operationMode,
-  operationalAreas: context.operationalAreas.map((area) => ({
-    name: area.name,
-    description: area.description ?? '',
-    responsibilities: area.responsibilities.join('\n'),
-    authorizations: area.authorizations.join('\n'),
-  })),
   operationalNotes: context.operationalNotes ?? '',
 });
-const toPayload = (draft: Draft): Required<TenantContextUpdate> => ({
+const toPayload = (
+  draft: Draft,
+): Omit<Required<TenantContextUpdate>, 'operationalAreas'> => ({
   sector: draft.sector.trim(),
   operationalDescription: draft.operationalDescription.trim(),
   eventTypes: lines(draft.eventTypes),
   operationMode: draft.operationMode,
-  operationalAreas: draft.operationalAreas.map((area) => ({
-    name: area.name.trim(),
-    description: area.description.trim(),
-    responsibilities: lines(area.responsibilities),
-    authorizations: lines(area.authorizations),
-  })),
   operationalNotes: draft.operationalNotes.trim(),
 });
 
 export function TenantContextPanel() {
   const { user } = useAuth();
+  const developerView = Boolean(
+    user?.isDeveloper ||
+    user?.role.trim().toLocaleLowerCase('es') === 'administrador',
+  );
   const allowed = user?.permissions.includes('empresa_contexto.ver') ?? false;
   const editable =
     user?.permissions.includes('empresa_contexto.editar') ?? false;
@@ -103,20 +89,10 @@ export function TenantContextPanel() {
     const payload = toPayload(draft);
     if (
       payload.eventTypes.length > 20 ||
-      payload.eventTypes.some((item) => item.length > 80) ||
-      payload.operationalAreas.length > 20 ||
-      payload.operationalAreas.some(
-        (area) =>
-          area.name.length < 2 ||
-          area.responsibilities.length > 20 ||
-          area.authorizations.length > 20 ||
-          [...area.responsibilities, ...area.authorizations].some(
-            (item) => item.length > 250,
-          ),
-      )
+      payload.eventTypes.some((item) => item.length > 80)
     ) {
       feedback.guide(
-        'Revisa las áreas y listas: cada área necesita un nombre de al menos 2 caracteres; se permiten hasta 20 elementos por lista y área. Los tipos de evento admiten hasta 80 caracteres y las responsabilidades y autorizaciones hasta 250.',
+        'Se permiten hasta 20 tipos de evento de máximo 80 caracteres cada uno.',
         'Revisa la información',
       );
       return;
@@ -132,14 +108,32 @@ export function TenantContextPanel() {
     ) as TenantContextUpdate;
     if (!Object.keys(changes).length) {
       feedback.guide(
-        'Modifica algún dato antes de actualizar el contexto.',
+        'No se realizó ningún cambio. Modifica algún dato antes de actualizar el contexto.',
         'Sin cambios',
+        'warning',
       );
       return;
     }
+    const confirmed = await feedback.confirm(
+      'Actualizar contexto operativo',
+      '¿Deseas guardar los cambios en la información de la empresa?',
+      'Actualizar información',
+      'info',
+      'ACTUALIZAR',
+    );
+    if (!confirmed) return;
     setBusy(true);
     try {
-      const updated = await updateTenantContext(changes);
+      const latest = await getTenantContext();
+      const updated = await updateTenantContext({
+        sector: latest.sector ?? null,
+        operationalDescription: latest.operationalDescription ?? null,
+        eventTypes: latest.eventTypes ?? [],
+        operationMode: latest.operationMode ?? null,
+        operationalAreas: latest.operationalAreas ?? [],
+        operationalNotes: latest.operationalNotes ?? null,
+        ...changes,
+      });
       setContext(updated);
       setDraft(toDraft(updated));
       setEditing(false);
@@ -155,12 +149,30 @@ export function TenantContextPanel() {
   return (
     <section className="module-panel" aria-label="Contexto operativo">
       <FeedbackMessages feedback={feedback} />
-      <div className={`module-panel__heading ${panelHeadingStyles.heading}`}>
-        <h2 className="text-xl font-bold">Contexto operativo</h2>
-        <p className="mt-1 text-sm text-muted">
-          Describe cómo trabaja tu empresa para orientar la organización de sus
-          perfiles. Esta información no asigna permisos automáticamente.
-        </p>
+      <div
+        className={`module-panel__heading ${panelHeadingStyles.heading} ${developerView ? styles.header : ''}`}
+      >
+        <div>
+          <h2 className="text-xl font-bold">Contexto operativo</h2>
+          <p className="mt-1 text-sm text-muted">
+            Describe cómo trabaja tu empresa para orientar la organización de
+            sus perfiles.
+            {!developerView &&
+              ' Esta información no asigna permisos automáticamente.'}
+          </p>
+        </div>
+        {developerView && editable && context && draft && !editing && (
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => {
+              setDraft(toDraft(context));
+              setEditing(true);
+            }}
+          >
+            <span aria-hidden="true">✎</span> Editar contexto
+          </Button>
+        )}
       </div>
       <div className="module-panel__content">
         {error && !context ? (
@@ -181,6 +193,51 @@ export function TenantContextPanel() {
           </div>
         ) : !draft || !context ? (
           <LoadingState label="Cargando contexto operativo…" />
+        ) : developerView && !editing ? (
+          <div className={styles.summary}>
+            <p className={styles.notice}>
+              <span aria-hidden="true">ⓘ</span> Esta información no asigna
+              permisos automáticamente.
+            </p>
+            <div className={styles.overview}>
+              <div className={styles.fact}>
+                <h3>Sector</h3>
+                <p>{context.sector || 'Sin especificar'}</p>
+              </div>
+              <div className={styles.fact}>
+                <h3>Modalidad de operación</h3>
+                <p>
+                  {context.operationMode === 'propios'
+                    ? 'Eventos propios'
+                    : context.operationMode === 'clientes'
+                      ? 'Eventos para clientes'
+                      : context.operationMode === 'ambos'
+                        ? 'Ambos'
+                        : 'Sin especificar'}
+                </p>
+              </div>
+            </div>
+            <div className={styles.section}>
+              <h3>Descripción de la operación</h3>
+              <p>{context.operationalDescription || 'Sin descripción.'}</p>
+            </div>
+            <div className={styles.section}>
+              <h3>Tipos de eventos</h3>
+              <div className={styles.tags}>
+                {context.eventTypes.length ? (
+                  context.eventTypes.map((type) => (
+                    <span key={type}>{type}</span>
+                  ))
+                ) : (
+                  <p>Sin tipos registrados.</p>
+                )}
+              </div>
+            </div>
+            <div className={`${styles.section} ${styles.notes}`}>
+              <h3>Notas operativas</h3>
+              <p>{context.operationalNotes || 'Sin notas.'}</p>
+            </div>
+          </div>
         ) : (
           <form onSubmit={save} className="grid gap-5">
             <fieldset className="grid min-w-0 gap-5 sm:grid-cols-2">
@@ -242,124 +299,8 @@ export function TenantContextPanel() {
                 value={draft.eventTypes}
                 onChange={(eventTypes) => setDraft({ ...draft, eventTypes })}
                 readOnly={!editing || busy}
+                showEntries={editing}
               />
-              <div className="grid gap-3 sm:col-span-2">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <h3 className="font-bold">Áreas operativas</h3>
-                  {editing && (
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      disabled={draft.operationalAreas.length >= 20}
-                      onClick={() =>
-                        setDraft({
-                          ...draft,
-                          operationalAreas: [
-                            ...draft.operationalAreas,
-                            {
-                              name: '',
-                              description: '',
-                              responsibilities: '',
-                              authorizations: '',
-                            },
-                          ],
-                        })
-                      }
-                    >
-                      Añadir área
-                    </Button>
-                  )}
-                </div>
-                <p className="text-sm text-muted">
-                  Organiza las funciones de tu equipo en áreas, como Logística,
-                  Finanzas o Coordinación.
-                </p>
-                {!draft.operationalAreas.length && (
-                  <p className="text-sm text-muted">
-                    No hay áreas registradas.
-                  </p>
-                )}
-                {draft.operationalAreas.map((area, index) => {
-                  const change = (field: keyof AreaDraft, value: string) =>
-                    setDraft({
-                      ...draft,
-                      operationalAreas: draft.operationalAreas.map((item, i) =>
-                        i === index ? { ...item, [field]: value } : item,
-                      ),
-                    });
-                  return (
-                    <fieldset
-                      key={index}
-                      disabled={!editing || busy}
-                      className={`${cardStyles.card} grid gap-4 sm:grid-cols-2`}
-                    >
-                      <legend className="px-1 font-semibold">
-                        Área {index + 1}
-                      </legend>
-                      <label className="grid gap-2 text-sm font-semibold">
-                        Nombre del área
-                        <input
-                          className={inputClass}
-                          aria-label="Nombre del área"
-                          placeholder="Ej. Logística"
-                          maxLength={80}
-                          value={area.name}
-                          onChange={(e) => change('name', e.target.value)}
-                        />
-                      </label>
-                      <label className="grid gap-2 text-sm font-semibold">
-                        Descripción del área
-                        <input
-                          className={inputClass}
-                          aria-label="Descripción del área"
-                          placeholder="Ej. Coordina los recursos para cada evento."
-                          maxLength={500}
-                          value={area.description}
-                          onChange={(e) =>
-                            change('description', e.target.value)
-                          }
-                        />
-                      </label>
-                      <ContextListInput
-                        title="Responsabilidades"
-                        itemLabel="Responsabilidad"
-                        placeholder="Ej. Coordinar el montaje"
-                        value={area.responsibilities}
-                        onChange={(next) => change('responsibilities', next)}
-                        maxLength={250}
-                        readOnly={!editing || busy}
-                      />
-                      <ContextListInput
-                        title="Autorizaciones"
-                        itemLabel="Autorización"
-                        placeholder="Ej. Aprobar la reserva de recursos"
-                        value={area.authorizations}
-                        onChange={(next) => change('authorizations', next)}
-                        maxLength={250}
-                        readOnly={!editing || busy}
-                      />
-                      {editing && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          className="justify-self-start"
-                          aria-label={`Eliminar área ${index + 1}`}
-                          onClick={() =>
-                            setDraft({
-                              ...draft,
-                              operationalAreas: draft.operationalAreas.filter(
-                                (_, i) => i !== index,
-                              ),
-                            })
-                          }
-                        >
-                          Eliminar área
-                        </Button>
-                      )}
-                    </fieldset>
-                  );
-                })}
-              </div>
               <label className="grid gap-2 text-sm font-semibold sm:col-span-2">
                 Notas operativas
                 <textarea
@@ -394,15 +335,18 @@ export function TenantContextPanel() {
                     Cancelar
                   </Button>
                 </div>
-              ) : (
+              ) : !developerView ? (
                 <Button
                   type="button"
                   className="justify-self-start"
-                  onClick={() => setEditing(true)}
+                  onClick={() => {
+                    setDraft(toDraft(context));
+                    setEditing(true);
+                  }}
                 >
                   Editar contexto
                 </Button>
-              ))}
+              ) : null)}
           </form>
         )}
       </div>

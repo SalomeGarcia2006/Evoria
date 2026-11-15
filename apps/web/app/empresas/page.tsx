@@ -198,11 +198,13 @@ export default function EmpresasPage() {
     if (!payload.ownerEmail || emailInput?.validity.typeMismatch)
       errors.push('Ingresa un correo válido para el propietario.');
     if (
-      !payload.ownerPassword.trim() ||
-      payload.ownerPassword.length < 8 ||
-      payload.ownerPassword.length > 12
+      !/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,128}$/.test(
+        payload.ownerPassword,
+      )
     )
-      errors.push('Ingresa una contraseña de entre 8 y 12 caracteres.');
+      errors.push(
+        'La contraseña debe tener entre 8 y 128 caracteres, una minúscula, una mayúscula, un número y un carácter especial.',
+      );
     if (!confirmation.trim())
       errors.push('Confirma la contraseña del propietario.');
     else if (payload.ownerPassword !== confirmation)
@@ -263,21 +265,30 @@ export default function EmpresasPage() {
             ) : null
           }
         />
-        <ModuleBanner
-          icon="empresas.svg"
-          title={
-            user?.scope === 'tenant'
-              ? 'Tu empresa en Evoria'
-              : 'Administra tus empresas'
-          }
-          description={
-            user?.scope === 'tenant'
-              ? 'Conoce y organiza la información de tu operación.'
-              : 'Crea empresas y selecciona el espacio en el que deseas trabajar.'
-          }
-        />
+        {!(
+          user?.scope === 'tenant' &&
+          (user.isDeveloper ||
+            user.role.trim().toLocaleLowerCase('es') === 'administrador')
+        ) && (
+          <ModuleBanner
+            icon="empresas.svg"
+            title={
+              user?.scope === 'tenant'
+                ? 'Tu empresa en Evoria'
+                : 'Administra tus empresas'
+            }
+            description={
+              user?.scope === 'tenant'
+                ? 'Conoce y organiza la información de tu operación.'
+                : 'Crea empresas y selecciona el espacio en el que deseas trabajar.'
+            }
+          />
+        )}
 
-        <TenantSelector revision={createdTenant?.id} />
+        <TenantSelector
+          revision={createdTenant?.id}
+          createdTenant={createdTenant}
+        />
         {user?.scope === 'tenant' && (
           <TenantContextPanel key={user.tenant?.id} />
         )}
@@ -467,9 +478,9 @@ export default function EmpresasPage() {
                         autoComplete="new-password"
                         className={`${fieldClassName} pr-12`}
                         minLength={8}
-                        maxLength={12}
+                        maxLength={128}
                         name="ownerPassword"
-                        placeholder="Entre 8 y 12 caracteres"
+                        placeholder="8 a 128 caracteres, con mayúscula, número y símbolo"
                         required
                         type={showPassword ? 'text' : 'password'}
                       />
@@ -487,7 +498,7 @@ export default function EmpresasPage() {
                         autoComplete="new-password"
                         className={`${fieldClassName} pr-12`}
                         minLength={8}
-                        maxLength={12}
+                        maxLength={128}
                         name="confirmOwnerPassword"
                         placeholder="Repite la contraseña"
                         required

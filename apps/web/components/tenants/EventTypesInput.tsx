@@ -2,43 +2,46 @@
 
 import { useId, useState } from 'react';
 import { Button } from '../ui/Button';
+import { FeedbackMessages, useFeedback } from '../ui/Feedback';
 
 export function EventTypesInput({
   value,
   onChange,
   readOnly = false,
   required = false,
+  showEntries = false,
 }: {
   value: string;
   onChange: (value: string) => void;
   readOnly?: boolean;
   required?: boolean;
+  showEntries?: boolean;
 }) {
-  const [adding, setAdding] = useState(false);
+  const [draft, setDraft] = useState('');
   const [open, setOpen] = useState(false);
+  const feedback = useFeedback();
   const listId = useId();
-  const parts = value.split('\n');
-  const editingDraft = adding && !readOnly;
-  const entries = (editingDraft ? parts.slice(0, -1) : parts).filter((item) =>
-    item.trim(),
-  );
-  const draft = editingDraft ? (parts.at(-1) ?? '') : '';
+  const entries = value.split('\n').filter((item) => item.trim());
 
   function changeDraft(next: string) {
-    onChange([...entries, next].join('\n'));
-    setAdding(true);
+    setDraft(next);
   }
 
   function add() {
     if (!draft.trim() || entries.length >= 20) return;
     onChange([...entries, draft.trim()].join('\n'));
-    setAdding(false);
+    setDraft('');
     setOpen(false);
   }
 
   function remove(index: number) {
     const next = entries.filter((_, i) => i !== index);
-    onChange([...next, ...(editingDraft ? [draft] : [])].join('\n'));
+    onChange(next.join('\n'));
+    feedback.guide(
+      'El tipo de evento se eliminó de la lista. Guarda el formulario para aplicar el cambio.',
+      'Tipo de evento eliminado',
+      'success',
+    );
   }
 
   const visibleEntries = entries
@@ -54,6 +57,7 @@ export function EventTypesInput({
   return (
     <fieldset className="grid min-w-0 gap-3 sm:col-span-2">
       <legend className="text-sm font-semibold">Tipos de eventos</legend>
+      <FeedbackMessages feedback={feedback} />
       <div className="flex min-w-0 flex-wrap gap-2 sm:flex-nowrap">
         <div className="relative min-w-0 flex-1">
           <input
@@ -144,6 +148,31 @@ export function EventTypesInput({
           </Button>
         )}
       </div>
+      {showEntries && entries.length > 0 && (
+        <ul
+          aria-label="Tipos de eventos registrados"
+          className="flex flex-wrap gap-2"
+        >
+          {entries.map((entry, index) => (
+            <li
+              key={`${index}-${entry}`}
+              className="flex items-center gap-2 rounded-full bg-violet/10 px-3 py-1 text-sm text-violet"
+            >
+              <span>{entry}</span>
+              {!readOnly && (
+                <button
+                  type="button"
+                  aria-label={`Eliminar ${entry}`}
+                  className="rounded-full px-1 font-bold focus-visible:outline-2 focus-visible:outline-teal"
+                  onClick={() => remove(index)}
+                >
+                  ×
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
     </fieldset>
   );
 }
