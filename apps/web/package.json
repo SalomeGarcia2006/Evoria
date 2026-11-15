@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@evoria/contracts": "0.1.0",
+    "driver.js": "^1.14.0",
     "leaflet": "^1.9.4",
     "next": "16.4.3",
     "react": "19.3.0",

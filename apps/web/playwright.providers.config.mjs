@@ -11,6 +11,35 @@ export default defineConfig({
     channel: process.env.E2E_BROWSER_CHANNEL || 'chromium',
     headless: true,
     trace: 'retain-on-failure',
+    storageState: {
+      cookies: [],
+      origins: [
+        {
+          origin: 'http://localhost:3100',
+          localStorage: ['u1', 'requester', 'leader'].flatMap((id) =>
+            [
+              '/dashboard',
+              '/empresas',
+              '/eventos',
+              '/inventario',
+              '/recursos/asignaciones',
+              '/proveedores',
+              '/presupuestos',
+              '/cronograma',
+              '/alertas',
+              '/reportes',
+              '/auditoria',
+              '/usuarios',
+              '/perfiles',
+              '/mi-perfil',
+            ].map((path) => ({
+              name: `evoria-module-tour:${id}:${path}`,
+              value: 'done',
+            })),
+          ),
+        },
+      ],
+    },
   },
   projects: [
     { name: 'escritorio', use: { viewport: { width: 1440, height: 1000 } } },
