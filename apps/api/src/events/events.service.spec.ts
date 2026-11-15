@@ -10,7 +10,9 @@ import { AuditsService } from '../audits/audits.service';
 import { BudgetsService } from '../budgets/budgets.service';
 import { Membership } from '../memberships/schemas/membership.schema';
 import { CreateEventDto } from './dto/create-event.dto';
-import { Event } from './schemas/event.schema';
+import { UpdateEventDto } from './dto/update-event.dto';
+import { Event, EventSchema } from './schemas/event.schema';
+import { model } from 'mongoose';
 import { EventsService } from './events.service';
 
 const tenantId = new Types.ObjectId().toString();
@@ -45,6 +47,32 @@ test('el presupuesto base es obligatorio y se valida como COP entero', () => {
   );
 });
 
+test('invitados admite enteros no negativos y es opcional al crear y editar', async () => {
+  for (const dto of [CreateEventDto, UpdateEventDto]) {
+    const base = dto === CreateEventDto ? eventDto(100) : {};
+    for (const value of [0, 25]) {
+      assert.equal(
+        validateSync(plainToInstance(dto, { ...base, invitados: value }))
+          .length,
+        0,
+      );
+    }
+    for (const value of [-1, 1.5, null, Number.MAX_SAFE_INTEGER + 1]) {
+      assert.ok(
+        validateSync(plainToInstance(dto, { ...base, invitados: value }))
+          .length > 0,
+      );
+    }
+    assert.equal(validateSync(plainToInstance(dto, base)).length, 0);
+  }
+  const eventModel = model('EventInvitadosValidation', EventSchema);
+  await assert.rejects(
+    new eventModel({ invitados: 1.5 }).validate(),
+    (error: { errors: Record<string, unknown> }) =>
+      Boolean(error.errors.invitados),
+  );
+});
+
 test('crear un evento inicia su presupuesto con el mismo monto', async () => {
   const eventId = new Types.ObjectId();
   let initialized: unknown[] = [];
@@ -75,9 +103,13 @@ test('crear un evento inicia su presupuesto con el mismo monto', async () => {
     audits,
   );
 
-  const result = await service.create(eventDto(9000000), user);
+  const result = await service.create(
+    { ...eventDto(9000000), invitados: 35 },
+    user,
+  );
 
   assert.equal(result.baseBudget, 9000000);
+  assert.equal(result.invitados, 35);
   assert.deepEqual(initialized, [
     eventId.toString(),
     tenantId,
@@ -85,6 +117,35 @@ test('crear un evento inicia su presupuesto con el mismo monto', async () => {
     user.id,
   ]);
   assert.equal(deleted, false);
+});
+
+test('editar y consultar un evento conserva la cantidad de invitados', async () => {
+  const event = {
+    _id: new Types.ObjectId(),
+    name: 'Evento',
+    status: 'borrador',
+    invitados: 4,
+    startAt: new Date('2026-12-05T15:00:00.000Z'),
+    endAt: new Date('2026-12-06T02:00:00.000Z'),
+    createdBy: new Types.ObjectId(user.id),
+    save: async () => undefined,
+  };
+  const service = new EventsService(
+    { findOne: async () => event } as unknown as Model<Event>,
+    {} as Model<Membership>,
+    {} as BudgetsService,
+    audits,
+  );
+  const updated = await service.update(
+    event._id.toString(),
+    { invitados: 20 },
+    user,
+  );
+  assert.equal(updated.invitados, 20);
+  assert.equal(
+    (await service.findOne(event._id.toString(), user)).invitados,
+    20,
+  );
 });
 
 test('si falla la inicialización, se retira el evento creado', async () => {
