@@ -6,7 +6,12 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { isValidObjectId, type Model, type Types } from 'mongoose';
+import {
+  Error as MongooseError,
+  isValidObjectId,
+  type Model,
+  type Types,
+} from 'mongoose';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { AuditsService } from '../audits/audits.service';
 import { Event, type EventDocument } from '../events/schemas/event.schema';
@@ -98,6 +103,7 @@ export class SchedulesService {
     const event = await this.findEvent(schedule.eventId.toString(), tenantId);
     this.ensureEventIsEditable(event);
     this.ensureScheduleIsEditable(schedule);
+    this.ensureScheduleHasNoTeam(schedule);
 
     const startAt = updateScheduleDto.startAt ?? schedule.startAt.toISOString();
     const endAt = updateScheduleDto.endAt ?? schedule.endAt.toISOString();
@@ -130,7 +136,8 @@ export class SchedulesService {
       schedule.status = updateScheduleDto.status;
     }
 
-    await schedule.save();
+    schedule.$where = { teamId: null };
+    await this.saveWithoutTeam(schedule);
     await this.auditsService.record({
       tenantId,
       actor: user,
@@ -146,8 +153,10 @@ export class SchedulesService {
   async cancel(id: string, user: AuthenticatedUser) {
     const tenantId = this.getTenantId(user);
     const schedule = await this.findSchedule(id, tenantId);
+    this.ensureScheduleHasNoTeam(schedule);
     schedule.status = 'cancelado';
-    await schedule.save();
+    schedule.$where = { teamId: null };
+    await this.saveWithoutTeam(schedule);
 
     await this.auditsService.record({
       tenantId,
@@ -222,6 +231,25 @@ export class SchedulesService {
     }
   }
 
+  private ensureScheduleHasNoTeam(schedule: ScheduleDocument): void {
+    if (schedule.teamId)
+      throw new ConflictException(
+        'Retira el equipo antes de modificar la actividad.',
+      );
+  }
+
+  private async saveWithoutTeam(schedule: ScheduleDocument): Promise<void> {
+    try {
+      await schedule.save();
+    } catch (error) {
+      if (error instanceof MongooseError.DocumentNotFoundError)
+        throw new ConflictException(
+          'La actividad cambió o tiene un equipo asignado.',
+        );
+      throw error;
+    }
+  }
+
   private async validateResponsible(
     responsibleUserId: string | null | undefined,
     tenantId: string,
@@ -273,6 +301,7 @@ export class SchedulesService {
       id: schedule._id.toString(),
       eventId: schedule.eventId.toString(),
       responsibleUserId: schedule.responsibleUserId?.toString() ?? null,
+      teamId: schedule.teamId?.toString() ?? null,
       name: schedule.name,
       description: schedule.description,
       startAt: schedule.startAt,

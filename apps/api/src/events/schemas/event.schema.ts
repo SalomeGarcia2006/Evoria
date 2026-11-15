@@ -53,6 +53,9 @@ export class Event {
   @Prop({ type: Date, default: null })
   responsibleAssignedAt!: Date | null;
 
+  @Prop({ type: Number, default: 0 })
+  teamAssignmentRevision?: number;
+
   // No expira automáticamente: una recuperación insegura permitiría dos decisores.
   @Prop({ type: String, default: undefined, select: false })
   budgetDecisionLock?: string;

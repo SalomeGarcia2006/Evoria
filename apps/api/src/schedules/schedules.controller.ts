@@ -15,10 +15,77 @@ import { CreateScheduleDto } from './dto/create-schedule.dto';
 import { FindSchedulesDto } from './dto/find-schedules.dto';
 import { UpdateScheduleDto } from './dto/update-schedule.dto';
 import { SchedulesService } from './schedules.service';
+import { ScheduleTeamsService } from './schedule-teams.service';
+import { IsMongoId } from 'class-validator';
+
+class AssignTeamDto {
+  @IsMongoId()
+  teamId!: string;
+}
 
 @Controller()
 export class SchedulesController {
-  constructor(private readonly schedulesService: SchedulesService) {}
+  constructor(
+    private readonly schedulesService: SchedulesService,
+    private readonly scheduleTeams: ScheduleTeamsService,
+  ) {}
+
+  @Post('schedules/:id/team')
+  async assignTeam(
+    @Param('id') id: string,
+    @Body() dto: AssignTeamDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return {
+      data: await this.scheduleTeams.assign(id, dto.teamId, user),
+      message: 'Equipo asignado correctamente.',
+    };
+  }
+
+  @Get('schedules/:id/available-teams')
+  async availableTeams(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return {
+      data: await this.scheduleTeams.available(id, user),
+      message: 'Equipos disponibles.',
+    };
+  }
+
+  @Get('schedules/:id/team-history')
+  @RequirePermissions('cronogramas.ver')
+  async teamHistory(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return {
+      data: await this.scheduleTeams.history(id, user),
+      message: 'Historial obtenido correctamente.',
+    };
+  }
+
+  @Delete('schedules/:id/team')
+  async removeTeam(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return {
+      data: await this.scheduleTeams.remove(id, user),
+      message: 'Equipo retirado correctamente.',
+    };
+  }
+
+  @Post('schedules/:id/complete')
+  async complete(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return {
+      data: await this.scheduleTeams.complete(id, user),
+      message: 'Actividad completada.',
+    };
+  }
 
   @Post('events/:eventId/schedules')
   @RequirePermissions('cronogramas.crear')

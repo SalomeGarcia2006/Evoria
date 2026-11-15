@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { isValidObjectId, type Model } from 'mongoose';
@@ -22,6 +23,9 @@ import { FindUsersDto } from './dto/find-users.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { PasswordService } from './password.service';
 import { User, type UserDocument } from './schemas/user.schema';
+import { Team } from '../teams/schemas/team.schema';
+import { Event } from '../events/schemas/event.schema';
+import { Schedule } from '../schedules/schemas/schedule.schema';
 
 @Injectable()
 export class UsersService {
@@ -32,6 +36,11 @@ export class UsersService {
     @InjectModel(Profile.name) private readonly profileModel: Model<Profile>,
     private readonly passwordService: PasswordService,
     private readonly auditsService: AuditsService,
+    @Optional() @InjectModel(Team.name) private readonly teams?: Model<Team>,
+    @Optional() @InjectModel(Event.name) private readonly events?: Model<Event>,
+    @Optional()
+    @InjectModel(Schedule.name)
+    private readonly schedules?: Model<Schedule>,
   ) {}
 
   async create(createUserDto: CreateUserDto, currentUser: AuthenticatedUser) {
@@ -196,8 +205,59 @@ export class UsersService {
       );
     }
 
-    if (updateUserDto.status) membership.status = updateUserDto.status;
-    await membership.save();
+    if (updateUserDto.status === 'inactivo' && this.teams) {
+      const session = await this.membershipModel.db.startSession();
+      try {
+        await session.withTransaction(async () => {
+          const locked = await this.membershipModel.findOneAndUpdate(
+            { _id: membership._id, tenantId },
+            { $inc: { teamRevision: 1 } },
+            { session, returnDocument: 'after' },
+          );
+          if (!locked) throw new NotFoundException('La membresía no existe.');
+          if (
+            await this.teams!.exists({
+              tenantId,
+              status: 'activo',
+              memberIds: membership.userId,
+            }).session(session)
+          )
+            throw new ConflictException(
+              'Retira al usuario de su equipo activo y reemplaza al líder si corresponde antes de desactivarlo.',
+            );
+          if (this.events && this.schedules) {
+            const events = await this.events
+              .find({ tenantId, responsibleUserId: membership.userId })
+              .select('_id')
+              .session(session)
+              .lean();
+            if (
+              await this.schedules
+                .exists({
+                  tenantId,
+                  eventId: { $in: events.map((event) => event._id) },
+                  teamId: { $ne: null },
+                  status: { $ne: 'cancelado' },
+                  endAt: { $gt: new Date() },
+                })
+                .session(session)
+            )
+              throw new ConflictException(
+                'Reemplaza al responsable de sus eventos con actividades asignadas antes de desactivarlo.',
+              );
+          }
+          locked.status = 'inactivo';
+          locked.profileId = membership.profileId;
+          await locked.save({ session });
+          membership.status = locked.status;
+        });
+      } finally {
+        await session.endSession();
+      }
+    } else {
+      if (updateUserDto.status) membership.status = updateUserDto.status;
+      await membership.save();
+    }
 
     const user = await this.userModel.findById(membership.userId);
     if (!user) throw new NotFoundException('El usuario no existe.');
