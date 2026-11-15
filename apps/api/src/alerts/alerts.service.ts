@@ -114,6 +114,15 @@ export class AlertsService implements OnModuleInit, OnModuleDestroy {
     return new Set(permissions.map((permission) => permission.key));
   }
 
+  async canReceiveActivityAlerts(
+    tenantId: string,
+    userId: string,
+    session?: ClientSession,
+  ): Promise<boolean> {
+    const permissions = await this.granted(tenantId, userId, session);
+    return permissions.has('alertas.ver') && permissions.has('eventos.ver');
+  }
+
   async emit(input: NewAlert): Promise<void> {
     const granted = await this.granted(input.tenantId, input.recipientId);
     if (
@@ -171,14 +180,14 @@ export class AlertsService implements OnModuleInit, OnModuleDestroy {
     );
   }
 
-  private async deliver(input: NewAlert): Promise<void> {
+  private async deliver(input: NewAlert): Promise<boolean> {
     const granted = await this.granted(input.tenantId, input.recipientId);
     if (
       !['alertas.ver', ...input.permissions].every((permission) =>
         granted.has(permission),
       )
     )
-      return;
+      return false;
     const record = {
       tenantId: input.tenantId,
       recipientId: input.recipientId,
@@ -204,6 +213,7 @@ export class AlertsService implements OnModuleInit, OnModuleDestroy {
     } catch (error) {
       if (!this.isDuplicate(error)) throw error;
     }
+    return true;
   }
 
   async retryPending(): Promise<void> {
@@ -225,7 +235,17 @@ export class AlertsService implements OnModuleInit, OnModuleDestroy {
       .lean();
     for (const item of pending) {
       try {
-        await this.deliver(item.payload as NewAlert);
+        const delivered = await this.deliver(item.payload as NewAlert);
+        if (
+          !delivered &&
+          (item.payload as NewAlert).type === 'activity_completed'
+        ) {
+          await this.outbox.updateOne(
+            { _id: item._id, deliveredAt: null },
+            { $set: { nextAttemptAt: new Date(Date.now() + 30000) } },
+          );
+          continue;
+        }
         await this.outbox.updateOne(
           { _id: item._id, deliveredAt: null },
           { $set: { deliveredAt: new Date() } },

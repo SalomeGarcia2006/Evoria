@@ -24,6 +24,7 @@ import { FindEventsDto } from './dto/find-events.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
 import { Event, type EventDocument } from './schemas/event.schema';
 import { Tenant } from '../tenants/schemas/tenant.schema';
+import { Schedule } from '../schedules/schemas/schedule.schema';
 
 const DEFAULT_EVENT_TYPES = [
   'Congreso',
@@ -53,6 +54,9 @@ export class EventsService {
     @Optional()
     @InjectModel(Tenant.name)
     private readonly tenantModel?: Model<Tenant>,
+    @Optional()
+    @InjectModel(Schedule.name)
+    private readonly scheduleModel?: Model<Schedule>,
   ) {}
 
   async eventTypes(user: AuthenticatedUser) {
@@ -210,6 +214,53 @@ export class EventsService {
     const startAt = updateEventDto.startAt ?? event.startAt.toISOString();
     const endAt = updateEventDto.endAt ?? event.endAt.toISOString();
     this.validateDates(startAt, endAt);
+    const eventRevision = event.teamAssignmentRevision ?? 0;
+    const datesChanged =
+      updateEventDto.startAt !== undefined ||
+      updateEventDto.endAt !== undefined;
+    const responsibleChanged =
+      updateEventDto.responsibleUserId !== undefined &&
+      (updateEventDto.responsibleUserId ?? null) !== previousResponsible;
+    if (
+      datesChanged &&
+      this.scheduleModel &&
+      (await this.scheduleModel.exists({
+        tenantId,
+        eventId: event._id,
+        teamId: { $ne: null },
+        status: { $ne: 'cancelado' },
+        $or: [
+          { startAt: { $lt: new Date(startAt) } },
+          { endAt: { $gt: new Date(endAt) } },
+        ],
+      }))
+    )
+      throw new ConflictException(
+        'El nuevo período deja actividades asignadas fuera del evento.',
+      );
+    if (
+      responsibleChanged &&
+      this.scheduleModel &&
+      (await this.scheduleModel.exists({
+        tenantId,
+        eventId: event._id,
+        teamId: { $ne: null },
+        status: { $ne: 'cancelado' },
+        endAt: { $gt: new Date() },
+      }))
+    ) {
+      if (
+        !updateEventDto.responsibleUserId ||
+        !this.alerts ||
+        !(await this.alerts.canReceiveActivityAlerts(
+          tenantId,
+          updateEventDto.responsibleUserId,
+        ))
+      )
+        throw new ConflictException(
+          'El nuevo responsable debe poder consultar eventos y alertas mientras existan actividades asignadas.',
+        );
+    }
 
     const name = updateEventDto.name?.trim();
     if (name !== undefined && (name.length < 2 || name.length > 120)) {
@@ -262,9 +313,18 @@ export class EventsService {
     if (updateEventDto.endAt) event.endAt = new Date(updateEventDto.endAt);
     if (updateEventDto.status) event.status = updateEventDto.status;
 
+    if (datesChanged || responsibleChanged)
+      event.teamAssignmentRevision = eventRevision + 1;
+
     event.$where = {
       budgetDecisionLock: { $exists: false },
       status: { $ne: 'cancelado' },
+      ...(datesChanged || responsibleChanged
+        ? {
+            teamAssignmentRevision:
+              eventRevision === 0 ? { $in: [null, 0] } : eventRevision,
+          }
+        : {}),
     };
     await this.saveUnlocked(event);
     if (event.responsibleUserId?.toString() !== previousResponsible) {

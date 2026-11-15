@@ -25,6 +25,9 @@ export class Membership {
     index: true,
   })
   status!: MembershipStatus;
+
+  @Prop({ type: Number, default: 0 })
+  teamRevision?: number;
 }
 
 export const MembershipSchema = SchemaFactory.createForClass(Membership);

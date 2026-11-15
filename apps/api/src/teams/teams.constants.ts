@@ -1,0 +1,15 @@
+export const TEAM_SPECIALTIES = [
+  'Decoración',
+  'Servicio de mesa',
+  'Montaje y desmontaje',
+  'Sonido e iluminación',
+  'Música y entretenimiento',
+  'Catering y cocina',
+  'Logística y transporte',
+  'Recepción y protocolo',
+  'Seguridad',
+  'Limpieza',
+  'Fotografía y video',
+  'Coordinación de eventos',
+  'Soporte técnico',
+] as const;

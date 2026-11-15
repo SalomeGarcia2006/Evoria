@@ -8,10 +8,18 @@ import { PasswordService } from './password.service';
 import { User, UserSchema } from './schemas/user.schema';
 import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
+import { Team, TeamSchema } from '../teams/schemas/team.schema';
+import { Event, EventSchema } from '../events/schemas/event.schema';
+import { Schedule, ScheduleSchema } from '../schedules/schemas/schedule.schema';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
+    MongooseModule.forFeature([
+      { name: User.name, schema: UserSchema },
+      { name: Team.name, schema: TeamSchema },
+      { name: Event.name, schema: EventSchema },
+      { name: Schedule.name, schema: ScheduleSchema },
+    ]),
     AuditsModule,
     MembershipsModule,
     ProfilesModule,
