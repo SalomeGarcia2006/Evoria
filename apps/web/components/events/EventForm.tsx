@@ -85,7 +85,9 @@ export function EventForm({
     error: boolean;
   } | null>(null);
   const currentTypes =
-    typesResult?.tenantId === tenantId && typesResult.attempt === typesAttempt
+    typesResult &&
+    typesResult.tenantId === tenantId &&
+    typesResult.attempt === typesAttempt
       ? typesResult
       : null;
   const eventTypes = currentTypes?.types ?? [];
