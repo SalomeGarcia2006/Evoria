@@ -5,9 +5,11 @@ import {
   IsMongoId,
   IsOptional,
   IsString,
+  Max,
   MaxLength,
   Min,
   MinLength,
+  ValidateIf,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { EVENT_STATUSES, type EventStatus } from '../events.constants';
@@ -43,6 +45,13 @@ export class CreateEventDto {
   @IsInt()
   @Min(0)
   baseBudget!: number;
+
+  @ValidateIf((_object, value) => value !== undefined)
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(Number.MAX_SAFE_INTEGER)
+  invitados?: number;
 
   @IsOptional()
   @IsEnum(EVENT_STATUSES)
