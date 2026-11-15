@@ -119,6 +119,7 @@ export class EventsService {
         ? await this.validateEventType(createEventDto.type, user)
         : null,
       baseBudget: createEventDto.baseBudget,
+      invitados: createEventDto.invitados ?? 0,
       status: createEventDto.status,
       responsibleUserId: createEventDto.responsibleUserId ?? null,
       responsibleAssignedAt: createEventDto.responsibleUserId
@@ -292,6 +293,8 @@ export class EventsService {
     }
 
     if (name !== undefined) event.name = name;
+    if (updateEventDto.invitados !== undefined)
+      event.invitados = updateEventDto.invitados;
     if (updateEventDto.description !== undefined) {
       event.description = this.trimOptional(updateEventDto.description);
     }
@@ -496,6 +499,7 @@ export class EventsService {
       location: event.location,
       type: event.type,
       baseBudget: event.baseBudget ?? 0,
+      invitados: event.invitados ?? 0,
       status: event.status,
       responsibleUserId: event.responsibleUserId?.toString() ?? null,
       createdBy: event.createdBy.toString(),

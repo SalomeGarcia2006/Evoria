@@ -31,6 +31,15 @@ export class Event {
   baseBudget!: number;
 
   @Prop({
+    type: Number,
+    required: true,
+    min: 0,
+    default: 0,
+    validate: Number.isSafeInteger,
+  })
+  invitados!: number;
+
+  @Prop({
     required: true,
     enum: EVENT_STATUSES,
     default: 'borrador',
