@@ -65,6 +65,13 @@ interface EventList {
   };
 }
 
+export async function getEventTypes(): Promise<string[]> {
+  const response = await apiRequest<
+    ApiResponse<{ types: string[]; source: 'tenant' | 'default' }>
+  >('/events/types', { credentials: 'include' });
+  return response.data.types;
+}
+
 export async function getEvents(): Promise<EventList> {
   const response = await apiRequest<ApiResponse<EventList>>('/events', {
     credentials: 'include',
