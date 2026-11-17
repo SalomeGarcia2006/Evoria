@@ -67,6 +67,9 @@ export type {
   EventProviderServicesQuery,
   ProviderServiceStatus,
   UpdateEventProviderServiceRequest,
+  ProviderServiceConfirmationLinkRequest,
+  ProviderServiceConfirmationResponseRequest,
+  ProviderServiceConfirmationDetails,
 } from './provider-services';
 export { PROVIDER_SERVICE_STATUSES } from './provider-services';
 export type {

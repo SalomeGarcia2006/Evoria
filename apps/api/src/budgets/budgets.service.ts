@@ -23,6 +23,7 @@ import { EventProviderService } from '../provider-services/schemas/event-provide
 import { Provider } from '../providers/schemas/provider.schema';
 import { EventResource } from '../resources/schemas/event-resource.schema';
 import { BudgetLedgerService } from './budget-ledger.service';
+import { ProviderServiceFunding } from '../provider-services/provider-service-funding.service';
 import { CreateBudgetRequestDto } from './dto/create-budget-request.dto';
 import { FindBudgetsDto } from './dto/find-budgets.dto';
 import {
@@ -47,6 +48,7 @@ export class BudgetsService {
     private readonly ledger: BudgetLedgerService,
     private readonly auditsService: AuditsService,
     @Optional() private readonly alerts?: AlertsService,
+    @Optional() private readonly providerFunding?: ProviderServiceFunding,
   ) {}
 
   async overview(query: FindBudgetsDto, user: AuthenticatedUser) {
@@ -317,6 +319,17 @@ export class BudgetsService {
           );
         }
         await this.alerts?.checkBudget(tenantId, eventId, session);
+        if (this.providerFunding) {
+          await this.providerFunding.fundPending(tenantId, eventId, session);
+          const refreshed = await this.budgetModel
+            .findById(created._id)
+            .session(session);
+          if (!refreshed)
+            throw new ConflictException(
+              'El presupuesto dejó de estar disponible.',
+            );
+          return refreshed;
+        }
         return created;
       });
       return {
@@ -586,6 +599,8 @@ export class BudgetsService {
           : 'La solicitud ya fue decidida.',
       );
     }
+    if (request.type === 'ampliacion')
+      await this.providerFunding?.fundPending(tenantId, eventId, session);
     const decided = budget.requests.find(
       (item) => item._id.toString() === requestId,
     );

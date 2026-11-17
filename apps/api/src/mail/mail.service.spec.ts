@@ -17,6 +17,9 @@ test('envía el correo por Brevo con TLS y el remitente configurado', async (t) 
       port: 587,
       secure: false,
       requireTLS: true,
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 30000,
       auth: {
         user: settings.BREVO_SMTP_USER,
         pass: settings.BREVO_SMTP_KEY,

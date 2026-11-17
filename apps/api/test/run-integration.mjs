@@ -54,6 +54,7 @@ try {
       'src/teams/teams.http.mongo.spec.ts',
       'src/budgets/budgets-dashboard.http.mongo.spec.ts',
       'src/reports/reports.http.mongo.spec.ts',
+      'src/provider-services/provider-service-workflow.http.mongo.spec.ts',
       'src/alerts/replica-feasibility.mongo.spec.ts',
       'src/alerts/alerts.mongo.spec.ts',
       'src/alerts/alerts.http.mongo.spec.ts',

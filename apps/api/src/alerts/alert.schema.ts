@@ -13,6 +13,10 @@ export class Alert {
   @Prop({ type: 'ObjectId', default: null }) requestId!: Types.ObjectId | null;
   @Prop({ type: 'ObjectId', default: null })
   inventoryItemId!: Types.ObjectId | null;
+  @Prop({ type: 'ObjectId', default: null })
+  providerServiceId!: Types.ObjectId | null;
+  @Prop({ type: String, default: null }) serviceStatus!: string | null;
+  @Prop({ type: Number, default: 0 }) serviceRevision!: number;
   @Prop({ required: true }) dedupeKey!: string;
   @Prop({ type: Date, default: null }) readAt!: Date | null;
   createdAt!: Date;
