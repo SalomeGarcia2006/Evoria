@@ -67,6 +67,20 @@ export default function ResetPasswordPage() {
           </div>
         </header>
         <section className="login-card recovery-card">
+          <a className="recovery-back" href="/verificar-contrasena">
+            <span aria-hidden="true">←</span> Volver al código
+          </a>
+          <div className="recovery-progress" aria-label="Paso 3 de 3">
+            <span className="active" />
+            <span className="active" />
+            <span className="active" />
+          </div>
+          <span className="recovery-step">03 · PROTEGE TU CUENTA</span>
+          <h2>Nueva contraseña</h2>
+          <p className="recovery-description">
+            Crea una contraseña segura para volver a entrar a tu cuenta.
+          </p>
+          <hr className="login-separator" />
           <form className="login-form" onSubmit={submit}>
             <div className="login-field">
               <label htmlFor="reset-password">Nueva contraseña</label>
@@ -157,14 +171,6 @@ export default function ResetPasswordPage() {
             >
               {loading ? 'Actualizando…' : 'Actualizar contraseña'}
             </button>
-            <div className="recovery-card__links">
-              <a className="recovery-card__back" href="/verificar-contrasena">
-                ← Volver a verificar el código
-              </a>
-              <a className="recovery-card__back" href="/login">
-                Volver al inicio de sesión
-              </a>
-            </div>
           </form>
         </section>
       </div>

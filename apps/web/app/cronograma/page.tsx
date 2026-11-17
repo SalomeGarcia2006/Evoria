@@ -12,20 +12,14 @@ import { LoadingState } from '../../components/ui/LoadingState';
 import { useAuth } from '../../hooks/useAuth';
 import { getAllEvents, type EventItem } from '../../services/events.service';
 import {
-  assignScheduleTeam,
   cancelSchedule,
-  completeSchedule,
   createSchedule,
-  getAvailableTeams,
   getSchedules,
-  removeScheduleTeam,
   updateSchedule,
-  type AvailableTeam,
   type ScheduleItem,
   type SchedulePayload,
   type ScheduleStatus,
 } from '../../services/schedules.service';
-import { getTeams, type Team } from '../../services/teams.service';
 import { getUsers, type CompanyUser } from '../../services/users.service';
 
 const fieldClassName =
@@ -142,10 +136,9 @@ function emptyForm(eventId = ''): ScheduleForm {
 }
 
 export default function CronogramaPage() {
-  const { can, user } = useAuth();
+  const { can } = useAuth();
   const feedback = useFeedback();
   const dialog = useRef<HTMLDialogElement>(null);
-  const teamDialog = useRef<HTMLDialogElement>(null);
   const [events, setEvents] = useState<EventItem[]>([]);
   const [users, setUsers] = useState<CompanyUser[]>([]);
   const [selectedEventId, setSelectedEventId] = useState('');
@@ -158,12 +151,6 @@ export default function CronogramaPage() {
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [validationAlert, setValidationAlert] = useState<string | null>(null);
-  const [teams, setTeams] = useState<Team[]>([]);
-  const [teamActivity, setTeamActivity] = useState<ScheduleItem | null>(null);
-  const [availableTeams, setAvailableTeams] = useState<AvailableTeam[]>([]);
-  const [isLoadingTeams, setIsLoadingTeams] = useState(false);
-  const [isAssigningTeam, setIsAssigningTeam] = useState(false);
-  const [scheduleRevision, setScheduleRevision] = useState(0);
   const minimumStartDate = getTomorrowDate();
 
   useEffect(() => {
@@ -201,13 +188,6 @@ export default function CronogramaPage() {
   }, [can]);
 
   useEffect(() => {
-    if (!can('equipos.ver')) return;
-    void getTeams()
-      .then(setTeams)
-      .catch(() => setTeams([]));
-  }, [can]);
-
-  useEffect(() => {
     if (!selectedEventId) return;
     let isMounted = true;
 
@@ -232,7 +212,7 @@ export default function CronogramaPage() {
     return () => {
       isMounted = false;
     };
-  }, [selectedEventId, scheduleRevision]);
+  }, [selectedEventId]);
 
   function openCreateForm() {
     const event = events.find((item) => item.id === selectedEventId);
@@ -284,13 +264,6 @@ export default function CronogramaPage() {
     if (missingFields.length > 0) {
       setValidationAlert(
         `Completa los siguientes campos obligatorios: ${missingFields.join(', ')}.`,
-      );
-      return;
-    }
-
-    if (form.name.trim().length < 2) {
-      setValidationAlert(
-        'El nombre de la actividad debe tener al menos 2 caracteres.',
       );
       return;
     }
@@ -408,86 +381,12 @@ export default function CronogramaPage() {
     }
   }
 
-  async function openTeamDialog(schedule: ScheduleItem) {
-    setTeamActivity(schedule);
-    setAvailableTeams([]);
-    setIsLoadingTeams(true);
-    teamDialog.current?.showModal();
-    try {
-      setAvailableTeams(await getAvailableTeams(schedule.id));
-    } catch (cause) {
-      setValidationAlert(
-        cause instanceof Error
-          ? cause.message
-          : 'No fue posible consultar los equipos disponibles.',
-      );
-    } finally {
-      setIsLoadingTeams(false);
-    }
-  }
-
-  async function assignTeam(teamId: string) {
-    if (!teamActivity) return;
-    setIsAssigningTeam(true);
-    try {
-      await assignScheduleTeam(teamActivity.id, teamId);
-      teamDialog.current?.close();
-      setScheduleRevision((value) => value + 1);
-      feedback.notify('Equipo asignado correctamente.');
-    } catch (cause) {
-      setValidationAlert(
-        cause instanceof Error
-          ? cause.message
-          : 'No fue posible asignar el equipo.',
-      );
-    } finally {
-      setIsAssigningTeam(false);
-    }
-  }
-
-  async function removeTeam(schedule: ScheduleItem) {
-    const confirmed = await feedback.confirm(
-      '¿Retirar este equipo?',
-      'La actividad podrá editarse o cancelarse nuevamente.',
-      'Sí, retirar equipo',
-      'warning',
-      'RETIRAR',
-    );
-    if (!confirmed) return;
-    try {
-      await removeScheduleTeam(schedule.id);
-      setScheduleRevision((value) => value + 1);
-      feedback.notify('Equipo retirado correctamente.');
-    } catch (cause) {
-      setError(
-        cause instanceof Error
-          ? cause.message
-          : 'No fue posible retirar el equipo.',
-      );
-    }
-  }
-
-  async function completeActivity(schedule: ScheduleItem) {
-    try {
-      await completeSchedule(schedule.id);
-      setScheduleRevision((value) => value + 1);
-      feedback.notify('Actividad finalizada correctamente.');
-    } catch (cause) {
-      setError(
-        cause instanceof Error
-          ? cause.message
-          : 'No fue posible finalizar la actividad.',
-      );
-    }
-  }
-
   const selectedEvent = events.find((event) => event.id === selectedEventId);
   const formEvent = events.find((event) => event.id === form.eventId);
   const selectedEventHasEnded = Boolean(
     selectedEvent && new Date(selectedEvent.endAt) < new Date(),
   );
   const userNameById = new Map(users.map((user) => [user.id, user.name]));
-  const teamById = new Map(teams.map((team) => [team.id, team]));
 
   return (
     <AppShell hideTitle title="Cronograma">
@@ -610,7 +509,6 @@ export default function CronogramaPage() {
                       <th>Actividad</th>
                       <th>Fecha y hora</th>
                       <th>Responsable</th>
-                      <th>Equipo</th>
                       <th>Estado</th>
                       <th aria-label="Acciones" />
                     </tr>
@@ -625,15 +523,6 @@ export default function CronogramaPage() {
                         ? (userNameById.get(item.responsibleUserId) ??
                           'Usuario asignado')
                         : 'Sin responsable';
-                      const assignedTeam = item.teamId
-                        ? teamById.get(item.teamId)
-                        : null;
-                      const isEventResponsible =
-                        selectedEvent?.responsibleUserId === user?.id;
-                      const canComplete =
-                        Boolean(item.teamId) &&
-                        (isEventResponsible ||
-                          assignedTeam?.leaderId === user?.id);
 
                       return (
                         <tr key={item.id}>
@@ -667,22 +556,6 @@ export default function CronogramaPage() {
                             </p>
                           </td>
                           <td>
-                            {item.teamId ? (
-                              <div>
-                                <p className="font-medium">
-                                  {assignedTeam?.name ?? 'Equipo asignado'}
-                                </p>
-                                <p className="mt-1 text-xs text-muted">
-                                  {assignedTeam?.specialty ?? 'Asignado'}
-                                </p>
-                              </div>
-                            ) : (
-                              <span className="text-sm text-muted">
-                                Sin equipo
-                              </span>
-                            )}
-                          </td>
-                          <td>
                             <span
                               className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${statusClasses[status]}`}
                             >
@@ -691,43 +564,8 @@ export default function CronogramaPage() {
                           </td>
                           <td>
                             <div className="flex flex-wrap justify-end gap-2">
-                              {isEventResponsible &&
-                              item.status !== 'cancelado' &&
-                              item.status !== 'completado' ? (
-                                item.teamId ? (
-                                  <Button
-                                    className="px-3 py-1.5 text-xs"
-                                    onClick={() => void removeTeam(item)}
-                                    type="button"
-                                    variant="secondary"
-                                  >
-                                    Retirar equipo
-                                  </Button>
-                                ) : (
-                                  <Button
-                                    className="px-3 py-1.5 text-xs"
-                                    onClick={() => void openTeamDialog(item)}
-                                    type="button"
-                                    variant="secondary"
-                                  >
-                                    Asignar equipo
-                                  </Button>
-                                )
-                              ) : null}
-                              {canComplete &&
-                              item.status !== 'completado' &&
-                              item.status !== 'cancelado' ? (
-                                <Button
-                                  className="px-3 py-1.5 text-xs"
-                                  onClick={() => void completeActivity(item)}
-                                  type="button"
-                                >
-                                  Finalizar
-                                </Button>
-                              ) : null}
                               {can('cronogramas.editar') &&
-                              item.status !== 'cancelado' &&
-                              !item.teamId ? (
+                              item.status !== 'cancelado' ? (
                                 <Button
                                   className="px-3 py-1.5 text-xs"
                                   onClick={() => openEditForm(item)}
@@ -738,8 +576,7 @@ export default function CronogramaPage() {
                                 </Button>
                               ) : null}
                               {can('cronogramas.eliminar') &&
-                              item.status !== 'cancelado' &&
-                              !item.teamId ? (
+                              item.status !== 'cancelado' ? (
                                 <Button
                                   className="px-3 py-1.5 text-xs"
                                   disabled={cancellingId === item.id}
@@ -958,58 +795,6 @@ export default function CronogramaPage() {
             message={validationAlert}
             onClose={() => setValidationAlert(null)}
           />
-        </dialog>
-        <dialog
-          className="m-auto w-11/12 max-w-xl rounded-2xl border border-sky-blue bg-white p-0 text-navy shadow-2xl backdrop:bg-navy/60"
-          onClose={() => setTeamActivity(null)}
-          ref={teamDialog}
-        >
-          <div className="flex items-start justify-between gap-4 border-b border-sky-blue p-6">
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-[.16em] text-violet">
-                Equipo de trabajo
-              </p>
-              <h2 className="mt-1 text-2xl font-bold">Asignar equipo</h2>
-              <p className="mt-1 text-sm text-muted">{teamActivity?.name}</p>
-            </div>
-            <Button
-              aria-label="Cerrar"
-              className="px-3 text-xl"
-              onClick={() => teamDialog.current?.close()}
-              type="button"
-              variant="ghost"
-            >
-              ×
-            </Button>
-          </div>
-          <div className="grid gap-3 p-6">
-            {isLoadingTeams ? (
-              <LoadingState label="Consultando disponibilidad…" />
-            ) : availableTeams.length === 0 ? (
-              <p className="rounded-xl border border-dashed border-sky-blue p-5 text-sm text-muted">
-                No hay equipos disponibles para este horario.
-              </p>
-            ) : (
-              availableTeams.map((team) => (
-                <div
-                  className="flex items-center justify-between gap-3 rounded-xl border border-sky-blue p-4"
-                  key={team.id}
-                >
-                  <div>
-                    <p className="font-semibold">{team.name}</p>
-                    <p className="mt-1 text-sm text-muted">{team.specialty}</p>
-                  </div>
-                  <Button
-                    disabled={isAssigningTeam}
-                    onClick={() => void assignTeam(team.id)}
-                    type="button"
-                  >
-                    Asignar
-                  </Button>
-                </div>
-              ))
-            )}
-          </div>
         </dialog>
         <AlertOverlay message={error} onClose={() => setError(null)} />
         <FeedbackMessages feedback={feedback} />
