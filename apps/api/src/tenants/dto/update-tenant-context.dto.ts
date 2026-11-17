@@ -5,6 +5,7 @@ import {
   IsEnum,
   IsOptional,
   IsString,
+  Matches,
   MaxLength,
   MinLength,
   ValidateNested,
@@ -39,6 +40,13 @@ class OperationalAreaDto {
 }
 
 export class UpdateTenantContextDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(253)
+  @Matches(
+    /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/i,
+  )
+  emailDomain?: string;
   @IsOptional() @IsString() @MaxLength(80) sector?: string;
   @IsOptional() @IsString() @MaxLength(1500) operationalDescription?: string;
   @IsOptional()

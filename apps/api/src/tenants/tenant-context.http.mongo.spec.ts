@@ -51,6 +51,7 @@ test('HTTP: el contexto operativo se administra de forma aislada por empresa', a
       method: 'PATCH',
       session: ownerSession,
       body: {
+        emailDomain: 'EmpresaX.COM',
         sector: 'Eventos corporativos',
         operationalDescription: 'Diseña y ejecuta eventos para clientes.',
         eventTypes: ['Congresos', 'Lanzamientos'],
@@ -69,12 +70,14 @@ test('HTTP: el contexto operativo se administra de forma aislada por empresa', a
     assert.equal(update.status, 200);
     const updatedContext = (await update.json()) as {
       data: {
+        emailDomain: string;
         sector: string;
         eventTypes: string[];
         operationMode: string;
         operationalAreas: Array<{ name: string }>;
       };
     };
+    assert.equal(updatedContext.data.emailDomain, 'empresax.com');
     assert.equal(updatedContext.data.sector, 'Eventos corporativos');
     assert.deepEqual(updatedContext.data.eventTypes, [
       'Congresos',
@@ -89,6 +92,17 @@ test('HTTP: el contexto operativo se administra de forma aislada por empresa', a
       body: { operationMode: 'invalida' },
     });
     assert.equal(invalidUpdate.status, 400);
+
+    assert.equal(
+      (
+        await api.request('tenants/context', {
+          method: 'PATCH',
+          session: ownerSession,
+          body: { emailDomain: '@empresa.com' },
+        })
+      ).status,
+      400,
+    );
 
     const auditLogs = await api.request('audit-logs?module=empresa_contexto', {
       session: ownerSession,
@@ -165,6 +179,16 @@ test('HTTP: el contexto operativo se administra de forma aislada por empresa', a
     const otherOwner = await api.login(
       'other-owner@example.test',
       'Prueba-segura1',
+    );
+    assert.equal(
+      (
+        await api.request('tenants/context', {
+          method: 'PATCH',
+          session: otherOwner,
+          body: { emailDomain: 'EMPRESAX.com' },
+        })
+      ).status,
+      409,
     );
     assert.equal(
       (

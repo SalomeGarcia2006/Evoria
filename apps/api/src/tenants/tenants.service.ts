@@ -179,10 +179,26 @@ export class TenantsService {
           return true;
         });
     }
+    if (dto.emailDomain !== undefined) {
+      changes.emailDomain = dto.emailDomain.toLowerCase();
+      if (
+        await this.tenantModel.exists({
+          _id: { $ne: tenant._id },
+          emailDomain: changes.emailDomain,
+        })
+      )
+        throw new ConflictException('El dominio ya pertenece a otra empresa.');
+    }
     if (!Object.keys(changes).length)
       throw new BadRequestException('Debes indicar al menos un cambio.');
     Object.assign(tenant, changes);
-    await tenant.save();
+    try {
+      await tenant.save();
+    } catch (error) {
+      if (this.isDuplicateKeyError(error))
+        throw new ConflictException('El dominio ya pertenece a otra empresa.');
+      throw error;
+    }
     await this.auditsService.record({
       tenantId: tenant._id.toString(),
       actor: user,
@@ -211,6 +227,7 @@ export class TenantsService {
   private toContext(tenant: TenantDocument) {
     return {
       id: tenant._id.toString(),
+      emailDomain: tenant.emailDomain ?? null,
       sector: tenant.sector,
       operationalDescription: tenant.operationalDescription,
       eventTypes: tenant.eventTypes ?? [],

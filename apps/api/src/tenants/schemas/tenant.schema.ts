@@ -60,6 +60,9 @@ export class Tenant {
   @Prop({ type: String, trim: true, maxlength: 80, default: null })
   sector!: string | null;
 
+  @Prop({ type: String, trim: true, lowercase: true, default: null })
+  emailDomain!: string | null;
+
   @Prop({ type: String, trim: true, maxlength: 1500, default: null })
   operationalDescription!: string | null;
 
@@ -80,4 +83,11 @@ export const TenantSchema = SchemaFactory.createForClass(Tenant);
 TenantSchema.index(
   { nit: 1 },
   { unique: true, partialFilterExpression: { nit: { $exists: true } } },
+);
+TenantSchema.index(
+  { emailDomain: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { emailDomain: { $type: 'string' } },
+  },
 );
