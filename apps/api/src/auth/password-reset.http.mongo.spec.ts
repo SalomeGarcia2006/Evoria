@@ -1,10 +1,7 @@
 import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import {
-  createHttpTestApi,
-  createTenantTestContext,
-} from '../testing/http-test-api';
+import { createHttpTestApi } from '../testing/http-test-api';
 
 test('HTTP: recupera la contraseña con un código de un solo uso', async () => {
   let message = '';
@@ -12,7 +9,11 @@ test('HTTP: recupera la contraseña con un código de un solo uso', async () => 
     send: async (_to, _subject, text) => void (message = text),
   });
   try {
-    await createTenantTestContext(api);
+    await api.seedAccessControl();
+    await api.seedDeveloper({
+      email: 'owner@example.test',
+      password: 'Prueba-segura1!',
+    });
     const request = await api.request('auth/password-reset/request', {
       method: 'POST',
       body: { email: 'owner@example.test' },
@@ -53,6 +54,21 @@ test('HTTP: recupera la contraseña con un código de un solo uso', async () => 
       ).status,
       401,
     );
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const response = await api.request('auth/password-reset/confirm', {
+        method: 'POST',
+        body: {
+          email: 'owner@example.test',
+          code,
+          newPassword: 'Prueba-segura1!',
+        },
+      });
+      assert.equal(response.status, 400);
+      assert.equal(
+        (await response.json()).message,
+        'La nueva contraseña debe ser diferente a la actual.',
+      );
+    }
     assert.equal(
       (
         await api.request('auth/password-reset/confirm', {
