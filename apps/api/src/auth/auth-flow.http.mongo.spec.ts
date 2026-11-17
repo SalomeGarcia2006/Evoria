@@ -75,7 +75,7 @@ test('HTTP: sesión, empresa, perfiles y permisos se aplican al iniciar sesión'
     assert.equal(profileResponse.status, 201);
     const profile = (await profileResponse.json()) as { data: { id: string } };
 
-    const userResponse = await api.request('users', {
+    const userResponse = await api.createUserFixture({
       method: 'POST',
       session: ownerSession,
       body: {

@@ -373,7 +373,7 @@ test('HTTP: reportes filtran, calculan y aíslan datos por empresa y permisos', 
     });
     assert.equal(profileResponse.status, 201);
     const profile = (await profileResponse.json()) as { data: { id: string } };
-    const createdUser = await api.request('users', {
+    const createdUser = await api.createUserFixture({
       method: 'POST',
       session: owner,
       body: {

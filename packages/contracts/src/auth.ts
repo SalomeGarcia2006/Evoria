@@ -9,9 +9,11 @@ export interface LoginRequest {
 export interface AuthSession {
   scope: AuthScope;
   isDeveloper: boolean;
+  pendingProfile?: boolean;
   user: {
     id: string;
     name: string;
+    lastName?: string | null;
     email: string;
     status: string;
   };

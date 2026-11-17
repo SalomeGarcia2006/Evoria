@@ -45,7 +45,6 @@ export const INITIAL_PERMISSION_MODULES = [
     scope: 'tenant',
     actions: [
       { key: 'ver', name: 'Ver' },
-      { key: 'crear', name: 'Crear' },
       { key: 'editar', name: 'Editar' },
       { key: 'desactivar', name: 'Desactivar' },
     ],
@@ -227,6 +226,7 @@ export const TENANT_PERMISSION_KEYS = INITIAL_PERMISSIONS.filter(
 ).map((permission) => permission.key);
 
 export const LEGACY_PERMISSION_KEYS = [
+  'usuarios.crear',
   'usuarios.gestionar',
   'perfiles.gestionar',
   'permisos.gestionar',

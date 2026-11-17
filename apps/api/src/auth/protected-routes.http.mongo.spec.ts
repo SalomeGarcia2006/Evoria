@@ -17,13 +17,14 @@ const protectedRoutes = [
   ['DELETE', 'tenants/000000000000000000000000'],
   ['GET', 'tenants/context'],
   ['PATCH', 'tenants/context'],
+  ['GET', 'tenants/registration-link'],
+  ['POST', 'tenants/registration-link/rotate'],
   ['GET', 'permissions'],
   ['POST', 'profiles'],
   ['GET', 'profiles'],
   ['GET', 'profiles/000000000000000000000000'],
   ['PATCH', 'profiles/000000000000000000000000'],
   ['DELETE', 'profiles/000000000000000000000000'],
-  ['POST', 'users'],
   ['GET', 'users'],
   ['GET', 'users/profiles'],
   ['GET', 'users/000000000000000000000000'],
@@ -126,7 +127,7 @@ test('HTTP: una sesión solo accede a las rutas de sus permisos', async () => {
     });
     assert.equal(profileResponse.status, 201);
     const profile = (await profileResponse.json()) as { data: { id: string } };
-    const userResponse = await api.request('users', {
+    const userResponse = await api.createUserFixture({
       method: 'POST',
       session: ownerSession,
       body: {

@@ -5,9 +5,11 @@ import {
   IsEnum,
   IsOptional,
   IsString,
+  Matches,
   MaxLength,
   MinLength,
   ValidateNested,
+  ValidateIf,
 } from 'class-validator';
 import {
   TENANT_OPERATION_MODES,
@@ -39,6 +41,13 @@ class OperationalAreaDto {
 }
 
 export class UpdateTenantContextDto {
+  @ValidateIf((_, value: unknown) => value !== undefined)
+  @IsString()
+  @MaxLength(253)
+  @Matches(
+    /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/i,
+  )
+  emailDomain?: string;
   @IsOptional() @IsString() @MaxLength(80) sector?: string;
   @IsOptional() @IsString() @MaxLength(1500) operationalDescription?: string;
   @IsOptional()

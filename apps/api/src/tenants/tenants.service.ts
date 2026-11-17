@@ -7,6 +7,7 @@ import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { AuditsService } from '../audits/audits.service';
 import { InjectModel } from '@nestjs/mongoose';
 import { isValidObjectId, type Model } from 'mongoose';
+import { randomBytes } from 'node:crypto';
 import {
   Membership,
   type MembershipDocument,
@@ -179,10 +180,28 @@ export class TenantsService {
           return true;
         });
     }
+    if (dto.emailDomain !== undefined) {
+      changes.emailDomain = dto.emailDomain.toLowerCase();
+      if (
+        await this.tenantModel.exists({
+          _id: { $ne: tenant._id },
+          emailDomain: changes.emailDomain,
+        })
+      )
+        throw new ConflictException('El dominio ya pertenece a otra empresa.');
+      if (!tenant.emailDomain)
+        changes.registrationToken = randomBytes(32).toString('hex');
+    }
     if (!Object.keys(changes).length)
       throw new BadRequestException('Debes indicar al menos un cambio.');
     Object.assign(tenant, changes);
-    await tenant.save();
+    try {
+      await tenant.save();
+    } catch (error) {
+      if (this.isDuplicateKeyError(error))
+        throw new ConflictException('El dominio ya pertenece a otra empresa.');
+      throw error;
+    }
     await this.auditsService.record({
       tenantId: tenant._id.toString(),
       actor: user,
@@ -193,6 +212,39 @@ export class TenantsService {
       description: `Actualizó el contexto operativo: ${Object.keys(changes).join(', ')}.`,
     });
     return this.toContext(tenant);
+  }
+
+  async registrationLink(user: AuthenticatedUser, rotate = false) {
+    const tenant = await this.findActiveTenant(user);
+    if (!tenant.emailDomain)
+      throw new BadRequestException('Configura primero el dominio de correo.');
+    const result = await this.tenantModel
+      .findById(tenant._id)
+      .select('+registrationToken');
+    if (!result) throw new NotFoundException('La empresa activa no existe.');
+    if (rotate || !result.registrationToken) {
+      result.registrationToken = randomBytes(32).toString('hex');
+      await result.save();
+      await this.auditsService.record({
+        tenantId: tenant._id.toString(),
+        actor: user,
+        module: 'empresa_contexto',
+        action: 'editar',
+        entity: 'empresa',
+        entityId: tenant._id,
+        description: 'Generó un enlace de registro para la empresa.',
+      });
+    }
+    const registrationUrl = new URL(
+      '/registro',
+      process.env.WEB_ORIGIN?.trim() || 'http://localhost:3000',
+    );
+    registrationUrl.searchParams.set('token', result.registrationToken!);
+    return {
+      token: result.registrationToken,
+      url: registrationUrl.toString(),
+      emailDomain: tenant.emailDomain,
+    };
   }
 
   private async findActiveTenant(
@@ -211,6 +263,7 @@ export class TenantsService {
   private toContext(tenant: TenantDocument) {
     return {
       id: tenant._id.toString(),
+      emailDomain: tenant.emailDomain ?? null,
       sector: tenant.sector,
       operationalDescription: tenant.operationalDescription,
       eventTypes: tenant.eventTypes ?? [],

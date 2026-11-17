@@ -18,10 +18,8 @@ import {
   Profile,
   type ProfileDocument,
 } from '../profiles/schemas/profile.schema';
-import { CreateUserDto } from './dto/create-user.dto';
 import { FindUsersDto } from './dto/find-users.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { PasswordService } from './password.service';
 import { User, type UserDocument } from './schemas/user.schema';
 import { Team } from '../teams/schemas/team.schema';
 import { Event } from '../events/schemas/event.schema';
@@ -34,7 +32,6 @@ export class UsersService {
     @InjectModel(Membership.name)
     private readonly membershipModel: Model<Membership>,
     @InjectModel(Profile.name) private readonly profileModel: Model<Profile>,
-    private readonly passwordService: PasswordService,
     private readonly auditsService: AuditsService,
     @Optional() @InjectModel(Team.name) private readonly teams?: Model<Team>,
     @Optional() @InjectModel(Event.name) private readonly events?: Model<Event>,
@@ -42,58 +39,6 @@ export class UsersService {
     @InjectModel(Schedule.name)
     private readonly schedules?: Model<Schedule>,
   ) {}
-
-  async create(createUserDto: CreateUserDto, currentUser: AuthenticatedUser) {
-    const tenantId = this.getTenantId(currentUser);
-    const email = createUserDto.email.trim().toLowerCase();
-    const profile = await this.findProfile(createUserDto.profileId, tenantId);
-
-    if (await this.userModel.exists({ email })) {
-      throw new ConflictException('Ya existe un usuario con ese correo.');
-    }
-
-    let user: UserDocument | undefined;
-    let membership: MembershipDocument | undefined;
-
-    try {
-      user = await this.userModel.create({
-        name: createUserDto.name.trim(),
-        email,
-        passwordHash: this.passwordService.hash(createUserDto.password),
-      });
-      membership = await this.membershipModel.create({
-        userId: user._id,
-        tenantId,
-        profileId: profile._id,
-      });
-    } catch (error) {
-      if (user) {
-        await this.userModel.deleteOne({ _id: user._id });
-      }
-
-      if (this.isDuplicateKeyError(error)) {
-        throw new ConflictException('Ya existe un usuario con ese correo.');
-      }
-
-      throw error;
-    }
-
-    if (!user || !membership) {
-      throw new Error('No se pudo crear el usuario.');
-    }
-
-    await this.auditsService.record({
-      tenantId,
-      actor: currentUser,
-      module: 'usuarios',
-      action: 'crear',
-      entity: 'usuario',
-      entityId: user._id,
-      description: `Creó el usuario ${user.name}.`,
-    });
-
-    return this.toResponse(membership, user, profile);
-  }
 
   async findAll(query: FindUsersDto, currentUser: AuthenticatedUser) {
     const tenantId = this.getTenantId(currentUser);
@@ -126,11 +71,11 @@ export class UsersService {
     return {
       items: memberships.flatMap((membership) => {
         const user = usersById.get(membership.userId.toString());
-        const profile = profilesById.get(membership.profileId.toString());
+        const profile = membership.profileId
+          ? profilesById.get(membership.profileId.toString())
+          : undefined;
 
-        return user && profile
-          ? [this.toResponse(membership, user, profile)]
-          : [];
+        return user ? [this.toResponse(membership, user, profile ?? null)] : [];
       }),
       pagination: {
         page: query.page,
@@ -163,7 +108,7 @@ export class UsersService {
       this.profileModel.findById(membership.profileId),
     ]);
 
-    if (!user || !profile) {
+    if (!user || (membership.profileId && !profile)) {
       throw new NotFoundException('El usuario no existe.');
     }
 
@@ -194,16 +139,16 @@ export class UsersService {
       );
     }
 
-    let profile: ProfileDocument;
+    let profile: ProfileDocument | null;
     if (updateUserDto.profileId) {
       profile = await this.findProfile(updateUserDto.profileId, tenantId);
       membership.profileId = profile._id;
-    } else {
+    } else if (membership.profileId) {
       profile = await this.findProfile(
         membership.profileId.toString(),
         tenantId,
       );
-    }
+    } else profile = null;
 
     if (updateUserDto.status === 'inactivo' && this.teams) {
       const session = await this.membershipModel.db.startSession();
@@ -333,28 +278,22 @@ export class UsersService {
   private toResponse(
     membership: MembershipDocument,
     user: UserDocument,
-    profile: ProfileDocument,
+    profile: ProfileDocument | null,
   ) {
     return {
       id: user._id.toString(),
       membershipId: membership._id.toString(),
       name: user.name,
+      lastName: user.lastName ?? null,
       email: user.email,
       status: membership.status,
-      profile: {
-        id: profile._id.toString(),
-        name: profile.name,
-        description: profile.description,
-      },
+      profile: profile
+        ? {
+            id: profile._id.toString(),
+            name: profile.name,
+            description: profile.description,
+          }
+        : null,
     };
-  }
-
-  private isDuplicateKeyError(error: unknown): boolean {
-    return (
-      typeof error === 'object' &&
-      error !== null &&
-      'code' in error &&
-      error.code === 11000
-    );
   }
 }

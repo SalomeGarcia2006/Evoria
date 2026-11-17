@@ -5,9 +5,11 @@ import {
   HttpCode,
   HttpStatus,
   Post,
+  Param,
   Query,
   Req,
   Res,
+  SetMetadata,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
@@ -25,6 +27,11 @@ import { VerifyPasswordResetDto } from './dto/verify-password-reset.dto';
 import { GoogleChangeCodeDto } from './dto/google-change-code.dto';
 import { GoogleOAuthService } from './google-oauth.service';
 import { PasswordResetService } from './password-reset.service';
+import { RegistrationService } from './registration.service';
+import {
+  ConfirmRegistrationDto,
+  RegistrationDto,
+} from './dto/registration.dto';
 
 const GOOGLE_STATE_COOKIE = 'evoria_google_state';
 
@@ -36,6 +43,7 @@ export class AuthController {
     private readonly captchaService: CaptchaService,
     private readonly googleOAuthService: GoogleOAuthService,
     private readonly passwordResetService: PasswordResetService,
+    private readonly registrationService: RegistrationService,
   ) {}
 
   @Post('login')
@@ -54,6 +62,37 @@ export class AuthController {
     return {
       data: result.session,
       message: 'Inicio de sesión realizado correctamente.',
+    };
+  }
+
+  @Get('registration/:token')
+  @Public()
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  async registrationLink(@Param('token') token: string) {
+    return {
+      data: await this.registrationService.link(token),
+      message: 'Empresa obtenida correctamente.',
+    };
+  }
+
+  @Post('registration/request')
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  async requestRegistration(@Body() body: RegistrationDto) {
+    await this.registrationService.request(body);
+    return { data: null, message: 'Código enviado al correo empresarial.' };
+  }
+
+  @Post('registration/confirm')
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  async confirmRegistration(@Body() body: ConfirmRegistrationDto) {
+    await this.registrationService.confirm(body);
+    return {
+      data: null,
+      message: 'Registro confirmado. Tu perfil está pendiente de asignación.',
     };
   }
 
@@ -237,6 +276,7 @@ export class AuthController {
   }
 
   @Get('me')
+  @SetMetadata('allow_pending_profile', true)
   async currentSession(@CurrentUser() user: AuthenticatedUser) {
     return {
       data: await this.authService.getSession(

@@ -11,6 +11,9 @@ export class User {
   @Prop({ required: true, trim: true, minlength: 2, maxlength: 120 })
   name!: string;
 
+  @Prop({ type: String, trim: true, maxlength: 120, default: null })
+  lastName!: string | null;
+
   @Prop({
     required: true,
     unique: true,

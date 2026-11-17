@@ -2,6 +2,7 @@ import {
   type CanActivate,
   type ExecutionContext,
   Injectable,
+  ForbiddenException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -103,6 +104,31 @@ export class JwtAuthGuard implements CanActivate {
       throw new UnauthorizedException('La membresía no está activa.');
     }
 
+    if (!membership.profileId) {
+      const activeTenant = await this.tenantModel.exists({
+        _id: payload.tenantId,
+        status: 'activo',
+      });
+      if (!activeTenant || payload.profileId !== '')
+        throw new UnauthorizedException('La sesión no es válida o expiró.');
+      if (
+        !this.reflector.getAllAndOverride<boolean>('allow_pending_profile', [
+          context.getHandler(),
+          context.getClass(),
+        ])
+      )
+        throw new ForbiddenException('Tu perfil está pendiente de asignación.');
+      request.user = {
+        id: user._id.toString(),
+        name: user.name,
+        email: user.email,
+        scope: 'tenant',
+        tenantId: payload.tenantId,
+        membershipId: membership._id.toString(),
+        profileId: '',
+      };
+      return true;
+    }
     const [tenant, profile] = await Promise.all([
       this.tenantModel.exists({ _id: payload.tenantId, status: 'activo' }),
       this.profileModel.exists({

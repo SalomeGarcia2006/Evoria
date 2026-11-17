@@ -66,6 +66,24 @@ export class TenantsController {
     };
   }
 
+  @Get('registration-link')
+  @RequirePermissions('empresa_contexto.editar')
+  async registrationLink(@CurrentUser() user: AuthenticatedUser) {
+    return {
+      data: await this.tenantsService.registrationLink(user),
+      message: 'Enlace de registro obtenido correctamente.',
+    };
+  }
+
+  @Post('registration-link/rotate')
+  @RequirePermissions('empresa_contexto.editar')
+  async rotateRegistrationLink(@CurrentUser() user: AuthenticatedUser) {
+    return {
+      data: await this.tenantsService.registrationLink(user, true),
+      message: 'Enlace de registro renovado correctamente.',
+    };
+  }
+
   @Delete(':id')
   @PlatformOnly()
   @DeveloperOnly()

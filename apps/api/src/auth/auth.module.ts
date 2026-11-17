@@ -14,6 +14,11 @@ import { AuthService } from './auth.service';
 import { CaptchaService } from './captcha.service';
 import { GoogleOAuthService } from './google-oauth.service';
 import { PasswordResetService } from './password-reset.service';
+import { RegistrationService } from './registration.service';
+import {
+  PendingRegistration,
+  PendingRegistrationSchema,
+} from './schemas/pending-registration.schema';
 import { GoogleProviderService } from './google-provider.service';
 import {
   GoogleAccount,
@@ -35,6 +40,7 @@ import { TenantSessionsController } from './tenant-sessions.controller';
     MongooseModule.forFeature([
       { name: GoogleAccount.name, schema: GoogleAccountSchema },
       { name: GoogleOAuthState.name, schema: GoogleOAuthStateSchema },
+      { name: PendingRegistration.name, schema: PendingRegistrationSchema },
     ]),
     MembershipsModule,
     MailModule,
@@ -51,6 +57,7 @@ import { TenantSessionsController } from './tenant-sessions.controller';
     GoogleProviderService,
     GoogleOAuthService,
     PasswordResetService,
+    RegistrationService,
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
