@@ -70,38 +70,43 @@ export default function EventosPage() {
         <PermissionGate permission="eventos.crear">
           <dialog
             aria-labelledby="event-dialog-title"
-            className="m-auto max-h-[calc(100dvh-2rem)] w-11/12 max-w-4xl overflow-y-auto rounded-2xl border border-sky-blue bg-white p-0 text-navy shadow-2xl backdrop:bg-navy/60"
+            className="m-auto max-h-[calc(100dvh-2rem)] w-[min(96vw,74rem)] max-w-none overflow-hidden rounded-2xl border border-sky-blue bg-white p-0 text-navy shadow-2xl backdrop:bg-navy/60"
             ref={eventDialog}
           >
-            <div className="flex items-start justify-between gap-4 border-b border-sky-blue p-6">
-              <div>
-                <p className="text-sm font-semibold uppercase tracking-[.16em] text-muted">
-                  Eventos
-                </p>
-                <h2 className="mt-1 text-2xl font-bold" id="event-dialog-title">
-                  {editingEvent ? 'Editar evento' : 'Nuevo evento'}
-                </h2>
+            <div className="flex max-h-[calc(100dvh-2rem)] flex-col">
+              <div className="flex shrink-0 items-start justify-between gap-4 border-b border-sky-blue bg-white px-5 py-4 sm:px-6 sm:py-5">
+                <div>
+                  <p className="text-sm font-semibold uppercase tracking-[.16em] text-muted">
+                    Eventos
+                  </p>
+                  <h2
+                    className="mt-1 text-2xl font-bold"
+                    id="event-dialog-title"
+                  >
+                    {editingEvent ? 'Editar evento' : 'Nuevo evento'}
+                  </h2>
+                </div>
+                <Button
+                  aria-label="Cerrar formulario"
+                  className="px-3 text-xl leading-none"
+                  onClick={closeCreateForm}
+                  type="button"
+                  variant="ghost"
+                >
+                  ×
+                </Button>
               </div>
-              <Button
-                aria-label="Cerrar formulario"
-                className="px-3 text-xl leading-none"
-                onClick={closeCreateForm}
-                type="button"
-                variant="ghost"
-              >
-                ×
-              </Button>
-            </div>
-            <div className="p-6">
-              <EventForm
-                initialEvent={editingEvent ?? undefined}
-                key={`${formKey}-${editingEvent?.id ?? 'new'}`}
-                onCancel={closeCreateForm}
-                onSuccess={() => {
-                  closeCreateForm();
-                  setRevision((current) => current + 1);
-                }}
-              />
+              <div className="min-h-0 overflow-y-auto px-5 py-5 sm:px-6 sm:py-6">
+                <EventForm
+                  initialEvent={editingEvent ?? undefined}
+                  key={`${formKey}-${editingEvent?.id ?? 'new'}`}
+                  onCancel={closeCreateForm}
+                  onSuccess={() => {
+                    closeCreateForm();
+                    setRevision((current) => current + 1);
+                  }}
+                />
+              </div>
             </div>
           </dialog>
         </PermissionGate>

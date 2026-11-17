@@ -1,9 +1,11 @@
 'use client';
 
 import { driver, type DriveStep } from 'driver.js';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
+import { permissionForPathname } from '../../lib/access-control';
 import { manualContent } from './manual-content';
 import { findTarget, formGuides, pageSteps } from './interactive-guides';
 import styles from './FirstVisitTour.module.css';
@@ -17,19 +19,45 @@ type GuideStep = {
 
 type ModuleGuide = { title: string; description: string; steps: GuideStep[] };
 
-// Añadir aquí cada novedad publicada y el permiso necesario para verla.
 const announcements: {
   id: string;
   title: string;
   description: string;
   permission?: string;
-}[] = [
-  {
-    id: 'manual-interactivo-v1',
-    title: 'Guías interactivas',
-    description: 'Puedes repetir la guía de cada módulo desde este menú.',
-  },
-];
+}[] = [];
+
+function manualTopicIcon(pathname: string, title: string): string {
+  if (pathname === '/eventos') {
+    const eventTopicIcons: Record<string, string> = {
+      'Buscar y consultar': '/icons/ver.svg',
+      'Ver detalles del evento': '/icons/ver.svg',
+      'Próximo en tu agenda': '/icons/FECHA.svg',
+      'Nuevo evento': '/icons/crear.svg',
+      'Tipo de evento': '/icons/eventos.svg',
+      'Editar y cambiar estado': '/icons/editar.svg',
+      'Relación con otros módulos': '/icons/recursos.svg',
+    };
+    return eventTopicIcons[title] ?? '/icons/eventos.svg';
+  }
+
+  if (pathname === '/equipos') {
+    const teamTopicIcons: Record<string, string> = {
+      'Equipos registrados': '/icons/usuarios.svg',
+      'Crear equipo': '/icons/crear.svg',
+      'Integrantes y liderazgo': '/icons/usuarios.svg',
+      'Desactivar equipo': '/icons/alerta.svg',
+    };
+    return teamTopicIcons[title] ?? '/icons/usuarios.svg';
+  }
+
+  if (title.includes('editar')) return '/icons/editar.svg';
+  if (title.includes('fecha') || title.includes('agenda'))
+    return '/icons/FECHA.svg';
+  if (title.includes('crear')) return '/icons/crear.svg';
+  if (title.includes('ubicación')) return '/icons/ubicacion.svg';
+  if (title.includes('perfil')) return '/icons/perfil.svg';
+  return '/icons/alerta.svg';
+}
 
 const guides: Record<string, ModuleGuide> = {
   '/dashboard': {
@@ -246,6 +274,39 @@ const guides: Record<string, ModuleGuide> = {
       },
     ],
   },
+  '/equipos': {
+    title: 'Equipos',
+    description:
+      'Organiza los equipos que participarán en las actividades de tu empresa.',
+    steps: [
+      {
+        title: 'Equipos registrados',
+        description:
+          'Consulta los equipos creados, su especialidad, número de integrantes y estado.',
+        selector: '.events-list-panel',
+      },
+      {
+        title: 'Crear equipo',
+        description:
+          'Registra un equipo indicando su nombre, especialidad, integrantes y líder.',
+        selector: 'main form',
+        permission: 'equipos.crear',
+      },
+      {
+        title: 'Integrantes y líder',
+        description:
+          'Selecciona usuarios activos y define como líder a una persona que forme parte del equipo.',
+        selector: 'main form fieldset',
+        permission: 'equipos.crear',
+      },
+      {
+        title: 'Desactivar un equipo',
+        description:
+          'La desactivación requiere una confirmación y no se puede revertir desde esta vista.',
+        permission: 'equipos.desactivar',
+      },
+    ],
+  },
   '/alertas': {
     title: 'Alertas',
     description: 'Revisa avisos y novedades de la operación de tu empresa.',
@@ -338,17 +399,17 @@ const guides: Record<string, ModuleGuide> = {
   '/perfiles': {
     title: 'Perfiles y permisos',
     description:
-      'Consulta los perfiles que determinan las acciones disponibles para los usuarios.',
+      'Configura qué puede consultar o gestionar cada rol de tu empresa y revisa los perfiles ya asignados.',
     steps: [
       {
         title: 'Perfiles registrados',
         description:
-          'Revisa los perfiles existentes de tu empresa y los permisos asociados.',
+          'Revisa el nombre, estado y permisos de cada perfil. Los perfiles del sistema aparecen identificados y no se editan desde esta vista.',
       },
       {
         title: 'Administrar permisos',
         description:
-          'Si tienes permiso para gestionarlos, puedes crear o modificar perfiles según las responsabilidades del equipo.',
+          'Si tu perfil lo permite, crea un rol o ajusta uno existente seleccionando las acciones concretas que necesitará el equipo.',
       },
       {
         title: 'Permisos y responsabilidades',
@@ -382,11 +443,19 @@ const guides: Record<string, ModuleGuide> = {
 const seenInSession = new Set<string>();
 
 export function FirstVisitTour() {
-  const { user, isLoading } = useAuth();
+  const { can, user, isLoading } = useAuth();
   const pathname = usePathname();
   const userId = user?.id;
   const permissions = user?.permissions;
   const isDeveloper = user?.isDeveloper;
+  const requiredPermission = permissionForPathname(pathname);
+  const hasAlternativeAccess =
+    (pathname === '/recursos/asignaciones' && can('servicios_proveedor.ver')) ||
+    (pathname === '/presupuestos' && can('presupuestos.aprobar')) ||
+    (pathname === '/empresas' && can('empresa_contexto.ver'));
+  const canViewCurrentModule =
+    !requiredPermission || can(requiredPermission) || hasAlternativeAccess;
+  const canUseHelp = Boolean(user?.tenant?.id) && canViewCurrentModule;
   const [open, setOpen] = useState(false);
   const [request, setRequest] = useState<{ path: string; id: number } | null>(
     null,
@@ -403,6 +472,7 @@ export function FirstVisitTour() {
     (item) =>
       !item.permission || isDeveloper || permissions?.includes(item.permission),
   );
+  const hasNews = showGuideUpdate || visibleNews.length > 0;
   const guideVersion = JSON.stringify([
     guides[pathname],
     pageSteps[pathname],
@@ -411,7 +481,7 @@ export function FirstVisitTour() {
   ]);
 
   useEffect(() => {
-    if (!userId || !guides[pathname]) return;
+    if (!canUseHelp || !userId || !guides[pathname]) return;
     const timer = window.setTimeout(() => {
       try {
         const key = `evoria-guide-version:${userId}:${pathname}`;
@@ -423,7 +493,7 @@ export function FirstVisitTour() {
       }
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [userId, pathname, guideVersion]);
+  }, [canUseHelp, userId, pathname, guideVersion]);
 
   useEffect(() => {
     if (!userId) return;
@@ -451,7 +521,7 @@ export function FirstVisitTour() {
 
   useEffect(() => {
     const guide = guides[pathname];
-    if (isLoading || !userId || !guide || !permissions) return;
+    if (isLoading || !canUseHelp || !userId || !guide || !permissions) return;
     const storageKey = `evoria-module-tour:${userId}:${pathname}`;
     const requested =
       request?.path === pathname && request.id !== handledRequest.current;
@@ -680,13 +750,22 @@ export function FirstVisitTour() {
       window.clearInterval(timer);
       tour?.destroy();
     };
-  }, [isLoading, userId, pathname, permissions, isDeveloper, request]);
+  }, [
+    isLoading,
+    canUseHelp,
+    userId,
+    pathname,
+    permissions,
+    isDeveloper,
+    request,
+  ]);
 
-  if (!userId) return null;
+  if (isLoading || !userId) return null;
 
   function openHelp() {
-    if (!open) setShowGuideUpdate(guideChanged);
+    if (canUseHelp && !open) setShowGuideUpdate(guideChanged);
     setOpen((current) => !current);
+    if (!canUseHelp) return;
     setNewsRead(true);
     setGuideChanged(false);
     try {
@@ -710,7 +789,7 @@ export function FirstVisitTour() {
         className={styles.helpButton}
         aria-expanded={open}
         aria-label={
-          newsRead && !guideChanged
+          !canUseHelp || (newsRead && !guideChanged)
             ? 'Ayuda y novedades'
             : 'Ayuda y novedades, hay novedades'
         }
@@ -718,7 +797,7 @@ export function FirstVisitTour() {
       >
         <span aria-hidden="true">?</span>
         <span className={styles.buttonText}>Ayuda</span>
-        {(!newsRead || guideChanged) && (
+        {canUseHelp && (!newsRead || guideChanged) && (
           <span className={styles.badge} aria-hidden="true" />
         )}
       </button>
@@ -734,52 +813,86 @@ export function FirstVisitTour() {
               ×
             </button>
           </div>
-          <p>Consulta cómo funciona el módulo en el que estás.</p>
-          {guides[pathname] ? (
-            <button
-              type="button"
-              className={styles.guideButton}
-              onClick={() => {
-                setOpen(false);
-                setRequest((previous) => ({
-                  path: pathname,
-                  id: (previous?.id ?? 0) + 1,
-                }));
-              }}
-            >
-              Ver guía de {guides[pathname].title}
-            </button>
+          {!user?.tenant ? (
+            <p className={styles.accessMessage} role="status">
+              Debes estar unido a una empresa para consultar las guías y el
+              manual de sus módulos.
+            </p>
+          ) : !canViewCurrentModule ? (
+            <p className={styles.accessMessage} role="status">
+              No tienes permiso para ver este módulo, por lo que su manual no
+              está disponible.
+            </p>
           ) : (
-            <p>Abre un módulo para consultar su guía.</p>
-          )}
-          {topics.length > 0 && (
             <>
-              <h3>Manual de este módulo</h3>
-              {topics.map((item) => (
-                <details key={item.title} className={styles.topic}>
-                  <summary>{item.title}</summary>
-                  <p>{item.description}</p>
-                </details>
-              ))}
+              <p>Consulta cómo funciona el módulo en el que estás.</p>
+              {hasNews ? (
+                <section className={styles.news} aria-label="Novedades">
+                  <h3>Novedades</h3>
+                  {showGuideUpdate && (
+                    <div>
+                      <h4 className={styles.newsTitle}>Guía actualizada</h4>
+                      <p>
+                        El manual de {guides[pathname]?.title} cambió. Consulta
+                        sus temas o vuelve a iniciar el recorrido para conocer
+                        la información actualizada.
+                      </p>
+                    </div>
+                  )}
+                  {visibleNews.map((item) => (
+                    <div key={item.id}>
+                      <h4 className={styles.newsTitle}>{item.title}</h4>
+                      <p>{item.description}</p>
+                    </div>
+                  ))}
+                </section>
+              ) : null}
+              {guides[pathname] ? (
+                <button
+                  type="button"
+                  className={styles.guideButton}
+                  onClick={() => {
+                    setOpen(false);
+                    setRequest((previous) => ({
+                      path: pathname,
+                      id: (previous?.id ?? 0) + 1,
+                    }));
+                  }}
+                >
+                  <span aria-hidden="true" className={styles.guidePlay}>
+                    ▶
+                  </span>
+                  <span>
+                    <strong>Ver guía de {guides[pathname].title}</strong>
+                    <small>Recorrido interactivo de 2 minutos</small>
+                  </span>
+                </button>
+              ) : (
+                <p>Abre un módulo para consultar su guía.</p>
+              )}
+              {topics.length > 0 && (
+                <>
+                  <h3>Manual de este módulo</h3>
+                  {topics.map((item) => (
+                    <details key={item.title} className={styles.topic}>
+                      <summary>
+                        <span aria-hidden="true" className={styles.topicIcon}>
+                          <Image
+                            alt=""
+                            height={18}
+                            src={manualTopicIcon(pathname, item.title)}
+                            width={18}
+                          />
+                        </span>
+                        <span>{item.title}</span>
+                      </summary>
+                      <p>{item.description}</p>
+                    </details>
+                  ))}
+                </>
+              )}
             </>
           )}
-          <h3>Novedades</h3>
-          {showGuideUpdate && (
-            <div>
-              <h4 className={styles.newsTitle}>Guía actualizada</h4>
-              <p>
-                El manual de {guides[pathname]?.title} cambió. Consulta sus
-                temas o vuelve a iniciar el recorrido para conocer la
-                información actualizada.
-              </p>
-            </div>
-          )}
-          {visibleNews.map((item) => (
-            <div key={item.id}>
-              <h4 className={styles.newsTitle}>{item.title}</h4>
-              <p>{item.description}</p>
-            </div>
-          ))}
         </section>
       )}
     </div>

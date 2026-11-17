@@ -10,6 +10,7 @@ type DateRangePickerProps = {
   min?: string;
   max?: string;
   required?: boolean;
+  collapsible?: boolean;
 };
 
 const weekdays = ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá', 'Do'];
@@ -49,11 +50,13 @@ export function DateRangePicker({
   min,
   max,
   required = false,
+  collapsible = false,
 }: DateRangePickerProps) {
   const initialMonth = toDate(startDate) ?? toDate(min ?? '') ?? new Date();
   const [visibleMonth, setVisibleMonth] = useState(() =>
     monthStart(initialMonth),
   );
+  const [isOpen, setIsOpen] = useState(!collapsible);
   const minDate = toDate(min ?? '');
   const maxDate = toDate(max ?? '');
   const daysInMonth = new Date(
@@ -78,6 +81,7 @@ export function DateRangePicker({
       return;
     }
     onChange(startDate, value);
+    if (collapsible) setIsOpen(false);
   }
 
   const selectedLabel = startDate
@@ -96,104 +100,123 @@ export function DateRangePicker({
           {label}
           {required ? <span aria-hidden="true"> *</span> : null}
         </span>
-        <span
-          className={
-            startDate ? 'text-sm font-semibold text-navy' : 'text-sm text-muted'
-          }
-        >
-          {selectedLabel}
-        </span>
+        {!collapsible ? (
+          <span
+            className={
+              startDate
+                ? 'text-sm font-semibold text-navy'
+                : 'text-sm text-muted'
+            }
+          >
+            {selectedLabel}
+          </span>
+        ) : null}
       </div>
-      <div className="rounded-[1rem] border border-sky-blue bg-white p-3 sm:p-4">
-        <div className="flex items-center justify-between gap-2">
-          <button
-            aria-label="Mes anterior"
-            className="grid size-9 place-items-center rounded-xl border border-sky-blue text-lg text-navy transition hover:border-teal hover:bg-beige"
-            onClick={() =>
-              setVisibleMonth(
-                (current) =>
-                  new Date(current.getFullYear(), current.getMonth() - 1, 1),
-              )
-            }
-            type="button"
-          >
-            ‹
-          </button>
-          <p className="font-display font-bold capitalize text-navy">
-            {new Intl.DateTimeFormat('es-CO', {
-              month: 'long',
-              year: 'numeric',
-            }).format(visibleMonth)}
-          </p>
-          <button
-            aria-label="Mes siguiente"
-            className="grid size-9 place-items-center rounded-xl border border-sky-blue text-lg text-navy transition hover:border-teal hover:bg-beige"
-            onClick={() =>
-              setVisibleMonth(
-                (current) =>
-                  new Date(current.getFullYear(), current.getMonth() + 1, 1),
-              )
-            }
-            type="button"
-          >
-            ›
-          </button>
-        </div>
-        <div className="mt-4 grid grid-cols-7 gap-1 text-center text-xs">
-          {weekdays.map((day) => (
-            <span className="py-1 font-semibold text-muted" key={day}>
-              {day}
-            </span>
-          ))}
-          {days.map((date, index) => {
-            if (!date) return <span key={`empty-${index}`} />;
-            const value = toDateValue(date);
-            const disabled = Boolean(
-              (minDate && date < minDate) ||
-              (maxDate && date > maxDate) ||
-              (startDate && !endDate && value < startDate),
-            );
-            const isStart = value === startDate;
-            const isEnd = value === endDate;
-            const isBetween = Boolean(
-              startDate && endDate && value > startDate && value < endDate,
-            );
-            return (
-              <button
-                aria-label={formatDate(value)}
-                aria-pressed={isStart || isEnd}
-                className={`h-9 rounded-lg text-sm font-medium transition ${
-                  isStart || isEnd
-                    ? 'bg-linear-to-br from-teal to-violet text-white shadow-sm'
-                    : isBetween
-                      ? 'bg-violet/10 text-violet'
-                      : 'text-navy hover:bg-beige'
-                } disabled:cursor-not-allowed disabled:text-muted/40 disabled:hover:bg-transparent`}
-                disabled={disabled}
-                key={value}
-                onClick={() => selectDate(value)}
-                type="button"
-              >
-                {date.getDate()}
-              </button>
-            );
-          })}
-        </div>
-        <div className="mt-4 flex items-center justify-between gap-3 border-t border-sky-blue pt-3">
-          <p className="text-xs text-muted">
-            Primero inicio, luego finalización.
-          </p>
-          {startDate || endDate ? (
+      {collapsible ? (
+        <button
+          aria-expanded={isOpen}
+          className="flex w-full items-center justify-between gap-3 rounded-xl border border-sky-blue bg-white px-3 py-2.5 text-left text-sm font-medium text-navy transition hover:border-teal"
+          onClick={() => setIsOpen((open) => !open)}
+          type="button"
+        >
+          <span>{selectedLabel}</span>
+          <span aria-hidden="true" className="text-lg text-violet">
+            {isOpen ? '⌃' : '⌄'}
+          </span>
+        </button>
+      ) : null}
+      {!collapsible || isOpen ? (
+        <div className="rounded-[1rem] border border-sky-blue bg-white p-3 sm:p-4">
+          <div className="flex items-center justify-between gap-2">
             <button
-              className="text-xs font-semibold text-violet hover:underline"
-              onClick={() => onChange('', '')}
+              aria-label="Mes anterior"
+              className="grid size-9 place-items-center rounded-xl border border-sky-blue text-lg text-navy transition hover:border-teal hover:bg-beige"
+              onClick={() =>
+                setVisibleMonth(
+                  (current) =>
+                    new Date(current.getFullYear(), current.getMonth() - 1, 1),
+                )
+              }
               type="button"
             >
-              Limpiar
+              ‹
             </button>
-          ) : null}
+            <p className="font-display font-bold capitalize text-navy">
+              {new Intl.DateTimeFormat('es-CO', {
+                month: 'long',
+                year: 'numeric',
+              }).format(visibleMonth)}
+            </p>
+            <button
+              aria-label="Mes siguiente"
+              className="grid size-9 place-items-center rounded-xl border border-sky-blue text-lg text-navy transition hover:border-teal hover:bg-beige"
+              onClick={() =>
+                setVisibleMonth(
+                  (current) =>
+                    new Date(current.getFullYear(), current.getMonth() + 1, 1),
+                )
+              }
+              type="button"
+            >
+              ›
+            </button>
+          </div>
+          <div className="mt-4 grid grid-cols-7 gap-1 text-center text-xs">
+            {weekdays.map((day) => (
+              <span className="py-1 font-semibold text-muted" key={day}>
+                {day}
+              </span>
+            ))}
+            {days.map((date, index) => {
+              if (!date) return <span key={`empty-${index}`} />;
+              const value = toDateValue(date);
+              const disabled = Boolean(
+                (minDate && date < minDate) ||
+                (maxDate && date > maxDate) ||
+                (startDate && !endDate && value < startDate),
+              );
+              const isStart = value === startDate;
+              const isEnd = value === endDate;
+              const isBetween = Boolean(
+                startDate && endDate && value > startDate && value < endDate,
+              );
+              return (
+                <button
+                  aria-label={formatDate(value)}
+                  aria-pressed={isStart || isEnd}
+                  className={`h-9 rounded-lg text-sm font-medium transition ${
+                    isStart || isEnd
+                      ? 'bg-linear-to-br from-teal to-violet text-white shadow-sm'
+                      : isBetween
+                        ? 'bg-violet/10 text-violet'
+                        : 'text-navy hover:bg-beige'
+                  } disabled:cursor-not-allowed disabled:text-muted/40 disabled:hover:bg-transparent`}
+                  disabled={disabled}
+                  key={value}
+                  onClick={() => selectDate(value)}
+                  type="button"
+                >
+                  {date.getDate()}
+                </button>
+              );
+            })}
+          </div>
+          <div className="mt-4 flex items-center justify-between gap-3 border-t border-sky-blue pt-3">
+            <p className="text-xs text-muted">
+              Primero inicio, luego finalización.
+            </p>
+            {startDate || endDate ? (
+              <button
+                className="text-xs font-semibold text-violet hover:underline"
+                onClick={() => onChange('', '')}
+                type="button"
+              >
+                Limpiar
+              </button>
+            ) : null}
+          </div>
         </div>
-      </div>
+      ) : null}
     </section>
   );
 }
