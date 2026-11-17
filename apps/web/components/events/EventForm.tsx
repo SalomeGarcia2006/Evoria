@@ -52,6 +52,7 @@ function formFromEvent(event?: EventItem) {
     location: event?.location ?? '',
     type: event?.type ?? '',
     baseBudget: event ? String(event.baseBudget) : '',
+    invitados: event ? String(event.invitados ?? 0) : '0',
     responsibleUserId: event?.responsibleUserId ?? '',
   };
 }
@@ -176,6 +177,7 @@ export function EventForm({
       !form.location.trim() && 'Ubicación',
       !form.type && 'Tipo de evento',
       form.baseBudget === '' && 'Presupuesto base',
+      form.invitados === '' && 'Número de invitados',
       !form.responsibleUserId && 'Persona responsable',
     ].filter(Boolean);
 
@@ -190,6 +192,14 @@ export function EventForm({
     if (!Number.isSafeInteger(baseBudget) || baseBudget < 0) {
       setValidationAlert(
         'El presupuesto base debe ser un monto entero en COP.',
+      );
+      return;
+    }
+
+    const invitados = Number(form.invitados);
+    if (!Number.isSafeInteger(invitados) || invitados < 0) {
+      setValidationAlert(
+        'El número de invitados debe ser un número entero igual o mayor a cero.',
       );
       return;
     }
@@ -278,6 +288,7 @@ export function EventForm({
       location: form.location.trim() || undefined,
       type: form.type.trim() || undefined,
       baseBudget,
+      invitados,
       responsibleUserId: form.responsibleUserId,
     };
 
@@ -427,6 +438,18 @@ export function EventForm({
               step="1"
               type="number"
               value={form.baseBudget}
+            />
+          </label>
+          <label className="grid gap-2">
+            <span className="text-sm font-semibold">Número de invitados</span>
+            <input
+              className="rounded-lg border border-sky-blue px-3 py-2 outline-none focus:border-teal focus:ring-2 focus:ring-sky-blue"
+              min="0"
+              onChange={(event) => updateField('invitados', event.target.value)}
+              required
+              step="1"
+              type="number"
+              value={form.invitados}
             />
           </label>
           <label className="grid gap-2">
