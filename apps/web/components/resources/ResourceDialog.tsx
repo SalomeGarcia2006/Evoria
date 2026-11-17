@@ -128,7 +128,12 @@ export function ResourceDialog({
       aria-labelledby={titleId}
       aria-busy={busy || loading}
       className="m-auto max-h-[calc(100dvh-2rem)] w-11/12 max-w-3xl overflow-y-auto rounded-2xl border border-sky-blue bg-white p-0 text-navy shadow-2xl backdrop:bg-navy/60"
-      onClose={onClose}
+      onClose={(event) => {
+        // La guía abre temporalmente este detalle como diálogo no modal. El
+        // cierre técnico previo no debe desmontarlo antes de mostrar el paso.
+        if (event.currentTarget.dataset.tourNonModal === 'true') return;
+        onClose();
+      }}
       onCancel={(event) => {
         if (busy) event.preventDefault();
       }}

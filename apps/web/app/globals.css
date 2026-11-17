@@ -1,6 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@10..48,75..100,400..800&family=DM+Sans:opsz,wght@9..40,400..700&display=swap');
 @import 'tailwindcss';
 @import 'leaflet/dist/leaflet.css';
+@import 'driver.js/dist/driver.css';
 @import '../styles/tokens.css';
 @import '../styles/layout.css';
 @import '../styles/forms.css';
@@ -8,6 +9,12 @@
 @import '../styles/responsive.css';
 @import '../styles/selects.css';
 @import '../styles/inventory-compat.css';
+
+/* Leaflet crea teselas de mapa como imágenes de carga diferida. La relación
+   explícita evita que aparezcan como 0 × 0 antes de cargar y desplacen la vista. */
+.leaflet-container img.leaflet-tile {
+  aspect-ratio: 1 / 1;
+}
 
 @theme {
   --color-navy: #14213d;
@@ -1326,4 +1333,58 @@ textarea:disabled:not(:root:not([data-theme='dark']) [data-inventory-scope] *),
 [data-theme='dark'] input::placeholder,
 [data-theme='dark'] textarea::placeholder {
   color: #a0aec2;
+}
+
+.driver-popover.evoria-tour {
+  max-width: min(24rem, calc(100vw - 2rem));
+  padding: 1.5rem;
+  border: 1px solid var(--evoria-border);
+  border-radius: 1.25rem;
+  background: var(--evoria-surface);
+  color: var(--evoria-ink);
+  font-family: var(--font-sans), sans-serif;
+}
+
+.driver-popover.evoria-tour .driver-popover-title {
+  padding-right: 4rem;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.driver-popover.evoria-tour .driver-popover-description {
+  margin-top: 0.75rem;
+  color: var(--evoria-ink);
+  line-height: 1.5;
+}
+
+.driver-popover.evoria-tour .driver-popover-close-btn {
+  top: 1rem;
+  right: 1rem;
+  width: auto;
+  color: var(--evoria-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.driver-popover.evoria-tour .driver-popover-progress-text {
+  color: var(--evoria-muted);
+  font-size: 0.75rem;
+}
+
+.driver-popover.evoria-tour .driver-popover-navigation-btns button {
+  padding: 0.55rem 0.85rem;
+  border: 1px solid var(--evoria-border);
+  border-radius: 0.7rem;
+  background: var(--evoria-surface);
+  color: var(--evoria-ink);
+  font-size: 0.8rem;
+  text-shadow: none;
+}
+
+.driver-popover.evoria-tour
+  .driver-popover-navigation-btns
+  .driver-popover-next-btn {
+  border-color: transparent;
+  background: var(--evoria-action);
+  color: #fff;
 }
