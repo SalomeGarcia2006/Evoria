@@ -22,6 +22,7 @@ import { SchedulesModule } from './schedules/schedules.module';
 import { TenantsModule } from './tenants/tenants.module';
 import { UsersModule } from './users/users.module';
 import { TeamsModule } from './teams/teams.module';
+import { ReportsModule } from './reports/reports.module';
 
 export function getMongoUri(configService: ConfigService): string {
   const configuredUri = configService.get<string>('MONGODB_URI');
@@ -81,6 +82,7 @@ export function getMongoUri(configService: ConfigService): string {
     ProviderServicesModule,
     ProvidersModule,
     ResourcesModule,
+    ReportsModule,
     SchedulesModule,
     TenantsModule,
     UsersModule,

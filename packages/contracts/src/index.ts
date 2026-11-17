@@ -14,6 +14,22 @@ export type {
 } from './alerts';
 export type { AuthScope, AuthSession, LoginRequest } from './auth';
 export type {
+  ReportKind,
+  ReportQuery,
+  ReportPagination,
+  EventReportItem,
+  BudgetReportItem,
+  InventoryReportItem,
+  ResourceReportItem,
+  ProviderReportItem,
+  ScheduleReportItem,
+  ReportPage,
+  EventReport,
+  BudgetReport,
+  InventoryReport,
+  ReportsSummary,
+} from './reports';
+export type {
   DashboardBudgetSummary,
   DashboardEventStatus,
   DashboardEventSummary,
