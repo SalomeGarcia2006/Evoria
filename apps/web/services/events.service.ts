@@ -29,6 +29,7 @@ export interface EventItem {
   location: string | null;
   type: string | null;
   baseBudget: number;
+  invitados: number;
   status: EventStatus;
   responsibleUserId: string | null;
   createdBy: string;
@@ -44,6 +45,7 @@ export interface CreateEventPayload {
   location?: string;
   type?: string;
   baseBudget: number;
+  invitados: number;
   status?: EventStatus;
   responsibleUserId?: string;
 }
@@ -55,7 +57,7 @@ interface ApiResponse<T> {
   message: string;
 }
 
-interface EventList {
+export interface EventList {
   items: EventItem[];
   pagination: {
     page: number;
@@ -65,10 +67,25 @@ interface EventList {
   };
 }
 
-export async function getEvents(): Promise<EventList> {
-  const response = await apiRequest<ApiResponse<EventList>>('/events', {
-    credentials: 'include',
-  });
+export type EventQuery = {
+  page?: number;
+  limit?: number;
+  status?: EventStatus;
+};
+
+export async function getEvents(query: EventQuery = {}): Promise<EventList> {
+  const parameters = new URLSearchParams();
+  if (query.page) parameters.set('page', String(query.page));
+  if (query.limit) parameters.set('limit', String(query.limit));
+  if (query.status) parameters.set('status', query.status);
+  const suffix = parameters.size ? `?${parameters.toString()}` : '';
+
+  const response = await apiRequest<ApiResponse<EventList>>(
+    `/events${suffix}`,
+    {
+      credentials: 'include',
+    },
+  );
   return response.data;
 }
 

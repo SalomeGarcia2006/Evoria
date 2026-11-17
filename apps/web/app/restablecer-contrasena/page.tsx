@@ -15,6 +15,8 @@ export default function ResetPasswordPage() {
   const [code, setCode] = useState('');
   const [password, setPassword] = useState('');
   const [confirmation, setConfirmation] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -71,18 +73,6 @@ export default function ResetPasswordPage() {
           <hr className="login-separator" />
           <form className="login-form" onSubmit={submit}>
             <div className="login-field">
-              <label htmlFor="reset-email">Correo electrónico</label>
-              <div className="login-input-container">
-                <input
-                  id="reset-email"
-                  onChange={(event) => setEmail(event.target.value)}
-                  required
-                  type="email"
-                  value={email}
-                />
-              </div>
-            </div>
-            <div className="login-field">
               <label htmlFor="reset-password">Nueva contraseña</label>
               <div className="login-input-container">
                 <input
@@ -90,9 +80,32 @@ export default function ResetPasswordPage() {
                   minLength={8}
                   onChange={(event) => setPassword(event.target.value)}
                   required
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   value={password}
                 />
+                <button
+                  aria-label={
+                    showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'
+                  }
+                  className="login-toggle-password"
+                  onClick={() => setShowPassword((visible) => !visible)}
+                  type="button"
+                >
+                  <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
+                    <path
+                      d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                    />
+                    <circle
+                      cx="12"
+                      cy="12"
+                      r="2.5"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                    />
+                  </svg>
+                </button>
               </div>
             </div>
             <div className="login-field">
@@ -102,20 +115,40 @@ export default function ResetPasswordPage() {
                   id="reset-confirmation"
                   onChange={(event) => setConfirmation(event.target.value)}
                   required
-                  type="password"
+                  type={showConfirmation ? 'text' : 'password'}
                   value={confirmation}
                 />
+                <button
+                  aria-label={
+                    showConfirmation
+                      ? 'Ocultar confirmación de contraseña'
+                      : 'Mostrar confirmación de contraseña'
+                  }
+                  className="login-toggle-password"
+                  onClick={() => setShowConfirmation((visible) => !visible)}
+                  type="button"
+                >
+                  <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
+                    <path
+                      d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                    />
+                    <circle
+                      cx="12"
+                      cy="12"
+                      r="2.5"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                    />
+                  </svg>
+                </button>
               </div>
             </div>
             <p className="text-sm text-muted">
               Mínimo 8 caracteres, con mayúscula, minúscula, número y carácter
               especial.
             </p>
-            {done ? (
-              <p className="login-success" role="status">
-                Contraseña actualizada. Redirigiendo al inicio de sesión…
-              </p>
-            ) : null}
             {error ? (
               <p className="login-error" role="alert">
                 {error}
@@ -128,9 +161,39 @@ export default function ResetPasswordPage() {
             >
               {loading ? 'Actualizando…' : 'Actualizar contraseña'}
             </button>
+            <div className="recovery-card__links">
+              <a
+                className="recovery-card__back"
+                href={`/verificar-contrasena?email=${encodeURIComponent(email)}`}
+              >
+                ← Volver a verificar el código
+              </a>
+              <a className="recovery-card__back" href="/login">
+                Volver al inicio de sesión
+              </a>
+            </div>
           </form>
         </section>
       </div>
+      {done ? (
+        <div
+          aria-label="Contraseña actualizada correctamente"
+          aria-live="polite"
+          className="login-alert-backdrop fixed inset-0 z-[1100] grid place-items-center p-6"
+          role="status"
+        >
+          <div className="event-success-modal">
+            <div aria-hidden="true" className="event-success-icon">
+              ✓
+            </div>
+            <p className="event-success-title">¡Contraseña actualizada!</p>
+            <p className="event-success-message">
+              Tu contraseña se cambió correctamente. Te llevaremos al inicio de
+              sesión.
+            </p>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }

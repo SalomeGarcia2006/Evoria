@@ -15,7 +15,8 @@ import { DateRangePicker } from '../ui/DateRangePicker';
 import { ErrorMessage } from '../ui/ErrorMessage';
 import { OpenStreetMapLocationPicker } from './OpenStreetMapLocationPicker';
 
-const eventTypes = [
+const OTHER_EVENT_TYPE = '__otro_tipo__';
+const DEFAULT_EVENT_TYPES = [
   'Congreso',
   'Seminario',
   'Taller',
@@ -64,7 +65,9 @@ function formFromEvent(event?: EventItem) {
     endTime: endAt ? formatTimeForInput(endAt) : '18:00',
     location: event?.location ?? '',
     type: event?.type ?? '',
+    customType: '',
     baseBudget: event ? String(event.baseBudget) : '',
+    invitados: event ? String(event.invitados ?? 0) : '0',
     responsibleUserId: event?.responsibleUserId ?? '',
   };
 }
@@ -127,6 +130,9 @@ export function EventForm({
     setError(null);
     setValidationAlert(null);
 
+    const selectedEventType =
+      form.type === OTHER_EVENT_TYPE ? form.customType.trim() : form.type;
+
     const missingFields = [
       !form.name.trim() && 'Nombre',
       !form.description.trim() && 'Descripción',
@@ -135,8 +141,9 @@ export function EventForm({
       !form.startTime && 'Hora de inicio',
       !form.endTime && 'Hora de finalización',
       !form.location.trim() && 'Ubicación',
-      !form.type && 'Tipo de evento',
+      !selectedEventType && 'Tipo de evento',
       form.baseBudget === '' && 'Presupuesto base',
+      form.invitados === '' && 'Número de invitados',
       !form.responsibleUserId && 'Persona responsable',
     ].filter(Boolean);
 
@@ -151,6 +158,14 @@ export function EventForm({
     if (!Number.isSafeInteger(baseBudget) || baseBudget < 0) {
       setValidationAlert(
         'El presupuesto base debe ser un monto entero en COP.',
+      );
+      return;
+    }
+
+    const invitados = Number(form.invitados);
+    if (!Number.isSafeInteger(invitados) || invitados < 0) {
+      setValidationAlert(
+        'El número de invitados debe ser un número entero igual o mayor a cero.',
       );
       return;
     }
@@ -237,8 +252,9 @@ export function EventForm({
       startAt,
       endAt,
       location: form.location.trim() || undefined,
-      type: form.type.trim() || undefined,
+      type: selectedEventType || undefined,
       baseBudget,
+      invitados,
       responsibleUserId: form.responsibleUserId,
     };
 
@@ -340,20 +356,49 @@ export function EventForm({
             <span className="text-sm font-semibold">Tipo</span>
             <select
               className="rounded-lg border border-sky-blue bg-white px-3 py-2 outline-none focus:border-teal focus:ring-2 focus:ring-sky-blue"
-              onChange={(event) => updateField('type', event.target.value)}
+              onChange={(event) => {
+                const type = event.target.value;
+                setForm((current) => ({
+                  ...current,
+                  type,
+                  customType:
+                    type === OTHER_EVENT_TYPE ? current.customType : '',
+                }));
+              }}
               required
               value={form.type}
             >
               <option disabled value="">
                 Selecciona un tipo
               </option>
-              {eventTypes.map((type) => (
+              {DEFAULT_EVENT_TYPES.map((type) => (
                 <option key={type} value={type}>
                   {type}
                 </option>
               ))}
+              {initialEvent?.type &&
+              !DEFAULT_EVENT_TYPES.includes(initialEvent.type) ? (
+                <option value={initialEvent.type}>{initialEvent.type}</option>
+              ) : null}
+              <option value={OTHER_EVENT_TYPE}>Otro tipo</option>
             </select>
           </label>
+          {form.type === OTHER_EVENT_TYPE ? (
+            <label className="grid gap-2">
+              <span className="text-sm font-semibold">Especifica el tipo</span>
+              <input
+                className="rounded-lg border border-sky-blue px-3 py-2 outline-none focus:border-teal focus:ring-2 focus:ring-sky-blue"
+                maxLength={80}
+                onChange={(event) =>
+                  updateField('customType', event.target.value)
+                }
+                placeholder="Ej. Festival gastronómico"
+                required
+                type="text"
+                value={form.customType}
+              />
+            </label>
+          ) : null}
           <label className="grid gap-2">
             <span className="text-sm font-semibold">
               Presupuesto base (COP)
@@ -368,6 +413,18 @@ export function EventForm({
               step="1"
               type="number"
               value={form.baseBudget}
+            />
+          </label>
+          <label className="grid gap-2">
+            <span className="text-sm font-semibold">Número de invitados</span>
+            <input
+              className="rounded-lg border border-sky-blue px-3 py-2 outline-none focus:border-teal focus:ring-2 focus:ring-sky-blue"
+              min="0"
+              onChange={(event) => updateField('invitados', event.target.value)}
+              required
+              step="1"
+              type="number"
+              value={form.invitados}
             />
           </label>
           <label className="grid gap-2">
