@@ -170,7 +170,7 @@ export default function AuditoriaPage() {
             </p>
           </div>
           <form
-            className="grid gap-4 p-6 md:grid-cols-2 xl:grid-cols-5"
+            className="grid items-start gap-4 p-6 md:grid-cols-2 xl:grid-cols-5"
             onSubmit={applyFilters}
           >
             <label className="grid gap-2 text-sm font-semibold">
@@ -239,6 +239,7 @@ export default function AuditoriaPage() {
               </datalist>
             </label>
             <DateRangePicker
+              collapsible
               endDate={filters.endDate}
               label="Periodo consultado"
               onChange={(startDate, endDate) =>

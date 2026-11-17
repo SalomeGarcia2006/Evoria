@@ -267,6 +267,14 @@
   transition: var(--transition-fast);
 }
 
+.evoria-landing .landing-theme-toggle {
+  position: fixed;
+  top: 50%;
+  right: var(--space-5);
+  z-index: 1001;
+  transform: translateY(-50%);
+}
+
 /* ============================================
    HERO — Deep Gradient (Original Preserved)
    ============================================ */
@@ -1461,41 +1469,22 @@
 }
 
 /* ============================================
-   FOOTER — Deep Dark with Gradient Entry (Original Preserved)
+   FOOTER — Soft light closing
    ============================================ */
 
 .evoria-landing .footer {
   position: relative;
-  background: var(--slate-900);
-  color: var(--slate-400);
+  background: linear-gradient(135deg, #edf5ff 0%, #f6f1ff 52%, #e8fbf8 100%);
+  color: var(--slate-600);
   padding: var(--space-16) var(--space-8) var(--space-8);
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-top: 1px solid #d9e1ef;
   overflow: hidden;
 }
 
-/* Difuminado de entrada para el footer */
 .evoria-landing .footer::before {
-  content: '';
-  position: absolute;
-  top: -200px;
-  left: 0;
-  right: 0;
-  height: 400px;
-  z-index: 0;
-  background: linear-gradient(
-    180deg,
-    rgba(15, 23, 42, 0) 0%,
-    rgba(15, 23, 42, 0.02) 20%,
-    rgba(15, 23, 42, 0.07) 38%,
-    rgba(15, 23, 42, 0.18) 55%,
-    rgba(15, 23, 42, 0.38) 72%,
-    rgba(15, 23, 42, 0.65) 85%,
-    var(--slate-900) 100%
-  );
-  pointer-events: none;
+  display: none;
 }
 
-/* Overlay sutil con destellos para el footer */
 .evoria-landing .footer::after {
   content: '';
   position: absolute;
@@ -1504,12 +1493,12 @@
   background:
     radial-gradient(
       ellipse 500px 350px at 20% 30%,
-      rgba(59, 130, 246, 0.04) 0%,
+      rgba(59, 130, 246, 0.08) 0%,
       transparent 70%
     ),
     radial-gradient(
       ellipse 400px 300px at 80% 50%,
-      rgba(139, 92, 246, 0.03) 0%,
+      rgba(139, 92, 246, 0.07) 0%,
       transparent 60%
     ),
     radial-gradient(
@@ -1528,7 +1517,7 @@
   align-items: center;
   margin-bottom: var(--space-10);
   padding-bottom: var(--space-10);
-  border-bottom: 1px solid var(--slate-800);
+  border-bottom: 1px solid #d1dbea;
   flex-wrap: wrap;
   gap: var(--space-6);
 }
@@ -1536,8 +1525,8 @@
 .evoria-landing .footer-brand h3 {
   font-size: 1.25rem;
   font-weight: 800;
-  color: var(--slate-100);
-  background: linear-gradient(135deg, var(--slate-50), var(--indigo-300));
+  color: var(--slate-900);
+  background: linear-gradient(135deg, var(--indigo-700), var(--blue-700));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -1545,7 +1534,7 @@
 
 .evoria-landing .footer-brand p {
   font-size: 0.85rem;
-  color: var(--slate-500);
+  color: var(--slate-600);
   margin-top: var(--space-1);
 }
 
@@ -1557,7 +1546,7 @@
 
 .evoria-landing .footer-links a {
   font-size: 0.875rem;
-  color: var(--slate-400);
+  color: var(--slate-600);
   font-weight: 500;
   transition: var(--transition-fast);
   position: relative;
@@ -1575,7 +1564,7 @@
 }
 
 .evoria-landing .footer-links a:hover {
-  color: var(--slate-200);
+  color: var(--indigo-700);
 }
 
 .evoria-landing .footer-links a:hover::after {
@@ -1919,7 +1908,7 @@
   color: #52627b;
 }
 .evoria-landing :is(.footer-brand p, .footer-bottom p, .footer-links a) {
-  color: #bdc9dc;
+  color: #40506b;
 }
 .evoria-landing .stat-label {
   color: #e2e8f0;
@@ -2013,6 +2002,15 @@
 [data-theme='dark'] .evoria-landing .footer {
   background: #0b1220;
   color: #bdc9dc;
+}
+[data-theme='dark'] .evoria-landing .footer-content {
+  border-bottom-color: #27364d;
+}
+[data-theme='dark'] .evoria-landing .footer-brand h3 {
+  background: linear-gradient(135deg, #f8fbff, #cfc4ff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 [data-theme='dark']
   .evoria-landing

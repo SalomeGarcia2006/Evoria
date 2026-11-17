@@ -41,6 +41,7 @@ export function OpenStreetMapLocationPicker({
   useEffect(() => {
     let isActive = true;
     let removeMap: (() => void) | undefined;
+    let resizeTimer: number | undefined;
 
     void import('leaflet')
       .then((leaflet) => {
@@ -98,6 +99,9 @@ export function OpenStreetMapLocationPicker({
           })
           .addTo(map);
 
+        requestAnimationFrame(() => map.invalidateSize());
+        resizeTimer = window.setTimeout(() => map.invalidateSize(), 120);
+
         const savedCoordinates = parseCoordinates(initialValue);
         if (savedCoordinates) {
           setSelectedLocation(
@@ -130,6 +134,7 @@ export function OpenStreetMapLocationPicker({
 
     return () => {
       isActive = false;
+      if (resizeTimer) window.clearTimeout(resizeTimer);
       removeMap?.();
     };
   }, [initialValue, onChange]);
