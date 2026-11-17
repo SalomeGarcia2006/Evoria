@@ -39,6 +39,7 @@ const STATUS_CLASSES: Record<EventStatus, string> = {
 const EDITABLE_STATUSES = EVENT_STATUSES.filter(
   (status) => status !== 'cancelado',
 );
+const EVENTS_PER_PAGE = 10;
 
 type EventFilter = 'all' | 'en_progreso' | 'finalizado';
 
@@ -111,13 +112,31 @@ export function EventList({
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<EventFilter>('all');
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: EVENTS_PER_PAGE,
+    total: 0,
+    totalPages: 0,
+  });
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let isMounted = true;
+    const status = selectedFilter === 'all' ? undefined : selectedFilter;
 
-    getEvents()
+    getEvents({ page, limit: EVENTS_PER_PAGE, status })
       .then((result) => {
-        if (isMounted) setEvents(result.items);
+        if (!isMounted) return;
+        if (
+          result.pagination.totalPages > 0 &&
+          page > result.pagination.totalPages
+        ) {
+          setPage(result.pagination.totalPages);
+          return;
+        }
+        setEvents(result.items);
+        setPagination(result.pagination);
       })
       .catch((loadError: unknown) => {
         if (isMounted) {
@@ -135,7 +154,7 @@ export function EventList({
     return () => {
       isMounted = false;
     };
-  }, [revision]);
+  }, [page, reloadKey, revision, selectedFilter]);
 
   useEffect(() => {
     let isMounted = true;
@@ -167,14 +186,10 @@ export function EventList({
 
     try {
       const cancelledEvent = await cancelEvent(event.id);
-      setEvents((currentEvents) =>
-        currentEvents.map((currentEvent) =>
-          currentEvent.id === cancelledEvent.id ? cancelledEvent : currentEvent,
-        ),
-      );
       setViewEvent((currentEvent) =>
         currentEvent?.id === cancelledEvent.id ? cancelledEvent : currentEvent,
       );
+      setReloadKey((current) => current + 1);
     } catch (cancelError) {
       setError(
         cancelError instanceof Error
@@ -228,11 +243,10 @@ export function EventList({
         statusEvent.id,
         selectedStatus,
       );
-      setEvents((currentEvents) =>
-        currentEvents.map((currentEvent) =>
-          currentEvent.id === updatedEvent.id ? updatedEvent : currentEvent,
-        ),
+      setViewEvent((currentEvent) =>
+        currentEvent?.id === updatedEvent.id ? updatedEvent : currentEvent,
       );
+      setReloadKey((current) => current + 1);
       closeStatusDialog();
     } catch (updateError) {
       setError(
@@ -245,16 +259,8 @@ export function EventList({
     }
   }
 
-  const inProgressCount = events.filter(
-    (event) => event.status === 'en_progreso',
-  ).length;
-  const finishedCount = events.filter(
-    (event) => event.status === 'finalizado',
-  ).length;
-  const filteredEvents = events.filter(
-    (event) =>
-      (selectedFilter === 'all' || event.status === selectedFilter) &&
-      matchesEventSearch(event, search),
+  const filteredEvents = events.filter((event) =>
+    matchesEventSearch(event, search),
   );
   const upcomingEvent = [...events]
     .filter(
@@ -273,7 +279,7 @@ export function EventList({
       <FeedbackMessages feedback={feedback} />
       {isLoading ? (
         <LoadingState label="Cargando eventos…" />
-      ) : events.length === 0 ? (
+      ) : pagination.total === 0 && selectedFilter === 'all' ? (
         <div className="rounded-xl border border-sky-blue bg-white p-8 text-center">
           <p className="font-semibold">No hay eventos registrados.</p>
           {can('eventos.crear') ? (
@@ -301,24 +307,33 @@ export function EventList({
               >
                 <button
                   className={`events-list-panel__filter ${selectedFilter === 'all' ? 'is-active' : ''}`}
-                  onClick={() => setSelectedFilter('all')}
+                  onClick={() => {
+                    setSelectedFilter('all');
+                    setPage(1);
+                  }}
                   type="button"
                 >
-                  Todos ({events.length})
+                  Todos
                 </button>
                 <button
                   className={`events-list-panel__filter ${selectedFilter === 'en_progreso' ? 'is-active' : ''}`}
-                  onClick={() => setSelectedFilter('en_progreso')}
+                  onClick={() => {
+                    setSelectedFilter('en_progreso');
+                    setPage(1);
+                  }}
                   type="button"
                 >
-                  En ejecución ({inProgressCount})
+                  En ejecución
                 </button>
                 <button
                   className={`events-list-panel__filter ${selectedFilter === 'finalizado' ? 'is-active' : ''}`}
-                  onClick={() => setSelectedFilter('finalizado')}
+                  onClick={() => {
+                    setSelectedFilter('finalizado');
+                    setPage(1);
+                  }}
                   type="button"
                 >
-                  Finalizados ({finishedCount})
+                  Finalizados
                 </button>
               </div>
               <div className="flex w-full max-w-md items-center justify-end gap-3">
@@ -328,14 +343,18 @@ export function EventList({
                 <input
                   className="w-full min-w-0 rounded-xl border border-sky-blue bg-white px-3 py-2 text-sm outline-none focus:border-teal focus:ring-2 focus:ring-sky-blue"
                   id="event-search"
-                  onChange={(event) => setSearch(event.target.value)}
+                  onChange={(event) => {
+                    setSearch(event.target.value);
+                    setPage(1);
+                  }}
                   placeholder="Buscar por nombre o fecha…"
                   type="search"
                   value={search}
                 />
                 <span className="shrink-0 text-sm text-muted">
-                  {filteredEvents.length}{' '}
-                  {filteredEvents.length === 1 ? 'evento' : 'eventos'}
+                  {search
+                    ? `${filteredEvents.length} coincidencias`
+                    : `${pagination.total} ${pagination.total === 1 ? 'evento' : 'eventos'}`}
                 </span>
               </div>
             </div>
@@ -421,9 +440,43 @@ export function EventList({
               </table>
             </div>
             <p className="events-list-panel__footer">
-              Mostrando {filteredEvents.length} de {events.length}{' '}
-              {events.length === 1 ? 'evento' : 'eventos'}
+              {search
+                ? 'La búsqueda se aplica a los eventos de esta página.'
+                : `Mostrando ${
+                    filteredEvents.length
+                      ? (pagination.page - 1) * pagination.limit + 1
+                      : 0
+                  }–${
+                    (pagination.page - 1) * pagination.limit +
+                    filteredEvents.length
+                  } de ${pagination.total} eventos`}
             </p>
+            {pagination.totalPages > 1 && !search ? (
+              <nav
+                aria-label="Paginación de eventos"
+                className="events-list-panel__pagination"
+              >
+                <Button
+                  disabled={pagination.page === 1}
+                  onClick={() => setPage((current) => current - 1)}
+                  type="button"
+                  variant="secondary"
+                >
+                  ← Anterior
+                </Button>
+                <span aria-live="polite" className="text-sm text-muted">
+                  Página {pagination.page} de {pagination.totalPages}
+                </span>
+                <Button
+                  disabled={pagination.page === pagination.totalPages}
+                  onClick={() => setPage((current) => current + 1)}
+                  type="button"
+                  variant="secondary"
+                >
+                  Siguiente →
+                </Button>
+              </nav>
+            ) : null}
           </section>
           {upcomingEvent ? (
             <section className="events-upcoming">
@@ -519,6 +572,14 @@ export function EventList({
                     currency: 'COP',
                     maximumFractionDigits: 0,
                   }).format(viewEvent.baseBudget)}
+                </p>
+              </div>
+              <div className="rounded-[1.125rem] border border-sky-blue p-4">
+                <p className="text-sm text-muted">Invitados</p>
+                <p className="mt-1 font-semibold">
+                  {new Intl.NumberFormat('es-CO').format(
+                    viewEvent.invitados ?? 0,
+                  )}
                 </p>
               </div>
               <div className="rounded-[1.125rem] border border-sky-blue p-4">

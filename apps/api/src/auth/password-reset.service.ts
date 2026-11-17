@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Injectable,
   ServiceUnavailableException,
   UnauthorizedException,
@@ -86,7 +87,7 @@ export class PasswordResetService {
         { $inc: { passwordResetCodeAttempts: 1 } },
         { returnDocument: 'after' },
       )
-      .select('+passwordResetCodeHash');
+      .select('+passwordResetCodeHash +passwordHash');
 
     if (
       !user?.passwordResetCodeHash ||
@@ -96,6 +97,16 @@ export class PasswordResetService {
       )
     )
       throw new UnauthorizedException('El código no es válido o expiró.');
+
+    if (this.passwordService.verify(newPassword, user.passwordHash)) {
+      await this.userModel.updateOne(
+        { _id: user._id, passwordResetCodeHash: user.passwordResetCodeHash },
+        { $inc: { passwordResetCodeAttempts: -1 } },
+      );
+      throw new BadRequestException(
+        'La nueva contraseña debe ser diferente a la actual.',
+      );
+    }
 
     await this.userModel.updateOne(
       { _id: user._id, passwordResetCodeHash: user.passwordResetCodeHash },

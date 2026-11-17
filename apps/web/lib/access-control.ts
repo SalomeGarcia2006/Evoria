@@ -27,6 +27,7 @@ export const navigationItems: NavigationItem[] = [
     href: '/cronograma',
     permission: 'cronogramas.ver',
   },
+  { label: 'Equipos', href: '/equipos', permission: 'equipos.ver' },
   { label: 'Alertas', href: '/alertas', permission: 'alertas.ver' },
   { label: 'Reportes', href: '/reportes', permission: 'reportes.ver' },
   { label: 'Auditoría', href: '/auditoria', permission: 'auditoria.ver' },
