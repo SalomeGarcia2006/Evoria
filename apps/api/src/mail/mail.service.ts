@@ -31,6 +31,9 @@ export class MailService {
       port: 587,
       secure: false,
       requireTLS: true,
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 30000,
       auth: { user, pass },
     });
     await transport.sendMail({

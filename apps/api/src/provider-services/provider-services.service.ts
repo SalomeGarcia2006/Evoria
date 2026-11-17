@@ -6,6 +6,7 @@ import {
   NotFoundException,
   Optional,
 } from '@nestjs/common';
+import { ProviderServiceWorkflow } from './provider-service-workflow.service';
 import { InjectModel } from '@nestjs/mongoose';
 import { isValidObjectId, type Model, type Types } from 'mongoose';
 import type { AuthenticatedUser } from '../auth/auth.types';
@@ -35,6 +36,7 @@ export class ProviderServicesService {
     private readonly budgetLedger: BudgetLedgerService,
     private readonly auditsService: AuditsService,
     @Optional() private readonly alerts?: AlertsService,
+    @Optional() private readonly workflow?: ProviderServiceWorkflow,
   ) {}
 
   async findAll(
@@ -48,7 +50,23 @@ export class ProviderServicesService {
       .find({
         tenantId,
         eventId,
-        ...(query.includeCancelled ? {} : { status: 'confirmado' }),
+        ...(query.status
+          ? { status: query.status }
+          : query.includeCancelled
+            ? {}
+            : {
+                $or: [
+                  { status: 'confirmado' },
+                  {
+                    status: 'pendiente',
+                    responseExpiresAt: { $gt: new Date() },
+                  },
+                  {
+                    status: 'aceptado_sin_saldo',
+                    fundingExpiresAt: { $gt: new Date() },
+                  },
+                ],
+              }),
       })
       .sort({ startDate: 1, startTime: 1, _id: 1 })
       .lean();
@@ -88,168 +106,26 @@ export class ProviderServicesService {
     const serviceName = dto.serviceName.trim();
     this.validateServiceName(serviceName);
     this.validateDates(dto.startDate, dto.startTime, dto.endDate, dto.endTime);
-    const session = await this.serviceModel.db.startSession();
-    let service: EventProviderServiceDocument;
-    try {
-      service = await session.withTransaction(async () => {
-        await this.budgetLedger.reserveProviderCost(
-          tenantId,
-          eventId,
-          dto.agreedAmountCop,
-          session,
-        );
-        const [created] = await this.serviceModel.create(
-          [
-            {
-              tenantId,
-              eventId,
-              providerId: dto.providerId,
-              serviceName,
-              description: this.trimOptional(dto.description),
-              startDate: dto.startDate,
-              startTime: dto.startTime ?? null,
-              endDate: dto.endDate ?? null,
-              endTime: dto.endTime ?? null,
-              agreedAmountCop: dto.agreedAmountCop,
-              status: 'confirmado',
-              assignedBy: user.id,
-              cancelledAt: null,
-            },
-          ],
-          { session },
-        );
-        await this.alerts?.checkBudget(tenantId, eventId, session);
-        await this.auditsService.record(
-          {
-            tenantId,
-            actor: user,
-            module: 'servicios_proveedor',
-            action: 'crear',
-            entity: 'servicio_proveedor',
-            entityId: created._id,
-            description: `Asignó el servicio ${created.serviceName} de ${provider.name} al evento.`,
-          },
-          session,
-        );
-        return created;
-      });
-    } finally {
-      await session.endSession();
-    }
-    await this.alerts?.refreshThresholds(tenantId, eventId);
+    if (!this.workflow)
+      throw new ConflictException(
+        'El flujo de confirmación no está disponible.',
+      );
+    const service = await this.workflow.request(eventId, dto, user);
     return this.toResponse(service, provider);
   }
 
   async update(
     eventId: string,
     id: string,
-    dto: UpdateProviderServiceDto,
+    _dto: UpdateProviderServiceDto,
     user: AuthenticatedUser,
   ) {
     const tenantId = this.getTenantId(user);
-    const event = await this.findEvent(eventId, tenantId);
-    if (event.status === 'cancelado') {
-      throw new ConflictException(
-        'No puedes editar servicios de un evento cancelado.',
-      );
-    }
-    const existing = await this.findService(eventId, id, tenantId);
-    if (existing.status === 'cancelado') {
-      throw new ConflictException('No puedes editar un servicio cancelado.');
-    }
-
-    const providerId = dto.providerId ?? existing.providerId.toString();
-    const provider = await this.findProvider(providerId, tenantId);
-    if (
-      providerId !== existing.providerId.toString() &&
-      provider.status !== 'activo'
-    ) {
-      throw new ConflictException(
-        'No puedes seleccionar un proveedor inactivo.',
-      );
-    }
-    const serviceName =
-      dto.serviceName === undefined
-        ? existing.serviceName
-        : dto.serviceName.trim();
-    this.validateServiceName(serviceName);
-    const startDate = dto.startDate ?? existing.startDate;
-    const startTime =
-      dto.startTime === undefined ? existing.startTime : dto.startTime;
-    const endDate = dto.endDate === undefined ? existing.endDate : dto.endDate;
-    const endTime = dto.endTime === undefined ? existing.endTime : dto.endTime;
-    this.validateDates(startDate, startTime, endDate, endTime);
-
-    const agreedAmountCop = dto.agreedAmountCop ?? existing.agreedAmountCop;
-    const increase = Math.max(0, agreedAmountCop - existing.agreedAmountCop);
-    const decrease = Math.max(0, existing.agreedAmountCop - agreedAmountCop);
-    const session = await this.serviceModel.db.startSession();
-    let service: EventProviderServiceDocument | null;
-    try {
-      service = await session.withTransaction(async () => {
-        await this.budgetLedger.reserveProviderCost(
-          tenantId,
-          eventId,
-          increase,
-          session,
-        );
-        service = await this.serviceModel.findOneAndUpdate(
-          {
-            _id: id,
-            tenantId,
-            eventId,
-            status: 'confirmado',
-            agreedAmountCop: existing.agreedAmountCop,
-          },
-          {
-            $set: {
-              providerId,
-              serviceName,
-              description:
-                dto.description === undefined
-                  ? existing.description
-                  : this.trimOptional(dto.description),
-              startDate,
-              startTime: startTime ?? null,
-              endDate: endDate ?? null,
-              endTime: endTime ?? null,
-              agreedAmountCop,
-            },
-          },
-          { returnDocument: 'after', runValidators: true, session },
-        );
-        if (!service)
-          throw new ConflictException('El servicio ya no está confirmado.');
-        if (decrease > 0) {
-          await this.budgetLedger.releaseProviderCost(
-            tenantId,
-            eventId,
-            decrease,
-            session,
-          );
-        }
-        await this.alerts?.checkBudget(tenantId, eventId, session);
-        await this.auditsService.record(
-          {
-            tenantId,
-            actor: user,
-            module: 'servicios_proveedor',
-            action: 'editar',
-            entity: 'servicio_proveedor',
-            entityId: service._id,
-            description: `Editó el servicio ${service.serviceName} de ${provider.name}.`,
-          },
-          session,
-        );
-        return service;
-      });
-    } finally {
-      await session.endSession();
-    }
-    if (!service)
-      throw new ConflictException('El servicio ya no está confirmado.');
-    await this.alerts?.refreshThresholds(tenantId, eventId);
-    return this.toResponse(service, provider);
+    await this.findEvent(eventId, tenantId);
+    await this.findService(eventId, id, tenantId);
+    throw new ConflictException(
+      'No se pueden editar servicios. Cancela el servicio y crea una nueva solicitud.',
+    );
   }
 
   async cancel(eventId: string, id: string, user: AuthenticatedUser) {
@@ -260,45 +136,30 @@ export class ProviderServicesService {
       existing.providerId.toString(),
       tenantId,
     );
-    const session = await this.serviceModel.db.startSession();
-    let service: EventProviderServiceDocument;
-    try {
-      service = await session.withTransaction(async () => {
-        const service = await this.serviceModel.findOneAndUpdate(
-          { _id: id, tenantId, eventId, status: 'confirmado' },
-          { $set: { status: 'cancelado', cancelledAt: new Date() } },
-          { returnDocument: 'after', session },
-        );
-        if (!service)
-          throw new ConflictException('El servicio ya está cancelado.');
-        if (await this.budgetLedger.hasBudget(tenantId, eventId, session)) {
-          await this.budgetLedger.releaseProviderCost(
-            tenantId,
-            eventId,
-            service.agreedAmountCop,
-            session,
-          );
-          await this.alerts?.checkBudget(tenantId, eventId, session);
-        }
-        await this.auditsService.record(
-          {
-            tenantId,
-            actor: user,
-            module: 'servicios_proveedor',
-            action: 'cancelar',
-            entity: 'servicio_proveedor',
-            entityId: service._id,
-            description: `Canceló el servicio ${service.serviceName} de ${provider.name}.`,
-          },
-          session,
-        );
-        return service;
-      });
-    } finally {
-      await session.endSession();
-    }
-    await this.alerts?.refreshThresholds(tenantId, eventId);
+    if (!this.workflow)
+      throw new ConflictException(
+        'El flujo de confirmación no está disponible.',
+      );
+    const service = await this.workflow.cancel(eventId, id, user);
     return this.toResponse(service, provider);
+  }
+
+  async resend(eventId: string, id: string, user: AuthenticatedUser) {
+    const tenantId = this.getTenantId(user);
+    await this.findEvent(eventId, tenantId);
+    const existing = await this.findService(eventId, id, tenantId);
+    const provider = await this.findProvider(
+      existing.providerId.toString(),
+      tenantId,
+    );
+    if (!this.workflow)
+      throw new ConflictException(
+        'El flujo de confirmación no está disponible.',
+      );
+    return this.toResponse(
+      await this.workflow.resend(eventId, id, user),
+      provider,
+    );
   }
 
   private getTenantId(user: AuthenticatedUser): string {
@@ -428,6 +289,16 @@ export class ProviderServicesService {
       createdAt: service.createdAt,
       updatedAt: service.updatedAt,
       cancelledAt: service.cancelledAt,
+      responseExpiresAt: service.responseExpiresAt ?? null,
+      acceptedAt: service.acceptedAt ?? null,
+      respondedAt: service.respondedAt ?? null,
+      responseDecision: service.responseDecision ?? null,
+      fundingExpiresAt: service.fundingExpiresAt ?? null,
+      confirmedAt: service.confirmedAt ?? null,
+      rejectionReason: service.rejectionReason ?? null,
+      cancellationReason: service.cancellationReason ?? null,
+      emailDelivery: service.confirmationVersion ? service.emailDelivery : null,
+      emailSentAt: service.emailSentAt ?? null,
     };
   }
 }

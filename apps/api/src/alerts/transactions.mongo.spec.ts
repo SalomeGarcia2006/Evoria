@@ -40,6 +40,15 @@ import { ResourcesService } from '../resources/resources.service';
 import { EventsService } from '../events/events.service';
 import { ProviderServicesService } from '../provider-services/provider-services.service';
 import type { AuditsService } from '../audits/audits.service';
+import { ConfigService } from '@nestjs/config';
+import { ProviderServiceWorkflow } from '../provider-services/provider-service-workflow.service';
+import { deriveProviderConfirmationToken } from '../provider-services/provider-confirmation-token';
+import {
+  ProviderServiceMail,
+  ProviderServiceMailSchema,
+} from '../provider-services/schemas/provider-service-mail.schema';
+import { Tenant, TenantSchema } from '../tenants/schemas/tenant.schema';
+import type { MailService } from '../mail/mail.service';
 
 async function withoutErrorLogs<T>(
   service: object,
@@ -88,6 +97,9 @@ test('servicios reales: cruce transitorio y decisiones en réplica aislada', asy
       assignments.init(),
     ]);
     const tenant = new Types.ObjectId();
+    await db
+      .collection('tenants')
+      .insertOne({ _id: tenant, name: 'Empresa aislada', status: 'activo' });
     const owner = new Types.ObjectId();
     const requester = new Types.ObjectId();
     const profile = new Types.ObjectId();
@@ -282,10 +294,33 @@ test('servicios reales: cruce transitorio y decisiones en réplica aislada', asy
     const provider = await providers.create({
       tenantId: tenant,
       name: 'Proveedor de prueba',
+      email: 'provider-test@example.test',
       categoryKeys: ['espacios'],
       status: 'activo',
       createdBy: requester,
     });
+    const mailJobs = db.model(
+      ProviderServiceMail.name,
+      ProviderServiceMailSchema,
+    );
+    await mailJobs.init();
+    const confirmationSecret = 'isolated-provider-confirmation-secret-only';
+    const workflow = new ProviderServiceWorkflow(
+      providerServices,
+      mailJobs,
+      events,
+      providers,
+      budgets,
+      db.model(Tenant.name, TenantSchema),
+      ledger,
+      service,
+      audit,
+      { send: async () => undefined } as unknown as MailService,
+      new ConfigService({
+        PROVIDER_CONFIRMATION_SECRET: confirmationSecret,
+        API_PUBLIC_URL: 'http://127.0.0.1:3001/api',
+      }),
+    );
     const providerService = new ProviderServicesService(
       providerServices,
       providers,
@@ -293,6 +328,7 @@ test('servicios reales: cruce transitorio y decisiones en réplica aislada', asy
       ledger,
       audit,
       service,
+      workflow,
     );
     Object.defineProperty(alerts, 'updateOne', {
       configurable: true,
@@ -310,6 +346,11 @@ test('servicios reales: cruce transitorio y decisiones en réplica aislada', asy
             agreedAmountCop: 800,
           },
           user(requester),
+        );
+        await workflow.respond(
+          reserved.id,
+          deriveProviderConfirmationToken(confirmationSecret, reserved.id, 1),
+          'aceptar',
         );
         await providerService.cancel(
           event._id.toString(),

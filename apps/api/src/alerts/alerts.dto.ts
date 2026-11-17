@@ -14,6 +14,7 @@ export class FindAlertsDto {
     'budget_limit',
     'inventory_low',
     'event_cancelled',
+    'provider_service',
   ])
   type?: string;
   @IsOptional() @IsMongoId() eventId?: string;

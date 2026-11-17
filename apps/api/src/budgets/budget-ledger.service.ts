@@ -1,4 +1,6 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import { ConflictException, Injectable, Optional } from '@nestjs/common';
+import { ProviderServiceFunding } from '../provider-services/provider-service-funding.service';
+import { hasAvailableBudget } from './budget-availability';
 import { InjectModel } from '@nestjs/mongoose';
 import type { ClientSession, Model } from 'mongoose';
 import { EventBudget } from './schemas/event-budget.schema';
@@ -8,6 +10,7 @@ export class BudgetLedgerService {
   constructor(
     @InjectModel(EventBudget.name)
     private readonly budgetModel: Model<EventBudget>,
+    @Optional() private readonly providerFunding?: ProviderServiceFunding,
   ) {}
 
   async reserveInventoryCost(
@@ -132,25 +135,11 @@ export class BudgetLedgerService {
         'No se pudo ajustar el gasto registrado en el presupuesto.',
       );
     }
+    if (session)
+      await this.providerFunding?.fundPending(tenantId, eventId, session);
   }
 
   hasAvailable(amountCop: number) {
-    return {
-      $gte: [
-        {
-          $subtract: [
-            { $add: ['$baseAmountCop', '$approvedIncreaseCop'] },
-            {
-              $add: [
-                '$inventorySpentCop',
-                '$providerSpentCop',
-                '$extraSpentCop',
-              ],
-            },
-          ],
-        },
-        amountCop,
-      ],
-    };
+    return hasAvailableBudget(amountCop);
   }
 }

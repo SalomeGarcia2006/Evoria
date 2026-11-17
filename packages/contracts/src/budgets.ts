@@ -67,7 +67,7 @@ export interface BudgetProviderLine {
   providerName: string;
   serviceName: string;
   agreedAmountCop: number;
-  status: 'confirmado' | 'cancelado';
+  status: import('./provider-services').ProviderServiceStatus;
   startDate: string;
 }
 

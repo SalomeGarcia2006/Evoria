@@ -7,12 +7,15 @@ import {
   MaxLength,
   Min,
   MinLength,
+  IsUUID,
+  Max,
 } from 'class-validator';
 
 export const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 export const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 export class CreateProviderServiceDto {
+  @IsOptional() @IsUUID() idempotencyKey?: string;
   @IsMongoId()
   providerId!: string;
 
@@ -43,5 +46,6 @@ export class CreateProviderServiceDto {
 
   @IsInt()
   @Min(1)
+  @Max(Number.MAX_SAFE_INTEGER)
   agreedAmountCop!: number;
 }

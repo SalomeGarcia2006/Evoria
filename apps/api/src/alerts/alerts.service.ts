@@ -38,6 +38,9 @@ type NewAlert = {
   eventId?: string;
   requestId?: string;
   inventoryItemId?: string;
+  providerServiceId?: string;
+  serviceStatus?: string;
+  serviceRevision?: number;
   permissions: string[];
 };
 
@@ -123,6 +126,51 @@ export class AlertsService implements OnModuleInit, OnModuleDestroy {
     return permissions.has('alertas.ver') && permissions.has('eventos.ver');
   }
 
+  async providerServiceChanged(
+    input: {
+      tenantId: string;
+      recipientId: string;
+      eventId: string;
+      serviceId: string;
+      status: string;
+      revision: number;
+    },
+    session: ClientSession,
+  ): Promise<void> {
+    const titles: Record<string, string> = {
+      pendiente: 'Servicio pendiente de respuesta del proveedor',
+      aceptado_sin_saldo: 'Proveedor aceptó: pendiente de presupuesto',
+      confirmado: 'Servicio asignado',
+      rechazado: 'El proveedor no aceptó el servicio',
+      vencido: 'Solicitud vencida sin respuesta del proveedor',
+      cancelado: 'Servicio cancelado',
+    };
+    await this.enqueue(
+      {
+        tenantId: input.tenantId,
+        recipientId: input.recipientId,
+        dedupeKey: `provider-service:${input.serviceId}:${input.revision}`,
+        type: 'provider_service',
+        title: titles[input.status],
+        message: 'Consulta el servicio para conocer su estado y detalles.',
+        severity: [
+          'rechazado',
+          'vencido',
+          'cancelado',
+          'aceptado_sin_saldo',
+        ].includes(input.status)
+          ? 'warning'
+          : 'info',
+        eventId: input.eventId,
+        providerServiceId: input.serviceId,
+        serviceStatus: input.status,
+        serviceRevision: input.revision,
+        permissions: ['eventos.ver', 'servicios_proveedor.ver'],
+      },
+      session,
+    );
+  }
+
   async emit(input: NewAlert): Promise<void> {
     const granted = await this.granted(input.tenantId, input.recipientId);
     if (
@@ -198,8 +246,39 @@ export class AlertsService implements OnModuleInit, OnModuleDestroy {
       eventId: input.eventId,
       requestId: input.requestId,
       inventoryItemId: input.inventoryItemId,
+      providerServiceId: input.providerServiceId,
+      serviceStatus: input.serviceStatus,
+      serviceRevision: input.serviceRevision,
       dedupeKey: input.dedupeKey,
     };
+    if (
+      input.type === 'provider_service' &&
+      input.providerServiceId &&
+      input.serviceRevision
+    ) {
+      const key = {
+        tenantId: input.tenantId,
+        recipientId: input.recipientId,
+        dedupeKey: `provider-service:${input.providerServiceId}`,
+      };
+      const filter = {
+        ...key,
+        $or: [
+          { serviceRevision: { $lt: input.serviceRevision } },
+          { serviceRevision: { $exists: false } },
+        ],
+      };
+      const update = {
+        $set: { ...record, dedupeKey: key.dedupeKey, readAt: null },
+      };
+      try {
+        await this.alerts.updateOne(filter, update, { upsert: true });
+      } catch (error) {
+        if (!this.isDuplicate(error)) throw error;
+        await this.alerts.updateOne(filter, update);
+      }
+      return true;
+    }
     try {
       await this.alerts.updateOne(
         {
@@ -676,6 +755,8 @@ export class AlertsService implements OnModuleInit, OnModuleDestroy {
     if (!granted.has('alertas.ver'))
       throw new ForbiddenException('No tienes permiso para consultar alertas.');
     const allowed: string[] = [];
+    if (granted.has('eventos.ver') && granted.has('servicios_proveedor.ver'))
+      allowed.push('provider_service');
     if (granted.has('eventos.ver')) allowed.push('event_responsibility');
     if (granted.has('eventos.ver') && granted.has('presupuestos.ver'))
       allowed.push('budget_decided', 'event_cancelled', 'budget_limit');
@@ -755,6 +836,8 @@ export class AlertsService implements OnModuleInit, OnModuleDestroy {
       eventId: alert.eventId?.toString() ?? null,
       requestId: alert.requestId?.toString() ?? null,
       inventoryItemId: alert.inventoryItemId?.toString() ?? null,
+      providerServiceId: alert.providerServiceId?.toString() ?? null,
+      serviceStatus: alert.serviceStatus ?? null,
       readAt: alert.readAt,
       createdAt: alert.createdAt,
     };

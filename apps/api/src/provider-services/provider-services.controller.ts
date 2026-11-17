@@ -42,7 +42,7 @@ export class ProviderServicesController {
   ) {
     return {
       data: await this.service.create(eventId, dto, user),
-      message: 'Servicio de proveedor asignado correctamente.',
+      message: 'Solicitud pendiente de confirmación del proveedor.',
     };
   }
 
@@ -70,6 +70,19 @@ export class ProviderServicesController {
     return {
       data: await this.service.cancel(eventId, id, user),
       message: 'Servicio de proveedor cancelado correctamente.',
+    };
+  }
+
+  @Post(':id/resend')
+  @RequirePermissions('servicios_proveedor.crear', 'proveedores.ver')
+  async resend(
+    @Param('eventId') eventId: string,
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return {
+      data: await this.service.resend(eventId, id, user),
+      message: 'Reenvío de solicitud en cola.',
     };
   }
 }

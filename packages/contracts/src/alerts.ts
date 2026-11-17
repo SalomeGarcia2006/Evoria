@@ -5,6 +5,7 @@ export const ALERT_TYPES = [
   'budget_limit',
   'inventory_low',
   'event_cancelled',
+  'provider_service',
 ] as const;
 export type AlertType = (typeof ALERT_TYPES)[number];
 export type AlertSeverity = 'info' | 'warning';
@@ -17,6 +18,8 @@ export interface AlertItem {
   eventId: string | null;
   requestId: string | null;
   inventoryItemId: string | null;
+  providerServiceId: string | null;
+  serviceStatus: string | null;
   readAt: string | null;
   createdAt: string;
 }

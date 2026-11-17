@@ -22,6 +22,7 @@ import {
 } from './budgets.controller';
 import { BudgetsService } from './budgets.service';
 import { EventBudget, EventBudgetSchema } from './schemas/event-budget.schema';
+import { ProviderServiceFunding } from '../provider-services/provider-service-funding.service';
 
 @Module({
   imports: [
@@ -36,7 +37,7 @@ import { EventBudget, EventBudgetSchema } from './schemas/event-budget.schema';
     ]),
   ],
   controllers: [BudgetOverviewController, EventBudgetController],
-  providers: [BudgetLedgerService, BudgetsService],
+  providers: [BudgetLedgerService, BudgetsService, ProviderServiceFunding],
   exports: [BudgetLedgerService, BudgetsService],
 })
 export class BudgetsModule {}

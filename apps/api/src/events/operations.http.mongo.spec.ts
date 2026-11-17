@@ -442,7 +442,7 @@ test('HTTP: operaciones de eventos, recursos y proveedores conservan sus datos',
           },
         )
       ).status,
-      200,
+      409,
     );
     assert.equal(
       (

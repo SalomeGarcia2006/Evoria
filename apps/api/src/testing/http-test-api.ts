@@ -1,4 +1,4 @@
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, type Type } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { getConnectionToken } from '@nestjs/mongoose';
 import { Test } from '@nestjs/testing';
@@ -25,6 +25,7 @@ interface RequestOptions {
 }
 
 export interface HttpTestApi {
+  get<T>(token: Type<T>): T;
   connection: Connection;
   login<T = unknown>(email: string, password: string): Promise<HttpSession<T>>;
   request(path: string, options?: RequestOptions): Promise<Response>;
@@ -85,6 +86,9 @@ export async function createHttpTestApi(
   process.env.MONGODB_URI = mongoUri.toString();
   process.env.JWT_ACCESS_SECRET = `${name}-access-secret`;
   process.env.JWT_REFRESH_SECRET = `${name}-refresh-secret`;
+  process.env.PROVIDER_CONFIRMATION_SECRET = `${name}-provider-confirmation-secret-for-tests-only`;
+  process.env.API_PUBLIC_URL = 'http://127.0.0.1:3001/api';
+  process.env.PROVIDER_WORKER_ENABLED = 'false';
 
   let app;
   if (googleProvider || mailService) {
@@ -131,6 +135,7 @@ export async function createHttpTestApi(
   }
 
   return {
+    get: <T>(token: Type<T>) => app.get<T>(token),
     connection,
     request,
     async login<T>(email: string, password: string): Promise<HttpSession<T>> {

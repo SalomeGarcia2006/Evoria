@@ -10,6 +10,7 @@ import { Event } from '../events/schemas/event.schema';
 import { Provider } from '../providers/schemas/provider.schema';
 import { CreateProviderServiceDto } from './dto/create-provider-service.dto';
 import { ProviderServicesService } from './provider-services.service';
+import type { ProviderServiceWorkflow } from './provider-service-workflow.service';
 import { EventProviderService } from './schemas/event-provider-service.schema';
 
 const eventId = new Types.ObjectId();
@@ -77,6 +78,20 @@ function setup(eventStatus = 'confirmado', providerStatus = 'activo') {
       {
         record: async (entry: { action: string }) => auditEntries.push(entry),
       } as unknown as AuditsService,
+      undefined,
+      {
+        request: async (
+          _eventId: string,
+          dto: CreateProviderServiceDto,
+          actor: AuthenticatedUser,
+        ) => {
+          auditEntries.push({ action: 'solicitar' });
+          const [service] = await serviceModel.create([
+            { ...dto, status: 'pendiente', tenantId: actor.tenantId },
+          ]);
+          return service;
+        },
+      } as unknown as ProviderServiceWorkflow,
     ),
     auditEntries,
   };
@@ -110,7 +125,8 @@ test('permite dos acuerdos independientes del mismo proveedor y empresa', async 
   assert.equal(second.providerId, first.providerId);
   assert.equal(first.agreedAmountCop, 3200000);
   assert.equal(auditEntries.length, 2);
-  assert.equal(auditEntries[0].action, 'crear');
+  assert.equal(auditEntries[0].action, 'solicitar');
+  assert.equal(first.status, 'pendiente');
 });
 
 test('impide nuevas asignaciones con evento cancelado o proveedor inactivo', async () => {
@@ -152,6 +168,29 @@ test('rechaza fechas inexistentes, fin anterior y montos no positivos', async ()
   );
   const dto = Object.assign(request(), { agreedAmountCop: 0 });
   assert.ok(validateSync(dto).length > 0);
+});
+
+test('no permite editar un servicio existente', async () => {
+  const tenantId = user.tenantId;
+  const serviceId = new Types.ObjectId();
+  const service = new ProviderServicesService(
+    {
+      findOne: async (filter: Record<string, unknown>) => {
+        assert.equal(filter.tenantId, tenantId);
+        return { _id: serviceId };
+      },
+    } as unknown as Model<EventProviderService>,
+    {} as Model<Provider>,
+    {
+      findOne: async () => ({ status: 'planificado' }),
+    } as unknown as Model<Event>,
+    {} as BudgetLedgerService,
+    {} as AuditsService,
+  );
+  await assert.rejects(
+    () => service.update(eventId.toString(), serviceId.toString(), {}, user),
+    /No se pueden editar servicios/,
+  );
 });
 
 test('consulta el historial de un evento cancelado con proveedor inactivo', async () => {
