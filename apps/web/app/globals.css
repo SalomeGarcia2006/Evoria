@@ -10,6 +10,12 @@
 @import '../styles/selects.css';
 @import '../styles/inventory-compat.css';
 
+/* Leaflet crea teselas de mapa como imágenes de carga diferida. La relación
+   explícita evita que aparezcan como 0 × 0 antes de cargar y desplacen la vista. */
+.leaflet-container img.leaflet-tile {
+  aspect-ratio: 1 / 1;
+}
+
 @theme {
   --color-navy: #14213d;
   --color-teal: #12b5a6;

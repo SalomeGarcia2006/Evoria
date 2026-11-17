@@ -160,6 +160,7 @@ export function ProviderFormDialog({
             <Field
               key={key}
               label={label}
+              name={key}
               required={
                 key === 'name' ||
                 (!provider &&
@@ -181,7 +182,10 @@ export function ProviderFormDialog({
               onChange={(e) => setValues({ ...values, [key]: e.target.value })}
             />
           ))}
-          <fieldset className="grid gap-2 sm:col-span-2">
+          <fieldset
+            aria-label="Categorías del proveedor"
+            className="grid gap-2 sm:col-span-2"
+          >
             <legend className="mb-2 text-sm font-semibold">Categorías</legend>
             <div className="flex flex-wrap gap-4">
               {PROVIDER_CATEGORIES.map((category) => (
@@ -205,11 +209,15 @@ export function ProviderFormDialog({
               ))}
             </div>
           </fieldset>
-          <label className="grid gap-2 text-sm font-semibold sm:col-span-2">
+          <label
+            className="grid gap-2 text-sm font-semibold sm:col-span-2"
+            data-tour-field="notes"
+          >
             Notas
             <textarea
               className={inputClass}
               maxLength={1000}
+              name="notes"
               required={!provider}
               value={values.notes}
               onChange={(e) => setValues({ ...values, notes: e.target.value })}
@@ -225,7 +233,7 @@ export function ProviderFormDialog({
           >
             Cancelar
           </Button>
-          <Button disabled={busy}>
+          <Button disabled={busy} type="submit">
             {busy
               ? provider
                 ? 'Actualizando…'

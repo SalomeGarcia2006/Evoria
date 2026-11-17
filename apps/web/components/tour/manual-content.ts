@@ -68,6 +68,16 @@ export const manualContent: Record<string, ManualTopic[]> = {
         'Busca por nombre o fecha y abre un evento para consultar su estado, ubicación, fechas, responsable y presupuesto base.',
     },
     {
+      title: 'Ver detalles del evento',
+      description:
+        'Abre una vista de consulta sin modificar el evento. Muestra descripción, fechas, estado, presupuesto, persona responsable y la ubicación seleccionada en el mapa.',
+    },
+    {
+      title: 'Próximo en tu agenda',
+      description:
+        'Destaca el evento activo más cercano. Solo se muestra cuando existe un evento futuro que no está cancelado ni finalizado.',
+    },
+    {
       title: 'Nuevo evento',
       description:
         'Abre el formulario para registrar el evento. Completa nombre, fechas, horas, tipo, lugar y responsable según las validaciones que indique el formulario.',
@@ -104,6 +114,11 @@ export const manualContent: Record<string, ManualTopic[]> = {
       title: 'Tarjeta del recurso',
       description:
         'Presenta su categoría, datos y cantidades. Abre las opciones disponibles para consultar o gestionar el recurso según tus permisos.',
+    },
+    {
+      title: 'Ver detalle',
+      description:
+        'Abre una consulta del recurso sin modificarlo. Muestra descripción, cantidades totales, disponibles y reservadas, además del costo unitario y las acciones permitidas para tu perfil.',
     },
     {
       title: 'Relación con asignaciones',

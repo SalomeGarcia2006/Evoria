@@ -101,6 +101,11 @@ const guides: Record<string, ModuleGuide> = {
           'El estado indica la etapa del evento. Consulta sus fechas y detalles antes de organizar recursos, presupuesto y actividades.',
         selector: '.events-list-panel',
       },
+      {
+        title: 'Próximo en tu agenda',
+        description:
+          'Cuando hay un evento futuro activo, esta tarjeta destaca el más cercano y permite abrir sus detalles rápidamente.',
+      },
     ],
   },
   '/inventario': {
@@ -123,6 +128,11 @@ const guides: Record<string, ModuleGuide> = {
         title: 'Disponibilidad',
         description:
           'Consulta las cantidades y el estado de los recursos antes de reservarlos para un evento. Las acciones disponibles dependen de los permisos de tu perfil.',
+      },
+      {
+        title: 'Ver detalle',
+        description:
+          'Abre un recurso para consultar sus cantidades, costo y acciones disponibles. Esta consulta no modifica el inventario.',
       },
     ],
   },
@@ -453,10 +463,17 @@ export function FirstVisitTour() {
     }
 
     let tour: ReturnType<typeof driver> | undefined;
+    const waitStarted = Date.now();
     const timer = window.setInterval(() => {
       if (document.querySelector('dialog[open], .driver-active')) return;
       const main = document.querySelector<HTMLElement>('main');
       if (!main) return;
+      if (
+        pathname === '/recursos/asignaciones' &&
+        main.textContent?.includes('Cargando eventos activos') &&
+        Date.now() - waitStarted < 10000
+      )
+        return;
       window.clearInterval(timer);
       if (requested && request) handledRequest.current = request.id;
 
@@ -499,6 +516,7 @@ export function FirstVisitTour() {
         openedDialog = null;
         if (!dialog?.isConnected) return;
         dialog.style.cssText = originalStyle;
+        delete dialog.dataset.tourNonModal;
         const close = dialog.querySelector<HTMLButtonElement>(
           'button[aria-label="Cerrar formulario"], button[aria-label="Cerrar ventana"]',
         );
@@ -508,12 +526,18 @@ export function FirstVisitTour() {
       const formGuide = formGuides[pathname];
       const createButton =
         formGuide && (isDeveloper || permissions.includes(formGuide.permission))
-          ? Array.from(main.querySelectorAll<HTMLButtonElement>('button')).find(
-              (button) =>
-                button.textContent?.includes(formGuide.button) &&
-                !button.disabled &&
-                button.getClientRects().length,
-            )
+          ? formGuide.triggerSelector
+            ? (main.querySelector<HTMLButtonElement>(
+                formGuide.triggerSelector,
+              ) ?? undefined)
+            : Array.from(
+                main.querySelectorAll<HTMLButtonElement>('button'),
+              ).find(
+                (button) =>
+                  button.textContent?.includes(formGuide.button) &&
+                  !button.disabled &&
+                  button.getClientRects().length,
+              )
           : undefined;
 
       if (formGuide && createButton) {
@@ -522,7 +546,7 @@ export function FirstVisitTour() {
           popover: {
             title: formGuide.button,
             description:
-              'Al avanzar abriremos el formulario para explicarlo. No se guardará ningún dato.',
+              'Al avanzar abriremos esta ventana para explicarla. No se guardará ningún dato.',
             side: 'bottom',
             onNextClick: () => {
               if (!tour?.isActive()) return;
@@ -549,6 +573,9 @@ export function FirstVisitTour() {
                 originalStyle = dialog.style.cssText;
                 // El diálogo nativo está en la capa superior del navegador; durante
                 // la guía se muestra como no modal para que Driver pueda resaltarlo.
+                if (formGuide.preserveDialogDuringTour) {
+                  dialog.dataset.tourNonModal = 'true';
+                }
                 dialog.close();
                 dialog.show();
                 Object.assign(dialog.style, {
@@ -567,28 +594,40 @@ export function FirstVisitTour() {
             },
           },
         });
-        formGuide.fields.forEach((item, index) => {
-          steps.push({
-            element: () =>
-              (openedDialog &&
-                (findTarget(openedDialog, item) ||
-                  openedDialog.querySelector<HTMLElement>('h2'))) ||
-              main,
-            popover: {
-              title: item.title,
-              description: item.description,
-              side: 'bottom',
-              ...(index === 0
-                ? {
-                    onPrevClick: () => {
-                      closeTourDialog();
-                      tour?.movePrevious();
-                    },
-                  }
+        formGuide.fields
+          .filter(
+            (item) =>
+              !item.permission ||
+              isDeveloper ||
+              permissions.includes(item.permission),
+          )
+          .forEach((item, index) => {
+            steps.push({
+              element: () =>
+                (formGuide.skipMissingFields
+                  ? openedDialog && findTarget(openedDialog, item)
+                  : (openedDialog &&
+                      (findTarget(openedDialog, item) ||
+                        openedDialog.querySelector<HTMLElement>('h2'))) ||
+                    main) as HTMLElement,
+              ...(formGuide.skipMissingFields && index > 0
+                ? { skipMissingElement: true, waitForElement: 2000 }
                 : {}),
-            },
+              popover: {
+                title: item.title,
+                description: item.description,
+                side: 'bottom',
+                ...(index === 0
+                  ? {
+                      onPrevClick: () => {
+                        closeTourDialog();
+                        tour?.movePrevious();
+                      },
+                    }
+                  : {}),
+              },
+            });
           });
-        });
       }
       steps.push({
         popover: {

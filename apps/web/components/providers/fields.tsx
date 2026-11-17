@@ -18,7 +18,10 @@ export function Field({
 }: InputHTMLAttributes<HTMLInputElement> & { label: string; error?: string }) {
   const id = useId();
   return (
-    <div className="grid min-w-0 gap-2 text-sm font-semibold">
+    <div
+      className="grid min-w-0 gap-2 text-sm font-semibold"
+      data-tour-field={props.name}
+    >
       <label htmlFor={id}>{label}</label>
       <input
         {...props}

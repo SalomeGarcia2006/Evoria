@@ -9,6 +9,9 @@ export type InteractiveStep = {
 export type FormGuide = {
   permission: string;
   button: string;
+  triggerSelector?: string;
+  skipMissingFields?: boolean;
+  preserveDialogDuringTour?: boolean;
   fields: InteractiveStep[];
 };
 
@@ -93,6 +96,18 @@ export const pageSteps: Record<string, InteractiveStep[]> = {
       selector: '.events-table',
       description:
         'Consulta fechas, ubicación y estado. Las acciones de cada fila dependen de tus permisos.',
+    },
+    {
+      title: 'Ver detalles del evento',
+      text: 'Ver detalles',
+      description:
+        'Abre una consulta del evento sin modificarlo. Allí puedes revisar su descripción, fechas, estado, presupuesto, responsable y ubicación en el mapa.',
+    },
+    {
+      title: 'Próximo en tu agenda',
+      selector: '.events-upcoming',
+      description:
+        'Esta tarjeta destaca el evento activo más cercano. Puedes abrirlo desde aquí para consultar sus detalles.',
     },
   ],
   '/inventario': [
@@ -269,6 +284,121 @@ export const pageSteps: Record<string, InteractiveStep[]> = {
 };
 
 export const formGuides: Record<string, FormGuide> = {
+  '/inventario': {
+    permission: 'inventario.ver',
+    button: 'Ver detalle',
+    skipMissingFields: true,
+    preserveDialogDuringTour: true,
+    fields: [
+      {
+        title: 'Detalle del recurso',
+        selector: 'h2',
+        description:
+          'Esta vista consulta el recurso seleccionado sin modificarlo. En el título identificas el recurso que estás revisando.',
+      },
+      {
+        title: 'Disponibilidad y costo',
+        selector: 'dl',
+        description:
+          'Estas tarjetas muestran la cantidad total, las unidades disponibles, las reservadas para eventos y el costo unitario registrado.',
+      },
+      {
+        title: 'Editar recurso',
+        text: 'Editar recurso',
+        permission: 'inventario.ajustar',
+        description:
+          'Abre el formulario para actualizar el recurso. Solo aparece para perfiles que pueden gestionar inventario.',
+      },
+      {
+        title: 'Desactivar recurso',
+        text: 'Desactivar recurso',
+        permission: 'inventario.ajustar',
+        description:
+          'Solicita confirmación antes de sacar el recurso de la disponibilidad para nuevas asignaciones. La guía no ejecuta esta acción.',
+      },
+      {
+        title: 'Cerrar detalle',
+        text: 'Cerrar',
+        description:
+          'Cierra esta consulta y regresa al listado. El recorrido lo hará automáticamente al finalizar u omitir, sin hacer cambios.',
+      },
+    ],
+  },
+  '/recursos/asignaciones': {
+    permission: 'eventos.ver',
+    button: 'Ver detalles y asignar',
+    triggerSelector: '[aria-label^="Ver asignaciones de "]',
+    skipMissingFields: true,
+    fields: [
+      {
+        title: 'Detalle del evento',
+        selector: '.grid.min-w-0.gap-6',
+        description:
+          'Aquí consultas el evento seleccionado, su estado, fechas y las asignaciones disponibles para tu perfil.',
+      },
+      {
+        title: 'Actualizar evento',
+        text: 'Actualizar evento',
+        description:
+          'Actualiza la información después de añadir o liberar un recurso o asignar un servicio. Si no hubo cambios, verás una advertencia.',
+      },
+      {
+        title: 'Reservas de inventario',
+        selector: '[aria-label="Reservas de inventario"] h3',
+        permission: 'asignaciones.ver',
+        description:
+          'Consulta los recursos reservados para el evento y sus cantidades. Las unidades reservadas dejan de estar disponibles para otras asignaciones.',
+      },
+      {
+        title: 'Seleccionar recurso',
+        selector: '[aria-label="Reservas de inventario"] select',
+        permission: 'asignaciones.crear',
+        description:
+          'Elige un recurso disponible. Este campo aparece cuando tienes acceso al inventario y el presupuesto permite asignaciones.',
+      },
+      {
+        title: 'Cantidad',
+        selector: '[aria-label="Reservas de inventario"] input[type="number"]',
+        permission: 'asignaciones.crear',
+        description:
+          'Indica cuántas unidades necesitas; no puedes superar la cantidad disponible.',
+      },
+      {
+        title: 'Asignar recurso',
+        selector: '[aria-label="Reservas de inventario"] button[type="submit"]',
+        permission: 'asignaciones.crear',
+        description:
+          'Reserva el recurso y la cantidad elegidos. El botón se habilita cuando se cumplen los requisitos. La guía no hará ninguna reserva.',
+      },
+      {
+        title: 'Liberar recurso',
+        text: 'Liberar recurso',
+        permission: 'asignaciones.eliminar',
+        description:
+          'Devuelve las unidades reservadas de ese recurso al inventario. La acción solicita confirmación y la guía no la ejecutará.',
+      },
+      {
+        title: 'Servicios de proveedores',
+        selector: '[aria-label="Servicios de proveedores"] h3',
+        permission: 'servicios_proveedor.ver',
+        description:
+          'Consulta los servicios contratados para el evento y sus valores. Los acuerdos confirmados cuentan como gasto del presupuesto.',
+      },
+      {
+        title: 'Asignar servicio',
+        text: 'Asignar servicio',
+        permission: 'servicios_proveedor.crear',
+        description:
+          'Abre el formulario para registrar un servicio de proveedor. Requiere acceso a proveedores y cumplir los requisitos de presupuesto.',
+      },
+      {
+        title: 'Cerrar evento',
+        text: 'Cerrar evento',
+        description:
+          'Vuelve a la lista de eventos. El recorrido cierra el detalle al finalizar u omitir sin hacer cambios.',
+      },
+    ],
+  },
   '/eventos': {
     permission: 'eventos.crear',
     button: 'Nuevo evento',
@@ -288,6 +418,13 @@ export const formGuides: Record<string, FormGuide> = {
         selector: '[aria-label="Seleccionar rango de fechas"]',
         description:
           'Define el periodo del evento; las horas de inicio y finalización se completan en los campos siguientes.',
+      },
+      {
+        title: 'Ubicación exacta',
+        selector:
+          '[aria-label="Mapa para seleccionar la ubicación exacta del evento"]',
+        description:
+          'Busca el lugar por nombre o dirección y selecciónalo en los resultados; también puedes hacer clic directamente en el punto del mapa. La dirección seleccionada se guarda como la ubicación obligatoria del evento.',
       },
       {
         title: 'Tipo de evento',
@@ -317,44 +454,52 @@ export const formGuides: Record<string, FormGuide> = {
     button: 'Crear proveedor',
     fields: [
       {
-        title: 'Nombre',
-        text: 'Nombre',
-        description: 'Escribe el nombre que identifica al proveedor.',
+        title: 'Nombre del proveedor',
+        selector: '[data-tour-field="name"]',
+        description:
+          'Escribe el nombre comercial o razón social con el que identificarás al proveedor en el directorio y al asignar servicios.',
       },
       {
         title: 'Persona de contacto',
-        text: 'Persona de contacto',
+        selector: '[data-tour-field="contactName"]',
         description:
-          'Este dato es opcional y permite identificar a quien atiende la relación.',
+          'Es el único dato opcional. Registra a la persona que atiende la relación comercial si cuentas con esa información.',
       },
       {
-        title: 'Teléfono y correo',
-        text: 'Teléfono',
+        title: 'Teléfono',
+        selector: '[data-tour-field="phone"]',
         description:
-          'Registra los datos de contacto obligatorios del proveedor.',
+          'Registra un número de contacto obligatorio para comunicarse con el proveedor.',
+      },
+      {
+        title: 'Correo',
+        selector: '[data-tour-field="email"]',
+        description:
+          'Registra un correo electrónico obligatorio. Evoria lo valida antes de crear el proveedor.',
       },
       {
         title: 'Ubicación',
-        text: 'Ubicación',
-        description: 'Indica la ubicación del proveedor.',
+        selector: '[data-tour-field="location"]',
+        description:
+          'Indica la dirección o ciudad desde la que opera. Este dato es obligatorio al crear el proveedor.',
       },
       {
         title: 'Categorías',
-        text: 'Categorías',
+        selector: '[aria-label="Categorías del proveedor"]',
         description:
-          'Selecciona una o más categorías de los servicios que ofrece.',
+          'Selecciona una o más categorías para clasificar los servicios que ofrece. Debes elegir al menos una.',
       },
       {
-        title: 'Notas',
-        text: 'Notas',
+        title: 'Notas del proveedor',
+        selector: '[data-tour-field="notes"]',
         description:
-          'Agrega la información requerida para describir al proveedor.',
+          'Agrega información útil para el equipo, como condiciones, horarios o acuerdos. Es obligatoria al crear el proveedor.',
       },
       {
         title: 'Guardar proveedor',
-        text: 'Guardar proveedor',
+        selector: 'button[type="submit"]',
         description:
-          'Guarda cuando completes los datos. El recorrido no creará ningún proveedor.',
+          'Al completar los campos obligatorios, guarda el proveedor para poder registrar y asignar sus servicios. El recorrido no creará ningún proveedor.',
       },
     ],
   },
