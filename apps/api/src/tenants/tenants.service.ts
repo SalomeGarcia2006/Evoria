@@ -235,7 +235,16 @@ export class TenantsService {
         description: 'Generó un enlace de registro para la empresa.',
       });
     }
-    return { token: result.registrationToken, emailDomain: tenant.emailDomain };
+    const registrationUrl = new URL(
+      '/registro',
+      process.env.WEB_ORIGIN?.trim() || 'http://localhost:3000',
+    );
+    registrationUrl.searchParams.set('token', result.registrationToken!);
+    return {
+      token: result.registrationToken,
+      url: registrationUrl.toString(),
+      emailDomain: tenant.emailDomain,
+    };
   }
 
   private async findActiveTenant(

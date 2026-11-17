@@ -5,13 +5,11 @@ import {
   Get,
   Param,
   Patch,
-  Post,
   Query,
 } from '@nestjs/common';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RequirePermissions } from '../auth/decorators/require-permissions.decorator';
-import { CreateUserDto } from './dto/create-user.dto';
 import { FindUsersDto } from './dto/find-users.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UsersService } from './users.service';
@@ -19,18 +17,6 @@ import { UsersService } from './users.service';
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
-
-  @Post()
-  @RequirePermissions('usuarios.crear')
-  async create(
-    @Body() createUserDto: CreateUserDto,
-    @CurrentUser() user: AuthenticatedUser,
-  ) {
-    return {
-      data: await this.usersService.create(createUserDto, user),
-      message: 'Usuario creado correctamente.',
-    };
-  }
 
   @Get()
   @RequirePermissions('usuarios.ver')
@@ -45,7 +31,7 @@ export class UsersController {
   }
 
   @Get('profiles')
-  @RequirePermissions('usuarios.crear')
+  @RequirePermissions('usuarios.editar')
   async findAvailableProfiles(@CurrentUser() user: AuthenticatedUser) {
     return {
       data: await this.usersService.findAvailableProfiles(user),

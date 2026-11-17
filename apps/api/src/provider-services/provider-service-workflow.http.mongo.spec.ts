@@ -81,7 +81,7 @@ test('HTTP: confirmación de proveedor, presupuesto, correo y aislamiento en Mon
     );
     async function member(name: string) {
       const user = await data<{ id: string }>(
-        await api.request('users', {
+        await api.createUserFixture({
           method: 'POST',
           session: owner,
           body: {

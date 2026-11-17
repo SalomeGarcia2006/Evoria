@@ -82,7 +82,7 @@ test('HTTP: perfiles, permisos y usuarios se administran dentro de la empresa', 
       availableProfilesBody.data.some(({ id }) => id === profile.data.id),
     );
 
-    const userResponse = await api.request('users', {
+    const userResponse = await api.createUserFixture({
       method: 'POST',
       session: ownerSession,
       body: {

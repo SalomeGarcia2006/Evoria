@@ -46,6 +46,7 @@ try {
       'src/core.http.mongo.spec.ts',
       'src/auth/auth-flow.http.mongo.spec.ts',
       'src/auth/password-reset.http.mongo.spec.ts',
+      'src/auth/registration.http.mongo.spec.ts',
       'src/auth/google-oauth.http.mongo.spec.ts',
       'src/auth/protected-routes.http.mongo.spec.ts',
       'src/tenants/tenant-context.http.mongo.spec.ts',

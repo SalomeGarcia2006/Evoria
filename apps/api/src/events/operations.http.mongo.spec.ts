@@ -94,7 +94,7 @@ test('HTTP: tipos aislados por empresa y acceso para crear o editar', async () =
       const email = `${name}@example.test`;
       assert.equal(
         (
-          await api.request('users', {
+          await api.createUserFixture({
             method: 'POST',
             session: ownerSession,
             body: {

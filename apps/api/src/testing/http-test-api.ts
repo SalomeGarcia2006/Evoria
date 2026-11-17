@@ -29,6 +29,7 @@ export interface HttpTestApi {
   connection: Connection;
   login<T = unknown>(email: string, password: string): Promise<HttpSession<T>>;
   request(path: string, options?: RequestOptions): Promise<Response>;
+  createUserFixture(options: RequestOptions): Promise<Response>;
   seedDeveloper(input?: {
     email?: string;
     name?: string;
@@ -138,6 +139,37 @@ export async function createHttpTestApi(
     get: <T>(token: Type<T>) => app.get<T>(token),
     connection,
     request,
+    async createUserFixture(options: RequestOptions): Promise<Response> {
+      const input = options.body as {
+        name: string;
+        email: string;
+        password: string;
+        profileId: string;
+      };
+      const profile = await connection
+        .collection('profiles')
+        .findOne({ _id: new Types.ObjectId(input.profileId) });
+      if (!profile?.tenantId)
+        throw new Error('El perfil de prueba no tiene empresa.');
+      const id = new Types.ObjectId();
+      await connection.collection('users').insertOne({
+        _id: id,
+        name: input.name,
+        email: input.email,
+        passwordHash: app.get(PasswordService).hash(input.password),
+        platformProfileId: null,
+        status: 'activo',
+        loginAttempts: 0,
+        lockedUntil: null,
+      });
+      await connection.collection('memberships').insertOne({
+        userId: id,
+        tenantId: profile.tenantId,
+        profileId: profile._id,
+        status: 'activo',
+      });
+      return Response.json({ data: { id: id.toString() } }, { status: 201 });
+    },
     async login<T>(email: string, password: string): Promise<HttpSession<T>> {
       const response = await request('auth/login', {
         method: 'POST',

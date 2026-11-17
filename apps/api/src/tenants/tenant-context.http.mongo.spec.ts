@@ -150,7 +150,7 @@ test('HTTP: el contexto operativo se administra de forma aislada por empresa', a
     const profile = (await restrictedProfile.json()) as {
       data: { id: string };
     };
-    const restrictedUser = await api.request('users', {
+    const restrictedUser = await api.createUserFixture({
       method: 'POST',
       session: ownerSession,
       body: {

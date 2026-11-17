@@ -29,7 +29,7 @@ test('HTTP: presupuestos, alertas, auditoría y métricas usan la sesión autori
     });
     assert.equal(profileResponse.status, 201);
     const profile = (await profileResponse.json()) as { data: { id: string } };
-    const requesterResponse = await api.request('users', {
+    const requesterResponse = await api.createUserFixture({
       method: 'POST',
       session: ownerSession,
       body: {

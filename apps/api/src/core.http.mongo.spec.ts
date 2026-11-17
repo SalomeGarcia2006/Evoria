@@ -130,21 +130,23 @@ test('HTTP y Mongo aislado: autenticación, empresa y gestión básica', async (
     assert.equal(profileResponse.status, 201);
     const profile = (await profileResponse.json()) as { data: { id: string } };
 
-    const userResponse = await fetch(`${api}/users`, {
-      method: 'POST',
-      headers: {
-        Cookie: sessionCookies,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        name: 'Usuario de prueba',
-        email: 'user@example.test',
-        password: 'Prueba-segura1',
-        profileId: profile.data.id,
-      }),
+    const userId = new Types.ObjectId();
+    await connection.collection('users').insertOne({
+      _id: userId,
+      name: 'Usuario de prueba',
+      email: 'user@example.test',
+      passwordHash: app.get(PasswordService).hash('Prueba-segura1'),
+      status: 'activo',
+      platformProfileId: null,
+      loginAttempts: 0,
+      lockedUntil: null,
     });
-    assert.equal(userResponse.status, 201);
-    const user = (await userResponse.json()) as { data: { id: string } };
+    await connection.collection('memberships').insertOne({
+      tenantId: new Types.ObjectId(tenant.data.id),
+      userId,
+      profileId: new Types.ObjectId(profile.data.id),
+      status: 'activo',
+    });
     assert.equal(
       (await fetch(`${api}/users`, { headers: { Cookie: sessionCookies } }))
         .status,
@@ -179,7 +181,7 @@ test('HTTP y Mongo aislado: autenticación, empresa y gestión básica', async (
           name: 'Montaje',
           startAt: '2030-01-10T10:00:00.000Z',
           endAt: '2030-01-10T12:00:00.000Z',
-          responsibleUserId: user.data.id,
+          responsibleUserId: userId.toString(),
         }),
       },
     );

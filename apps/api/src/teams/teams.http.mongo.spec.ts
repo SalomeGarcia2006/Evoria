@@ -44,11 +44,13 @@ test('equipos respetan empresa, permisos, horarios y finalización', async () =>
     const profile = (await profileResponse.json()) as { data: { id: string } };
     assert.equal(
       (
-        await request('users', 'POST', {
-          name: 'Colaborador',
-          email: 'member@example.test',
-          password: 'Prueba-segura1',
-          profileId: profile.data.id,
+        await api.createUserFixture({
+          body: {
+            name: 'Colaborador',
+            email: 'member@example.test',
+            password: 'Prueba-segura1',
+            profileId: profile.data.id,
+          },
         })
       ).status,
       201,
@@ -64,11 +66,13 @@ test('equipos respetan empresa, permisos, horarios y finalización', async () =>
     const memberId = member._id.toString();
     assert.equal(
       (
-        await request('users', 'POST', {
-          name: 'Usuario concurrente',
-          email: 'racer@example.test',
-          password: 'Prueba-segura1',
-          profileId: profile.data.id,
+        await api.createUserFixture({
+          body: {
+            name: 'Usuario concurrente',
+            email: 'racer@example.test',
+            password: 'Prueba-segura1',
+            profileId: profile.data.id,
+          },
         })
       ).status,
       201,

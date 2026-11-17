@@ -15,8 +15,8 @@ export class Membership {
   @Prop({ type: 'ObjectId', ref: 'Tenant', required: true, index: true })
   tenantId!: Types.ObjectId;
 
-  @Prop({ type: 'ObjectId', ref: 'Profile', required: true, index: true })
-  profileId!: Types.ObjectId;
+  @Prop({ type: 'ObjectId', ref: 'Profile', default: null, index: true })
+  profileId!: Types.ObjectId | null;
 
   @Prop({
     required: true,

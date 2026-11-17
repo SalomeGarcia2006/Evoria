@@ -20,7 +20,7 @@ const LOCK_DURATION_IN_MILLISECONDS = 15 * 60 * 1_000;
 
 type SessionUser = Pick<
   User,
-  'name' | 'email' | 'status' | 'platformProfileId'
+  'name' | 'lastName' | 'email' | 'status' | 'platformProfileId'
 > & {
   _id: Types.ObjectId;
 };
@@ -231,6 +231,7 @@ export class AuthService {
         user: {
           id: user._id.toString(),
           name: user.name,
+          lastName: user.lastName ?? null,
           email: user.email,
           status: user.status,
         },
@@ -277,9 +278,34 @@ export class AuthService {
         : Promise.resolve(null),
     ]);
 
-    if (!tenant || !profile) {
+    if (!tenant || (membership.profileId && !profile)) {
       throw new UnauthorizedException('La cuenta no tiene un perfil activo.');
     }
+
+    if (!membership.profileId) {
+      return {
+        scope: 'tenant',
+        isDeveloper: false,
+        pendingProfile: true,
+        user: {
+          id: user._id.toString(),
+          name: user.name,
+          lastName: user.lastName ?? null,
+          email: user.email,
+          status: user.status,
+        },
+        profile: { id: '', name: 'Pendiente de asignación' },
+        tenant: {
+          id: tenant._id.toString(),
+          name: tenant.name,
+          slug: tenant.slug,
+        },
+        membership: { id: membership._id.toString() },
+        permissions: [],
+      };
+    }
+    if (!profile)
+      throw new UnauthorizedException('La cuenta no tiene un perfil activo.');
 
     const permissions = await this.permissionModel
       .find({ _id: { $in: profile.permissionIds }, status: 'activo' })
@@ -292,6 +318,7 @@ export class AuthService {
       user: {
         id: user._id.toString(),
         name: user.name,
+        lastName: user.lastName ?? null,
         email: user.email,
         status: user.status,
       },
