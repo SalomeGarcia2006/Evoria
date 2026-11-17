@@ -6,6 +6,7 @@ import {
   createTenantTestContext,
 } from '../testing/http-test-api';
 import { addRegistrationIndexesMigration } from '../migrations/20261117-add-registration-indexes.migration';
+import { disableUserCreatePermissionMigration } from '../migrations/20261117-disable-user-create-permission.migration';
 
 test('HTTP: registro empresarial, verificación y asignación de perfil', async () => {
   let message = '';
@@ -16,6 +17,18 @@ test('HTTP: registro empresarial, verificación y asignación de perfil', async 
     const { ownerSession } = await createTenantTestContext(api);
     await addRegistrationIndexesMigration.up(api.connection);
     await addRegistrationIndexesMigration.up(api.connection);
+    await api.connection
+      .collection('permissions')
+      .insertOne({ key: 'usuarios.crear', status: 'activo' });
+    await disableUserCreatePermissionMigration.up(api.connection);
+    assert.equal(
+      (
+        await api.connection
+          .collection('permissions')
+          .findOne({ key: 'usuarios.crear' })
+      )?.status,
+      'inactivo',
+    );
     assert.equal(
       (
         await api.request('users', {

@@ -314,8 +314,7 @@ deben requerir autenticación y validar el permiso requerido.
 | Perfiles      | `PATCH /api/profiles/:id`                      | `perfiles.editar`       | Perfil y permisos actualizados.                   |
 | Perfiles      | `DELETE /api/profiles/:id`                     | `perfiles.desactivar`   | Perfil personalizado desactivado.                 |
 | Usuarios      | `GET /api/users`                               | `usuarios.ver`          | Lista paginada de usuarios.                       |
-| Usuarios      | `POST /api/users`                              | `usuarios.crear`        | Usuario creado sin exponer `password_hash`.       |
-| Usuarios      | `GET /api/users/profiles`                      | `usuarios.crear`        | Perfiles activos disponibles para asignar.        |
+| Usuarios      | `GET /api/users/profiles`                      | `usuarios.editar`       | Perfiles activos disponibles para asignar.        |
 | Usuarios      | `GET /api/users/:id`                           | `usuarios.ver`          | Usuario de la empresa activa.                     |
 | Usuarios      | `PATCH /api/users/:id`                         | `usuarios.editar`       | Perfil o estado de membresía actualizado.         |
 | Usuarios      | `DELETE /api/users/:id`                        | `usuarios.desactivar`   | Membresía del usuario desactivada.                |

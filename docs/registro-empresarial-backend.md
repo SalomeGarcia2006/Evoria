@@ -17,4 +17,4 @@ La API requiere MongoDB configurado como réplica para las transacciones. El usu
 
 La creación directa mediante `POST /api/users` fue retirada. El frontend existente debe adaptarse al nuevo flujo antes de ofrecerlo a usuarios; este cambio no incluye esa vista.
 
-Ejecuta `npm run migrate` desde la raíz tras actualizar para crear los índices únicos del dominio y de los registros pendientes, además del índice de caducidad. Se necesitan las variables SMTP ya existentes y MongoDB en ejecución. No hace falta modificar los correos de los usuarios existentes ni ejecutar el seed por este cambio.
+Ejecuta `npm run migrate` desde la raíz tras actualizar para crear los índices únicos del dominio y de los registros pendientes, además del índice de caducidad y desactivar el permiso obsoleto `usuarios.crear`. Se necesitan las variables SMTP ya existentes y MongoDB en ejecución. No hace falta modificar los correos de los usuarios existentes ni ejecutar el seed por este cambio.
