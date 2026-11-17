@@ -202,6 +202,35 @@ export const pageSteps: Record<string, InteractiveStep[]> = {
         'Consulta fecha, responsable, estado y acciones disponibles de cada actividad.',
     },
   ],
+  '/equipos': [
+    {
+      title: 'Equipos registrados',
+      text: 'Equipos registrados',
+      description:
+        'Consulta los equipos de la empresa, su especialidad, integrantes y estado actual.',
+    },
+    {
+      title: 'Crear equipo',
+      text: 'Crear equipo',
+      permission: 'equipos.crear',
+      description:
+        'Completa el nombre y la especialidad para identificar el equipo de trabajo.',
+    },
+    {
+      title: 'Integrantes y líder',
+      text: 'Integrantes',
+      permission: 'equipos.crear',
+      description:
+        'Selecciona usuarios activos y luego escoge un líder entre las personas que agregaste al equipo.',
+    },
+    {
+      title: 'Desactivar equipo',
+      text: 'Desactivar',
+      permission: 'equipos.desactivar',
+      description:
+        'Esta acción solicita una confirmación y deja el equipo inactivo. La guía no lo desactiva.',
+    },
+  ],
   '/alertas': [
     {
       title: 'Categoría',

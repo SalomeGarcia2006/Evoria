@@ -9,6 +9,7 @@ import {
   type FormEvent,
   type MouseEvent,
 } from 'react';
+import { ThemeToggle } from '../layout/ThemeToggle';
 import { Particles } from './Particles';
 import './landing.css';
 
@@ -110,6 +111,9 @@ export function LandingPage() {
           <span></span>
         </button>
       </nav>
+      <div className="landing-theme-toggle">
+        <ThemeToggle />
+      </div>
       <main>
         <section id="inicio" className="hero">
           <Particles />

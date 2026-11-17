@@ -52,9 +52,20 @@ export function ThemeToggle() {
       className={`${styles.toggle} ${dark ? styles.light : styles.dark}`}
     >
       {dark ? (
-        <span aria-hidden="true" className="text-lg leading-none">
-          ☀
-        </span>
+        <svg
+          aria-hidden="true"
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="1.8"
+        >
+          <circle cx="12" cy="12" r="3.5" />
+          <path d="M12 2.5v2M12 19.5v2M21.5 12h-2M4.5 12h-2M18.72 5.28l-1.41 1.41M6.69 17.31l-1.41 1.41M18.72 18.72l-1.41-1.41M6.69 6.69 5.28 5.28" />
+        </svg>
       ) : (
         <svg
           aria-hidden="true"

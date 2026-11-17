@@ -244,6 +244,31 @@ export const manualContent: Record<string, ManualTopic[]> = {
         'Usa las acciones de la fila si están disponibles. El estado del evento y los permisos pueden restringir su edición.',
     },
   ],
+  '/equipos': [
+    {
+      title: 'Equipos registrados',
+      description:
+        'Consulta el nombre, la especialidad, la cantidad de integrantes y el estado de cada equipo activo de la empresa.',
+    },
+    {
+      title: 'Crear equipo',
+      description:
+        'Registra un equipo con un nombre y una especialidad. Para guardarlo debes seleccionar integrantes y definir a una de esas personas como líder.',
+      permission: 'equipos.crear',
+    },
+    {
+      title: 'Integrantes y liderazgo',
+      description:
+        'Solo se muestran usuarios activos. El líder debe estar incluido entre los integrantes seleccionados; necesitas permiso para consultar usuarios y poder elegirlos.',
+      permission: 'usuarios.ver',
+    },
+    {
+      title: 'Desactivar equipo',
+      description:
+        'Solicita una confirmación escrita antes de desactivar el equipo. Esta acción no se puede revertir desde la plataforma.',
+      permission: 'equipos.desactivar',
+    },
+  ],
   '/alertas': [
     {
       title: 'Categoría de alerta',
@@ -332,27 +357,27 @@ export const manualContent: Record<string, ManualTopic[]> = {
     {
       title: 'Indicadores',
       description:
-        'El resumen presenta los perfiles registrados, perfiles activos y permisos asignados.',
+        'Estas tarjetas muestran cuántos perfiles existen en la empresa, cuántos siguen activos y cuántos permisos están distribuidos entre ellos. Son solo un resumen: no cambian accesos ni usuarios.',
     },
     {
       title: 'Crear o editar perfil',
       description:
-        'Indica un nombre y selecciona los permisos que corresponden a sus responsabilidades, si tu perfil tiene autorización para administrarlos.',
+        'Usa “Nuevo perfil” para escribir un nombre y escoger las acciones que podrá realizar ese rol. Al editar, puedes ajustar sus permisos; las personas vinculadas a ese perfil verán las opciones permitidas cuando inicien sesión de nuevo.',
     },
     {
       title: 'Buscar módulo',
       description:
-        'Filtra el catálogo de módulos para localizar los permisos que deseas revisar.',
+        'Escribe el nombre de un módulo, por ejemplo “Eventos” o “Inventario”, para reducir el catálogo y revisar únicamente sus permisos. El buscador no modifica la selección que ya hiciste.',
     },
     {
       title: 'Activar permisos',
       description:
-        'Cada permiso habilita una acción concreta. Las personas que comparten ese perfil reciben las acciones configuradas para él.',
+        'Marca las acciones que necesita el perfil, como consultar, crear, editar o desactivar información. Debes seleccionar al menos un permiso para guardar; cada persona con ese perfil heredará esos accesos.',
     },
     {
       title: 'Perfiles registrados',
       description:
-        'Consulta las tarjetas existentes y utiliza las opciones disponibles para ver o administrar cada perfil.',
+        'Cada tarjeta muestra el nombre, estado y cantidad de permisos del perfil. Abre sus opciones para revisar o editar los perfiles personalizados; los perfiles del sistema se identifican como protegidos y no se modifican desde aquí.',
     },
   ],
   '/mi-perfil': [
