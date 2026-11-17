@@ -1,6 +1,9 @@
 import { SetMetadata } from '@nestjs/common';
 
 export const REQUIRED_PERMISSIONS_KEY = 'requiredPermissions';
+export const ANY_PERMISSION_KEY = 'anyPermission';
+export const RequireAnyPermission = (...permissions: string[]) =>
+  SetMetadata(ANY_PERMISSION_KEY, permissions);
 
 /**
  * Declara los permisos que el usuario debe tener para acceder a una ruta.

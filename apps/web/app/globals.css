@@ -92,6 +92,90 @@ textarea::placeholder {
   border-radius: 0;
 }
 
+.recovery-card {
+  position: relative;
+  overflow: hidden;
+  border-top: 3px solid var(--evoria-teal);
+  box-shadow: 0 24px 70px rgb(20 33 61 / 12%);
+}
+
+.recovery-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: var(--evoria-muted);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: color 160ms ease;
+}
+
+.recovery-back span {
+  font-size: 1.25rem;
+  transition: transform 160ms ease;
+}
+
+.recovery-back:hover {
+  color: var(--evoria-teal);
+}
+
+.recovery-back:hover span {
+  transform: translateX(-3px);
+}
+
+.recovery-progress {
+  display: flex;
+  gap: 0.4rem;
+  margin: 1.6rem 0 1.4rem;
+}
+
+.recovery-progress span {
+  width: 2.5rem;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--evoria-control-border);
+}
+
+.recovery-progress span.active {
+  background: var(--evoria-teal);
+}
+
+.recovery-step {
+  display: inline-block;
+  margin-bottom: 0.7rem;
+  color: var(--evoria-teal);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.recovery-description {
+  margin-top: 0.65rem;
+  color: var(--evoria-muted);
+  line-height: 1.55;
+}
+
+.recovery-code {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.recovery-code input {
+  width: min(3rem, 13vw);
+  height: 3.5rem;
+  border: 1px solid var(--evoria-control-border);
+  background: transparent;
+  text-align: center;
+  font-size: 1.3rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
 select:focus,
 input:focus,
 textarea:focus {

@@ -18,7 +18,9 @@ export default function RecoverPasswordPage() {
     setLoading(true);
     try {
       await requestPasswordReset(email);
-      router.push(`/verificar-contrasena?email=${encodeURIComponent(email)}`);
+      sessionStorage.setItem('passwordResetEmail', email);
+      sessionStorage.removeItem('passwordResetCode');
+      router.push('/verificar-contrasena');
     } catch (cause) {
       setError(apiErrorMessage(cause));
     } finally {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { apiErrorMessage } from '../../services/api';
@@ -11,8 +11,6 @@ const passwordPattern =
 
 export default function ResetPasswordPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [code, setCode] = useState('');
   const [password, setPassword] = useState('');
   const [confirmation, setConfirmation] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -21,14 +19,6 @@ export default function ResetPasswordPage() {
   const [done, setDone] = useState(false);
   const [loading, setLoading] = useState(false);
   const validPassword = passwordPattern.test(password);
-
-  useEffect(() => {
-    // The email comes from the previous page through the URL.
-    const params = new URLSearchParams(window.location.search);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setEmail(params.get('email') ?? '');
-    setCode(params.get('code') ?? '');
-  }, []);
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -41,7 +31,15 @@ export default function ResetPasswordPage() {
     setError(null);
     setLoading(true);
     try {
-      await confirmPasswordReset(email, code.toUpperCase(), password);
+      const email = sessionStorage.getItem('passwordResetEmail');
+      const code = sessionStorage.getItem('passwordResetCode');
+      if (!email || !code) {
+        router.replace('/recuperar-contrasena');
+        return;
+      }
+      await confirmPasswordReset(email, code, password);
+      sessionStorage.removeItem('passwordResetEmail');
+      sessionStorage.removeItem('passwordResetCode');
       setDone(true);
       window.setTimeout(() => router.replace('/login'), 1800);
     } catch (cause) {
@@ -68,8 +66,20 @@ export default function ResetPasswordPage() {
             <p>Establece una nueva contraseña</p>
           </div>
         </header>
-        <section className="login-card">
+        <section className="login-card recovery-card">
+          <a className="recovery-back" href="/verificar-contrasena">
+            <span aria-hidden="true">←</span> Volver al código
+          </a>
+          <div className="recovery-progress" aria-label="Paso 3 de 3">
+            <span className="active" />
+            <span className="active" />
+            <span className="active" />
+          </div>
+          <span className="recovery-step">03 · PROTEGE TU CUENTA</span>
           <h2>Nueva contraseña</h2>
+          <p className="recovery-description">
+            Crea una contraseña segura para volver a entrar a tu cuenta.
+          </p>
           <hr className="login-separator" />
           <form className="login-form" onSubmit={submit}>
             <div className="login-field">
@@ -161,17 +171,6 @@ export default function ResetPasswordPage() {
             >
               {loading ? 'Actualizando…' : 'Actualizar contraseña'}
             </button>
-            <div className="recovery-card__links">
-              <a
-                className="recovery-card__back"
-                href={`/verificar-contrasena?email=${encodeURIComponent(email)}`}
-              >
-                ← Volver a verificar el código
-              </a>
-              <a className="recovery-card__back" href="/login">
-                Volver al inicio de sesión
-              </a>
-            </div>
           </form>
         </section>
       </div>

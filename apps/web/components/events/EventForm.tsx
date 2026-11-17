@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   createEvent,
   getAllEvents,
+  getEventTypes,
   updateEvent,
   type CreateEventPayload,
   type EventItem,
@@ -14,22 +15,7 @@ import { Button } from '../ui/Button';
 import { DateRangePicker } from '../ui/DateRangePicker';
 import { ErrorMessage } from '../ui/ErrorMessage';
 import { OpenStreetMapLocationPicker } from './OpenStreetMapLocationPicker';
-
-const OTHER_EVENT_TYPE = '__otro_tipo__';
-const DEFAULT_EVENT_TYPES = [
-  'Congreso',
-  'Seminario',
-  'Taller',
-  'Conferencia',
-  'Feria',
-  'Concierto',
-  'Boda',
-  'Graduación',
-  'Evento corporativo',
-  'Lanzamiento de producto',
-  'Evento deportivo',
-  'Evento benéfico',
-];
+import { useAuth } from '../../hooks/useAuth';
 
 function combineDateAndTime(date: string, time: string): string {
   return new Date(`${date}T${time}`).toISOString();
@@ -65,7 +51,6 @@ function formFromEvent(event?: EventItem) {
     endTime: endAt ? formatTimeForInput(endAt) : '18:00',
     location: event?.location ?? '',
     type: event?.type ?? '',
-    customType: '',
     baseBudget: event ? String(event.baseBudget) : '',
     invitados: event ? String(event.invitados ?? 0) : '0',
     responsibleUserId: event?.responsibleUserId ?? '',
@@ -86,11 +71,27 @@ export function EventForm({
   onSuccess?: () => void;
 }) {
   const router = useRouter();
+  const { user } = useAuth();
+  const tenantId = user?.tenant?.id;
   const isEditing = Boolean(initialEvent);
   const minimumStartDate = getTomorrowDate();
   const [form, setForm] = useState(() => formFromEvent(initialEvent));
   const [users, setUsers] = useState<CompanyUser[]>([]);
   const [usersError, setUsersError] = useState(false);
+  const [typesAttempt, setTypesAttempt] = useState(0);
+  const [typesResult, setTypesResult] = useState<{
+    tenantId: string;
+    attempt: number;
+    types: string[];
+    error: boolean;
+  } | null>(null);
+  const currentTypes =
+    typesResult &&
+    typesResult.tenantId === tenantId &&
+    typesResult.attempt === typesAttempt
+      ? typesResult
+      : null;
+  const eventTypes = currentTypes?.types ?? [];
   const [events, setEvents] = useState<EventItem[]>([]);
   const [isLoadingEvents, setIsLoadingEvents] = useState(true);
   const [eventsError, setEventsError] = useState(false);
@@ -109,6 +110,33 @@ export function EventForm({
     (value: string) => updateField('location', value),
     [updateField],
   );
+
+  useEffect(() => {
+    if (!tenantId) return;
+    let active = true;
+    void getEventTypes()
+      .then((types) => {
+        if (active)
+          setTypesResult({
+            tenantId,
+            attempt: typesAttempt,
+            types,
+            error: false,
+          });
+      })
+      .catch(() => {
+        if (active)
+          setTypesResult({
+            tenantId,
+            attempt: typesAttempt,
+            types: [],
+            error: true,
+          });
+      });
+    return () => {
+      active = false;
+    };
+  }, [tenantId, typesAttempt]);
 
   useEffect(() => {
     void getUsers()
@@ -130,8 +158,14 @@ export function EventForm({
     setError(null);
     setValidationAlert(null);
 
-    const selectedEventType =
-      form.type === OTHER_EVENT_TYPE ? form.customType.trim() : form.type;
+    if (!currentTypes || currentTypes.error) {
+      setValidationAlert(
+        currentTypes?.error
+          ? 'No fue posible cargar los tipos de evento. Inténtalo de nuevo.'
+          : 'Espera mientras se cargan los tipos de evento.',
+      );
+      return;
+    }
 
     const missingFields = [
       !form.name.trim() && 'Nombre',
@@ -141,7 +175,7 @@ export function EventForm({
       !form.startTime && 'Hora de inicio',
       !form.endTime && 'Hora de finalización',
       !form.location.trim() && 'Ubicación',
-      !selectedEventType && 'Tipo de evento',
+      !form.type && 'Tipo de evento',
       form.baseBudget === '' && 'Presupuesto base',
       form.invitados === '' && 'Número de invitados',
       !form.responsibleUserId && 'Persona responsable',
@@ -252,7 +286,7 @@ export function EventForm({
       startAt,
       endAt,
       location: form.location.trim() || undefined,
-      type: selectedEventType || undefined,
+      type: form.type.trim() || undefined,
       baseBudget,
       invitados,
       responsibleUserId: form.responsibleUserId,
@@ -356,49 +390,40 @@ export function EventForm({
             <span className="text-sm font-semibold">Tipo</span>
             <select
               className="rounded-lg border border-sky-blue bg-white px-3 py-2 outline-none focus:border-teal focus:ring-2 focus:ring-sky-blue"
-              onChange={(event) => {
-                const type = event.target.value;
-                setForm((current) => ({
-                  ...current,
-                  type,
-                  customType:
-                    type === OTHER_EVENT_TYPE ? current.customType : '',
-                }));
-              }}
+              disabled={!currentTypes || currentTypes.error}
+              onChange={(event) => updateField('type', event.target.value)}
               required
               value={form.type}
             >
               <option disabled value="">
-                Selecciona un tipo
+                {!currentTypes
+                  ? 'Cargando tipos...'
+                  : currentTypes.error
+                    ? 'No se pudieron cargar los tipos'
+                    : 'Selecciona un tipo'}
               </option>
-              {DEFAULT_EVENT_TYPES.map((type) => (
+              {initialEvent?.type &&
+                !eventTypes.includes(initialEvent.type) && (
+                  <option value={initialEvent.type}>
+                    {initialEvent.type} (tipo anterior)
+                  </option>
+                )}
+              {eventTypes.map((type) => (
                 <option key={type} value={type}>
                   {type}
                 </option>
               ))}
-              {initialEvent?.type &&
-              !DEFAULT_EVENT_TYPES.includes(initialEvent.type) ? (
-                <option value={initialEvent.type}>{initialEvent.type}</option>
-              ) : null}
-              <option value={OTHER_EVENT_TYPE}>Otro tipo</option>
             </select>
+            {currentTypes?.error && (
+              <button
+                type="button"
+                className="text-left text-sm font-semibold text-violet underline"
+                onClick={() => setTypesAttempt((attempt) => attempt + 1)}
+              >
+                Reintentar cargar tipos
+              </button>
+            )}
           </label>
-          {form.type === OTHER_EVENT_TYPE ? (
-            <label className="grid gap-2">
-              <span className="text-sm font-semibold">Especifica el tipo</span>
-              <input
-                className="rounded-lg border border-sky-blue px-3 py-2 outline-none focus:border-teal focus:ring-2 focus:ring-sky-blue"
-                maxLength={80}
-                onChange={(event) =>
-                  updateField('customType', event.target.value)
-                }
-                placeholder="Ej. Festival gastronómico"
-                required
-                type="text"
-                value={form.customType}
-              />
-            </label>
-          ) : null}
           <label className="grid gap-2">
             <span className="text-sm font-semibold">
               Presupuesto base (COP)

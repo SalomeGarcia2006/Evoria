@@ -67,6 +67,13 @@ export interface EventList {
   };
 }
 
+export async function getEventTypes(): Promise<string[]> {
+  const response = await apiRequest<
+    ApiResponse<{ types: string[]; source: 'tenant' | 'default' }>
+  >('/events/types', { credentials: 'include' });
+  return response.data.types;
+}
+
 export type EventQuery = {
   page?: number;
   limit?: number;
@@ -79,7 +86,6 @@ export async function getEvents(query: EventQuery = {}): Promise<EventList> {
   if (query.limit) parameters.set('limit', String(query.limit));
   if (query.status) parameters.set('status', query.status);
   const suffix = parameters.size ? `?${parameters.toString()}` : '';
-
   const response = await apiRequest<ApiResponse<EventList>>(
     `/events${suffix}`,
     {

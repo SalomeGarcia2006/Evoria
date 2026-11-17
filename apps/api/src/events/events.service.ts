@@ -23,6 +23,23 @@ import { CreateEventDto } from './dto/create-event.dto';
 import { FindEventsDto } from './dto/find-events.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
 import { Event, type EventDocument } from './schemas/event.schema';
+import { Tenant } from '../tenants/schemas/tenant.schema';
+import { Schedule } from '../schedules/schemas/schedule.schema';
+
+const DEFAULT_EVENT_TYPES = [
+  'Congreso',
+  'Seminario',
+  'Taller',
+  'Conferencia',
+  'Feria',
+  'Concierto',
+  'Boda',
+  'Graduación',
+  'Evento corporativo',
+  'Lanzamiento de producto',
+  'Evento deportivo',
+  'Evento benéfico',
+];
 
 @Injectable()
 export class EventsService {
@@ -34,7 +51,50 @@ export class EventsService {
     private readonly budgetsService: BudgetsService,
     private readonly auditsService: AuditsService,
     @Optional() private readonly alerts?: AlertsService,
+    @Optional()
+    @InjectModel(Tenant.name)
+    private readonly tenantModel?: Model<Tenant>,
+    @Optional()
+    @InjectModel(Schedule.name)
+    private readonly scheduleModel?: Model<Schedule>,
   ) {}
+
+  async eventTypes(user: AuthenticatedUser) {
+    const tenantId = this.getTenantId(user);
+    const tenant = await this.tenantModel!.findOne({
+      _id: tenantId,
+      status: 'activo',
+    })
+      .select('eventTypes')
+      .lean();
+    if (!tenant)
+      throw new ForbiddenException('La empresa activa no está disponible.');
+    const types = tenant.eventTypes ?? [];
+    return {
+      types: types.length ? types : DEFAULT_EVENT_TYPES,
+      source: types.length ? 'tenant' : 'default',
+    };
+  }
+
+  private async validateEventType(
+    value: string,
+    user: AuthenticatedUser,
+  ): Promise<string> {
+    const { types } = await this.eventTypes(user);
+    const normalized = value
+      .trim()
+      .replace(/\s+/g, ' ')
+      .toLocaleLowerCase('es');
+    const match = types.find(
+      (type) =>
+        type.trim().replace(/\s+/g, ' ').toLocaleLowerCase('es') === normalized,
+    );
+    if (!match)
+      throw new BadRequestException(
+        'El tipo de evento no está configurado para esta empresa.',
+      );
+    return match;
+  }
 
   async create(createEventDto: CreateEventDto, user: AuthenticatedUser) {
     const tenantId = this.getTenantId(user);
@@ -42,6 +102,9 @@ export class EventsService {
     this.validateDates(createEventDto.startAt, createEventDto.endAt);
     if (createEventDto.status === 'cancelado') {
       throw new BadRequestException('No puedes crear un evento cancelado.');
+    }
+    if (createEventDto.type !== undefined && !createEventDto.type.trim()) {
+      throw new BadRequestException('El tipo de evento no puede estar vacío.');
     }
 
     const event = await this.eventModel.create({
@@ -52,8 +115,11 @@ export class EventsService {
       startAt: new Date(createEventDto.startAt),
       endAt: new Date(createEventDto.endAt),
       location: this.trimOptional(createEventDto.location),
-      type: this.trimOptional(createEventDto.type),
+      type: createEventDto.type
+        ? await this.validateEventType(createEventDto.type, user)
+        : null,
       baseBudget: createEventDto.baseBudget,
+      invitados: createEventDto.invitados ?? 0,
       status: createEventDto.status,
       responsibleUserId: createEventDto.responsibleUserId ?? null,
       responsibleAssignedAt: createEventDto.responsibleUserId
@@ -149,6 +215,53 @@ export class EventsService {
     const startAt = updateEventDto.startAt ?? event.startAt.toISOString();
     const endAt = updateEventDto.endAt ?? event.endAt.toISOString();
     this.validateDates(startAt, endAt);
+    const eventRevision = event.teamAssignmentRevision ?? 0;
+    const datesChanged =
+      updateEventDto.startAt !== undefined ||
+      updateEventDto.endAt !== undefined;
+    const responsibleChanged =
+      updateEventDto.responsibleUserId !== undefined &&
+      (updateEventDto.responsibleUserId ?? null) !== previousResponsible;
+    if (
+      datesChanged &&
+      this.scheduleModel &&
+      (await this.scheduleModel.exists({
+        tenantId,
+        eventId: event._id,
+        teamId: { $ne: null },
+        status: { $ne: 'cancelado' },
+        $or: [
+          { startAt: { $lt: new Date(startAt) } },
+          { endAt: { $gt: new Date(endAt) } },
+        ],
+      }))
+    )
+      throw new ConflictException(
+        'El nuevo período deja actividades asignadas fuera del evento.',
+      );
+    if (
+      responsibleChanged &&
+      this.scheduleModel &&
+      (await this.scheduleModel.exists({
+        tenantId,
+        eventId: event._id,
+        teamId: { $ne: null },
+        status: { $ne: 'cancelado' },
+        endAt: { $gt: new Date() },
+      }))
+    ) {
+      if (
+        !updateEventDto.responsibleUserId ||
+        !this.alerts ||
+        !(await this.alerts.canReceiveActivityAlerts(
+          tenantId,
+          updateEventDto.responsibleUserId,
+        ))
+      )
+        throw new ConflictException(
+          'El nuevo responsable debe poder consultar eventos y alertas mientras existan actividades asignadas.',
+        );
+    }
 
     const name = updateEventDto.name?.trim();
     if (name !== undefined && (name.length < 2 || name.length > 120)) {
@@ -180,6 +293,8 @@ export class EventsService {
     }
 
     if (name !== undefined) event.name = name;
+    if (updateEventDto.invitados !== undefined)
+      event.invitados = updateEventDto.invitados;
     if (updateEventDto.description !== undefined) {
       event.description = this.trimOptional(updateEventDto.description);
     }
@@ -187,16 +302,32 @@ export class EventsService {
       event.location = this.trimOptional(updateEventDto.location);
     }
     if (updateEventDto.type !== undefined) {
-      event.type = this.trimOptional(updateEventDto.type);
+      const nextType = this.trimOptional(updateEventDto.type);
+      if (nextType !== event.type) {
+        if (!nextType)
+          throw new BadRequestException(
+            'El tipo de evento no puede estar vacío.',
+          );
+        event.type = await this.validateEventType(nextType, user);
+      }
     }
     if (updateEventDto.startAt)
       event.startAt = new Date(updateEventDto.startAt);
     if (updateEventDto.endAt) event.endAt = new Date(updateEventDto.endAt);
     if (updateEventDto.status) event.status = updateEventDto.status;
 
+    if (datesChanged || responsibleChanged)
+      event.teamAssignmentRevision = eventRevision + 1;
+
     event.$where = {
       budgetDecisionLock: { $exists: false },
       status: { $ne: 'cancelado' },
+      ...(datesChanged || responsibleChanged
+        ? {
+            teamAssignmentRevision:
+              eventRevision === 0 ? { $in: [null, 0] } : eventRevision,
+          }
+        : {}),
     };
     await this.saveUnlocked(event);
     if (event.responsibleUserId?.toString() !== previousResponsible) {
@@ -368,6 +499,7 @@ export class EventsService {
       location: event.location,
       type: event.type,
       baseBudget: event.baseBudget ?? 0,
+      invitados: event.invitados ?? 0,
       status: event.status,
       responsibleUserId: event.responsibleUserId?.toString() ?? null,
       createdBy: event.createdBy.toString(),

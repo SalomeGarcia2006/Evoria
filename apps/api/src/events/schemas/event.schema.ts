@@ -31,6 +31,15 @@ export class Event {
   baseBudget!: number;
 
   @Prop({
+    type: Number,
+    required: true,
+    min: 0,
+    default: 0,
+    validate: Number.isSafeInteger,
+  })
+  invitados!: number;
+
+  @Prop({
     required: true,
     enum: EVENT_STATUSES,
     default: 'borrador',
@@ -43,6 +52,9 @@ export class Event {
 
   @Prop({ type: Date, default: null })
   responsibleAssignedAt!: Date | null;
+
+  @Prop({ type: Number, default: 0 })
+  teamAssignmentRevision?: number;
 
   // No expira automáticamente: una recuperación insegura permitiría dos decisores.
   @Prop({ type: String, default: undefined, select: false })

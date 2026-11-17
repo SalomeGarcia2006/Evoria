@@ -75,6 +75,18 @@ export const INITIAL_PERMISSION_MODULES = [
     ],
   },
   {
+    key: 'equipos',
+    name: 'Equipos de trabajo',
+    description: 'Gestión de equipos de trabajo de la empresa.',
+    scope: 'tenant',
+    actions: [
+      { key: 'ver', name: 'Ver' },
+      { key: 'crear', name: 'Crear' },
+      { key: 'editar', name: 'Editar' },
+      { key: 'desactivar', name: 'Desactivar' },
+    ],
+  },
+  {
     key: 'cronogramas',
     name: 'Cronogramas',
     description: 'Gestión de actividades y fechas de los eventos.',

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { apiErrorMessage } from '../../services/api';
@@ -8,83 +8,45 @@ import { verifyPasswordReset } from '../../services/auth.service';
 
 export default function VerifyPasswordPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [code, setCode] = useState('');
+  const [code, setCode] = useState(Array<string>(6).fill(''));
+  const inputs = useRef<(HTMLInputElement | null)[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const codeInputs = useRef<Array<HTMLInputElement | null>>([]);
-  const codeCharacters = Array.from(
-    { length: 6 },
-    (_, index) => code[index] ?? '',
-  );
 
-  useEffect(() => {
-    // The email comes from the previous page through the URL.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setEmail(new URLSearchParams(window.location.search).get('email') ?? '');
-  }, []);
+  function fillCode(index: number, value: string) {
+    const characters = value
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, '')
+      .slice(0, 6 - index);
+    const next = [...code];
+    if (!characters) next[index] = '';
+    else
+      [...characters].forEach((character, offset) => {
+        next[index + offset] = character;
+      });
+    setCode(next);
+    if (characters)
+      inputs.current[Math.min(index + characters.length, 5)]?.focus();
+  }
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const normalizedCode = code.replace(/\s/g, '');
-    if (normalizedCode.length !== 6) {
-      setError('Ingresa los 6 caracteres del código.');
-      return;
-    }
     setError(null);
     setLoading(true);
     try {
+      const email = sessionStorage.getItem('passwordResetEmail');
+      if (!email) {
+        router.replace('/recuperar-contrasena');
+        return;
+      }
+      const normalizedCode = code.join('');
       await verifyPasswordReset(email, normalizedCode);
-      router.push(
-        `/restablecer-contrasena?email=${encodeURIComponent(email)}&code=${normalizedCode}`,
-      );
+      sessionStorage.setItem('passwordResetCode', normalizedCode);
+      router.push('/restablecer-contrasena');
     } catch (cause) {
       setError(apiErrorMessage(cause));
     } finally {
       setLoading(false);
-    }
-  }
-
-  function updateCode(index: number, value: string) {
-    const characters = value
-      .toUpperCase()
-      .replace(/[^A-Z0-9]/g, '')
-      .slice(0, 6);
-    if (!characters) {
-      setCode((current) => {
-        const next = current.padEnd(6, ' ').split('');
-        next[index] = '';
-        return next.join('').trimEnd();
-      });
-      return;
-    }
-
-    setCode((current) => {
-      const next = current.padEnd(6, ' ').split('');
-      Array.from(characters).forEach((character, offset) => {
-        if (index + offset < 6) next[index + offset] = character;
-      });
-      return next.join('').trimEnd();
-    });
-    codeInputs.current[Math.min(index + characters.length, 5)]?.focus();
-  }
-
-  function handleCodeKeyDown(
-    event: React.KeyboardEvent<HTMLInputElement>,
-    index: number,
-  ) {
-    if (event.key === 'Backspace' && !codeCharacters[index] && index > 0) {
-      event.preventDefault();
-      updateCode(index - 1, '');
-      codeInputs.current[index - 1]?.focus();
-    }
-    if (event.key === 'ArrowLeft' && index > 0) {
-      event.preventDefault();
-      codeInputs.current[index - 1]?.focus();
-    }
-    if (event.key === 'ArrowRight' && index < 5) {
-      event.preventDefault();
-      codeInputs.current[index + 1]?.focus();
     }
   }
 
@@ -105,86 +67,63 @@ export default function VerifyPasswordPage() {
             <p>Verifica tu código de recuperación</p>
           </div>
         </header>
-        <section className="login-card recovery-card verification-card">
-          <div className="recovery-card__intro">
-            <span className="recovery-card__step">Paso 2 de 3</span>
-            <div className="recovery-card__heading">
-              <span aria-hidden="true" className="recovery-card__icon">
-                <svg fill="none" viewBox="0 0 24 24">
-                  <path
-                    d="M4 12.5 9 17l11-11"
-                    stroke="currentColor"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                  />
-                  <circle
-                    cx="12"
-                    cy="12"
-                    r="9"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                  />
-                </svg>
-              </span>
-              <div>
-                <h2>Verifica tu código</h2>
-                <p>
-                  Escribe el código de seis caracteres que enviamos a tu correo.
-                </p>
-              </div>
-            </div>
+        <section className="login-card recovery-card">
+          <a className="recovery-back" href="/recuperar-contrasena">
+            <span aria-hidden="true">←</span> Cambiar correo
+          </a>
+          <div className="recovery-progress" aria-label="Paso 2 de 3">
+            <span className="active" />
+            <span className="active" />
+            <span />
           </div>
+          <span className="recovery-step">02 · VERIFICA TU IDENTIDAD</span>
+          <h2>Verificar código</h2>
+          <p className="recovery-description">
+            Si el correo pertenece a una cuenta activa, recibirás un código.
+            Escríbelo para continuar.
+          </p>
           <hr className="login-separator" />
           <form className="login-form" onSubmit={submit}>
-            <div className="login-field">
-              <label htmlFor="verify-code-0">Código de recuperación</label>
-              <div
-                aria-label="Código de recuperación de 6 caracteres"
-                className="verification-code-inputs"
-              >
-                {codeCharacters.map((character, index) => (
+            <fieldset className="login-field">
+              <legend>Código de 6 caracteres</legend>
+              <div className="recovery-code">
+                {code.map((character, index) => (
                   <input
-                    aria-label={`Carácter ${index + 1} del código`}
-                    autoComplete={index === 0 ? 'one-time-code' : 'off'}
-                    inputMode="text"
                     key={index}
-                    maxLength={6}
-                    onChange={(event) => updateCode(index, event.target.value)}
-                    onKeyDown={(event) => handleCodeKeyDown(event, index)}
+                    ref={(element) => {
+                      inputs.current[index] = element;
+                    }}
+                    aria-label={`Carácter ${index + 1} de 6`}
+                    autoComplete={index === 0 ? 'one-time-code' : 'off'}
+                    maxLength={1}
+                    value={character}
+                    onChange={(event) => fillCode(index, event.target.value)}
+                    onFocus={(event) => event.target.select()}
                     onPaste={(event) => {
                       event.preventDefault();
-                      updateCode(index, event.clipboardData.getData('text'));
+                      fillCode(index, event.clipboardData.getData('text'));
                     }}
-                    ref={(element) => {
-                      codeInputs.current[index] = element;
+                    onKeyDown={(event) => {
+                      if (event.key === 'Backspace' && !character && index > 0)
+                        inputs.current[index - 1]?.focus();
                     }}
                     required
-                    type="text"
-                    value={character}
                   />
                 ))}
               </div>
-              <p className="recovery-card__hint">
-                El código vence en 10 minutos. Puedes pegarlo completo aquí.
-              </p>
-            </div>
+            </fieldset>
             {error ? (
               <p className="login-error" role="alert">
                 {error}
               </p>
             ) : null}
-            <button className="login-button" disabled={loading} type="submit">
+            <button
+              className="login-button"
+              disabled={loading || code.some((character) => !character)}
+              type="submit"
+            >
               {loading ? 'Verificando…' : 'Verificar código'}
             </button>
-            <div className="recovery-card__links">
-              <a className="recovery-card__back" href="/recuperar-contrasena">
-                ← Cambiar correo
-              </a>
-              <a className="recovery-card__back" href="/login">
-                Volver al inicio de sesión
-              </a>
-            </div>
           </form>
         </section>
       </div>

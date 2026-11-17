@@ -15,6 +15,12 @@ export class Schedule {
   @Prop({ type: 'ObjectId', ref: 'User', default: null, index: true })
   responsibleUserId!: Types.ObjectId | null;
 
+  @Prop({ type: 'ObjectId', ref: 'Team', default: null, index: true })
+  teamId!: Types.ObjectId | null;
+
+  @Prop({ type: Date, default: null })
+  teamCompletionNotifiedAt!: Date | null;
+
   @Prop({ required: true, trim: true, minlength: 2, maxlength: 120 })
   name!: string;
 
