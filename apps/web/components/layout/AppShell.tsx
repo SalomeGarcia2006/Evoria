@@ -3,7 +3,6 @@ import { AuthGuard } from '../auth/AuthGuard';
 import { PermissionGuard } from '../auth/PermissionGuard';
 import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
-import { FirstVisitTour } from '../tour/FirstVisitTour';
 
 export function AppShell({
   children,
@@ -22,7 +21,6 @@ export function AppShell({
           data-inventory-scope={title === 'Inventario' ? '' : undefined}
         >
           <Sidebar />
-          <FirstVisitTour />
           <div className="min-w-0 flex-1 lg:ml-[6.25rem]">
             <Topbar hideTitle={hideTitle} title={title} />
             <main className="mx-auto max-w-7xl p-6 lg:p-8">{children}</main>

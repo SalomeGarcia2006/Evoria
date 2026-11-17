@@ -46,7 +46,7 @@ test('cada módulo muestra su guía una sola vez y permite omitirla', async ({
   const popover = page.locator('.driver-popover');
   await expect(popover).toContainText('Conoce Eventos');
   await popover.getByRole('button', { name: 'Siguiente' }).click();
-  await expect(popover).toContainText('Consultar eventos');
+  await expect(popover).toContainText('Todo listo');
   await popover.getByRole('button', { name: 'Omitir tutorial' }).click();
   await expect
     .poll(() =>
@@ -79,8 +79,6 @@ test('solo muestra el paso de creación cuando el perfil tiene permiso', async (
   const popover = page.locator('.driver-popover');
   await expect(popover).toContainText('Conoce Eventos');
   await popover.getByRole('button', { name: 'Siguiente' }).click();
-  await expect(popover).toContainText('Consultar eventos');
-  await popover.getByRole('button', { name: 'Siguiente' }).click();
   await expect(popover).toContainText('Todo listo');
   await popover.getByRole('button', { name: 'Finalizar' }).click();
   await expect(popover).toHaveCount(0);
@@ -98,8 +96,7 @@ test('incluye la creación para quien tiene permiso', async ({
   const popover = page.locator('.driver-popover');
   await expect(popover).toContainText('Conoce Eventos');
   await popover.getByRole('button', { name: 'Siguiente' }).click();
-  await popover.getByRole('button', { name: 'Siguiente' }).click();
-  await expect(popover).toContainText('Crear un evento');
+  await expect(popover).toContainText('Nuevo evento');
   await expect(page.locator('.driver-active-element')).toHaveText(
     /Nuevo evento/,
   );
