@@ -9,6 +9,7 @@ import {
   MaxLength,
   MinLength,
   ValidateNested,
+  ValidateIf,
 } from 'class-validator';
 import {
   TENANT_OPERATION_MODES,
@@ -40,7 +41,7 @@ class OperationalAreaDto {
 }
 
 export class UpdateTenantContextDto {
-  @IsOptional()
+  @ValidateIf((_, value: unknown) => value !== undefined)
   @IsString()
   @MaxLength(253)
   @Matches(

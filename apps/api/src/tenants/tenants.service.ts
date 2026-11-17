@@ -7,6 +7,7 @@ import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { AuditsService } from '../audits/audits.service';
 import { InjectModel } from '@nestjs/mongoose';
 import { isValidObjectId, type Model } from 'mongoose';
+import { randomBytes } from 'node:crypto';
 import {
   Membership,
   type MembershipDocument,
@@ -188,6 +189,8 @@ export class TenantsService {
         })
       )
         throw new ConflictException('El dominio ya pertenece a otra empresa.');
+      if (!tenant.emailDomain)
+        changes.registrationToken = randomBytes(32).toString('hex');
     }
     if (!Object.keys(changes).length)
       throw new BadRequestException('Debes indicar al menos un cambio.');
@@ -209,6 +212,30 @@ export class TenantsService {
       description: `Actualizó el contexto operativo: ${Object.keys(changes).join(', ')}.`,
     });
     return this.toContext(tenant);
+  }
+
+  async registrationLink(user: AuthenticatedUser, rotate = false) {
+    const tenant = await this.findActiveTenant(user);
+    if (!tenant.emailDomain)
+      throw new BadRequestException('Configura primero el dominio de correo.');
+    const result = await this.tenantModel
+      .findById(tenant._id)
+      .select('+registrationToken');
+    if (!result) throw new NotFoundException('La empresa activa no existe.');
+    if (rotate || !result.registrationToken) {
+      result.registrationToken = randomBytes(32).toString('hex');
+      await result.save();
+      await this.auditsService.record({
+        tenantId: tenant._id.toString(),
+        actor: user,
+        module: 'empresa_contexto',
+        action: 'editar',
+        entity: 'empresa',
+        entityId: tenant._id,
+        description: 'Generó un enlace de registro para la empresa.',
+      });
+    }
+    return { token: result.registrationToken, emailDomain: tenant.emailDomain };
   }
 
   private async findActiveTenant(

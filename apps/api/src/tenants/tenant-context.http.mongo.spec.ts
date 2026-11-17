@@ -86,6 +86,26 @@ test('HTTP: el contexto operativo se administra de forma aislada por empresa', a
     assert.equal(updatedContext.data.operationMode, 'ambos');
     assert.equal(updatedContext.data.operationalAreas[0].name, 'Finanzas');
 
+    const link = await api.request('tenants/registration-link', {
+      session: ownerSession,
+    });
+    assert.equal(link.status, 200);
+    const linkBody = (await link.json()) as {
+      data: { token: string; emailDomain: string };
+    };
+    assert.match(linkBody.data.token, /^[a-f0-9]{64}$/);
+    assert.equal(linkBody.data.emailDomain, 'empresax.com');
+    const sameLink = await api.request('tenants/registration-link', {
+      session: ownerSession,
+    });
+    assert.equal((await sameLink.json()).data.token, linkBody.data.token);
+    const rotatedLink = await api.request('tenants/registration-link/rotate', {
+      method: 'POST',
+      session: ownerSession,
+    });
+    assert.equal(rotatedLink.status, 201);
+    assert.notEqual((await rotatedLink.json()).data.token, linkBody.data.token);
+
     const invalidUpdate = await api.request('tenants/context', {
       method: 'PATCH',
       session: ownerSession,

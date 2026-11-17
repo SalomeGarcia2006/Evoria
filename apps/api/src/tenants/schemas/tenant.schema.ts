@@ -63,6 +63,9 @@ export class Tenant {
   @Prop({ type: String, trim: true, lowercase: true, default: null })
   emailDomain!: string | null;
 
+  @Prop({ type: String, select: false, default: null })
+  registrationToken!: string | null;
+
   @Prop({ type: String, trim: true, maxlength: 1500, default: null })
   operationalDescription!: string | null;
 
