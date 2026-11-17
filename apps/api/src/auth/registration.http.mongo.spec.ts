@@ -108,6 +108,15 @@ test('HTTP: registro empresarial, verificación y asignación de perfil', async 
     );
     assert.equal(
       (
+        await api.request('auth/registration/request', {
+          method: 'POST',
+          body: input,
+        })
+      ).status,
+      409,
+    );
+    assert.equal(
+      (
         await api.request('auth/registration/confirm', {
           method: 'POST',
           body: { token, email: input.email, code },
@@ -122,6 +131,10 @@ test('HTTP: registro empresarial, verificación y asignación de perfil', async 
     assert.equal(session.data.pendingProfile, true);
     assert.deepEqual(session.data.permissions, []);
     assert.equal((await api.request('auth/me', { session })).status, 200);
+    assert.equal(
+      (await api.request('auth/google/connection', { session })).status,
+      403,
+    );
     assert.equal((await api.request('users', { session })).status, 403);
     const users = (await (
       await api.request('users', { session: ownerSession })
