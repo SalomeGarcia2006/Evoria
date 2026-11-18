@@ -15,6 +15,9 @@ export type {
 export type { AuthScope, AuthSession, LoginRequest } from './auth';
 export type {
   ReportKind,
+  PdfReportKind,
+  ReportExportFormat,
+  ReportExportQuery,
   ReportQuery,
   ReportPagination,
   EventReportItem,

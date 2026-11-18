@@ -1,5 +1,11 @@
 export type ReportKind =
   'events' | 'budgets' | 'inventory' | 'resources' | 'providers' | 'schedules';
+export type PdfReportKind = ReportKind | 'event' | 'company' | 'teams';
+export type ReportExportFormat = 'csv' | 'pdf';
+export interface ReportExportQuery extends ReportQuery {
+  format?: ReportExportFormat;
+  teamId?: string;
+}
 export interface ReportQuery {
   from?: string;
   to?: string;

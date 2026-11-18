@@ -2,7 +2,7 @@
 
 Los reportes consultan los datos existentes de la empresa activa. No crean una
 segunda fuente de verdad ni guardan las exportaciones. Las rutas devuelven
-`{ "data": ..., "message": "..." }`, excepto la descarga CSV. Requieren
+`{ "data": ..., "message": "..." }`, excepto las descargas CSV y PDF. Requieren
 sesión de empresa activa y `reportes.ver`, además de los permisos siguientes:
 
 | Tipo                    | Consulta                     | Permisos adicionales                                        |
@@ -106,7 +106,12 @@ Se rechazan reportes de más de 5000 filas con 400 para evitar una descarga sin
 límite; reduzcan los filtros. Los campos de texto que podrían ejecutarse como
 fórmulas en una hoja de cálculo se escapan. Las consultas y la exportación son
 lecturas actuales: si los datos cambian durante varias páginas, no representan
-una instantánea histórica inmutable. No se implementó PDF.
+una instantánea histórica inmutable.
+
+La misma ruta admite `format=pdf` para una descarga empresarial en PDF. También
+hay fichas PDF de evento, empresa y equipos. El formato por defecto sigue siendo
+CSV. Consulten [la guía de PDF para frontend](reportes-pdf.md) para los contratos,
+permisos, ejemplos y límites de la nueva exportación.
 
 `401` indica sesión inválida o membresía inactiva, `403` permiso insuficiente y
 `400` filtros o identificadores inválidos. La empresa y la identidad provienen
