@@ -1,0 +1,403 @@
+.panel {
+  overflow: hidden;
+  border: 1px solid var(--evoria-border);
+  border-radius: 1.375rem;
+  background: var(--evoria-surface);
+  padding: 1.5rem;
+  box-shadow: var(--evoria-shadow);
+  animation: report-panel-reveal 0.5s ease both;
+}
+.heading {
+  margin: -1.5rem -1.5rem 0;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--evoria-border);
+  background: linear-gradient(
+    100deg,
+    rgb(106 76 255 / 8%),
+    rgb(18 181 166 / 5%)
+  );
+}
+.heading h2,
+.documentsHeading h2 {
+  color: var(--evoria-heading);
+  font-size: 1.3rem;
+  font-weight: 800;
+}
+.heading p,
+.documentsHeading p {
+  margin-top: 0.25rem;
+  color: var(--evoria-muted);
+  font-size: 0.88rem;
+}
+.tabs {
+  display: flex;
+  width: fit-content;
+  max-width: 100%;
+  gap: 0.25rem;
+  margin-top: 1.25rem;
+  padding: 0.35rem;
+  overflow-x: auto;
+  border-radius: 0.85rem;
+  background: #eef0f8;
+}
+.tab,
+.tabActive {
+  flex: none;
+  border: 0;
+  border-radius: 0.65rem;
+  padding: 0.68rem 0.95rem;
+  color: #435174;
+  font-size: 0.86rem;
+  font-weight: 650;
+  transition:
+    background 180ms ease,
+    color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
+}
+.tab {
+  background: transparent;
+  cursor: pointer;
+}
+.tab:hover {
+  background: rgb(106 76 255 / 8%);
+  color: #4934bd;
+  transform: translateY(-1px);
+}
+.tabActive {
+  background: linear-gradient(135deg, #fff, #f5f2ff);
+  color: #4934bd;
+  box-shadow: 0 2px 8px rgb(25 34 75 / 13%);
+}
+.filters {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(8rem, 1fr)) minmax(
+      12rem,
+      1.8fr
+    ) auto auto;
+  gap: 0.75rem;
+  align-items: end;
+  margin: 1.4rem 0 1.15rem;
+}
+.filters label {
+  display: grid;
+  gap: 0.35rem;
+  color: var(--evoria-heading);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.filters input,
+.filters select,
+.documentGrid select {
+  width: 100%;
+  min-height: 2.8rem;
+  border: 1px solid #cbd2e9;
+  border-radius: 0.65rem;
+  background: var(--evoria-surface);
+  color: var(--evoria-heading);
+  padding: 0.55rem 0.7rem;
+  font-size: 0.86rem;
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    background 180ms ease;
+}
+.filters input:focus,
+.filters select:focus,
+.documentGrid select:focus {
+  outline: none;
+  border-color: var(--evoria-violet);
+  box-shadow: 0 0 0 3px rgb(106 76 255 / 14%);
+}
+.filters input:disabled,
+.filters select:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.clear,
+.export {
+  height: 2.8rem;
+  white-space: nowrap;
+}
+.tableWrap {
+  overflow-x: auto;
+  border: 1px solid var(--evoria-border);
+  border-radius: 0.8rem;
+}
+.tableWrap table {
+  width: 100%;
+  min-width: 44rem;
+  border-collapse: collapse;
+  font-size: 0.86rem;
+}
+.tableWrap th {
+  background: linear-gradient(
+    100deg,
+    rgb(106 76 255 / 10%),
+    rgb(18 181 166 / 7%)
+  );
+  color: #526184;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  text-align: left;
+}
+.tableWrap th:first-child {
+  box-shadow: inset 3px 0 0 rgb(106 76 255 / 55%);
+}
+.tableWrap th,
+.tableWrap td {
+  padding: 0.86rem 1rem;
+  border-bottom: 1px solid var(--evoria-border);
+}
+.tableWrap tr:last-child td {
+  border-bottom: 0;
+}
+.tableWrap tbody tr {
+  transition: background 180ms ease;
+}
+.tableWrap tbody tr:hover {
+  background: rgb(106 76 255 / 4%);
+}
+.tableWrap td {
+  color: var(--evoria-heading);
+}
+.mainCell {
+  font-weight: 750;
+}
+.status {
+  display: inline-block;
+  border-radius: 999px;
+  background: #e7e4ff;
+  color: #4d38b6;
+  padding: 0.28rem 0.65rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+.empty,
+.error {
+  padding: 2rem 1rem;
+  border: 1px dashed var(--evoria-border);
+  border-radius: 0.8rem;
+  color: var(--evoria-muted);
+  text-align: center;
+}
+.error {
+  color: #a42e3b;
+}
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1rem;
+  color: var(--evoria-muted);
+  font-size: 0.84rem;
+}
+.pagination div {
+  display: flex;
+  gap: 0.5rem;
+}
+.documents {
+  margin: 1.5rem -1.5rem -1.5rem;
+  padding: 1.5rem;
+  border-top: 1px solid var(--evoria-border);
+  background: color-mix(in srgb, var(--evoria-surface) 92%, #efedff);
+}
+.documentGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+.documentGrid article {
+  display: grid;
+  align-content: start;
+  gap: 0.8rem;
+  min-width: 0;
+  border: 1px solid var(--evoria-border);
+  border-top: 3px solid var(--evoria-violet);
+  border-radius: 1rem;
+  padding: 1rem;
+  background: var(--evoria-surface);
+  box-shadow: 0 8px 20px rgb(20 33 61 / 5%);
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease;
+}
+.documentGrid article:nth-child(2) {
+  border-top-color: var(--evoria-teal);
+}
+.documentGrid article:nth-child(3) {
+  border-top-color: var(--evoria-amber);
+}
+.documentGrid article:hover {
+  border-color: var(--evoria-teal);
+  box-shadow: var(--evoria-shadow);
+  transform: translateY(-2px);
+}
+.documentGrid h3 {
+  color: var(--evoria-heading);
+  font-weight: 800;
+}
+.documentGrid p {
+  min-height: 2.6rem;
+  color: var(--evoria-muted);
+  font-size: 0.84rem;
+}
+.documentGrid article button {
+  width: fit-content;
+}
+:global(html[data-theme='dark']) .panel {
+  background: linear-gradient(145deg, #1c2d45, #17263a);
+  border-color: #3b5375;
+  box-shadow: 0 16px 34px rgb(0 0 0 / 26%);
+}
+:global(html[data-theme='dark']) .documentGrid article {
+  background: linear-gradient(145deg, #20334d, #192941);
+  border-color: #405a7d;
+  box-shadow: 0 10px 24px rgb(0 0 0 / 18%);
+}
+:global(html[data-theme='dark']) .documentGrid article:hover {
+  border-color: #69d4ca;
+  box-shadow: 0 16px 30px rgb(0 0 0 / 30%);
+}
+:global(html[data-theme='dark']) .heading {
+  background: linear-gradient(
+    105deg,
+    rgb(102 76 226 / 30%),
+    rgb(18 181 166 / 17%)
+  );
+  border-color: #3b5375;
+}
+:global(html[data-theme='dark']) .tabs {
+  background: #263a57;
+}
+:global(html[data-theme='dark']) .tableWrap {
+  border-color: #3c5577;
+  background: #1a2a40;
+}
+:global(html[data-theme='dark']) .tableWrap th {
+  background: linear-gradient(100deg, #3d3970, #244e63);
+  color: #d9e4f6;
+}
+:global(html[data-theme='dark']) .tableWrap th:first-child {
+  box-shadow: inset 3px 0 0 #a895ff;
+}
+:global(html[data-theme='dark']) .tableWrap td {
+  border-color: #334b69;
+}
+:global(html[data-theme='dark']) .tableWrap tbody tr:hover {
+  background: rgb(106 76 255 / 14%);
+}
+:global(html[data-theme='dark']) .tab {
+  color: #c2cce0;
+}
+:global(html[data-theme='dark']) .tab:hover {
+  background: rgb(125 108 205 / 23%);
+  color: #f1edff;
+}
+:global(html[data-theme='dark']) .tabActive {
+  background: linear-gradient(135deg, #3e3774, #334b67);
+  color: #f1edff;
+  box-shadow: 0 3px 10px rgb(0 0 0 / 24%);
+}
+:global(html[data-theme='dark']) .status {
+  background: #443d77;
+  color: #e3ddff;
+}
+:global(html[data-theme='dark']) .documents {
+  background: linear-gradient(145deg, #17263a, #142135);
+  border-color: #3b5375;
+}
+:global(html[data-theme='dark']) .filters input,
+:global(html[data-theme='dark']) .filters select,
+:global(html[data-theme='dark']) .documentGrid select {
+  border-color: #526b90;
+  background: #17273d;
+  color: #eef3ff;
+}
+:global(html[data-theme='dark']) .filters input:focus,
+:global(html[data-theme='dark']) .filters select:focus,
+:global(html[data-theme='dark']) .documentGrid select:focus {
+  border-color: #a895ff;
+  box-shadow: 0 0 0 3px rgb(168 149 255 / 20%);
+}
+:global(html[data-theme='dark']) .empty {
+  border-color: #3c5577;
+  background: rgb(30 47 70 / 65%);
+}
+@keyframes report-panel-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .panel {
+    animation: none;
+  }
+  .tab,
+  .tabActive,
+  .documentGrid article,
+  .tableWrap tbody tr,
+  .filters input,
+  .filters select,
+  .documentGrid select {
+    transition: none;
+  }
+  .tab:hover,
+  .documentGrid article:hover {
+    transform: none;
+  }
+}
+@media (max-width: 1100px) {
+  .filters {
+    grid-template-columns: repeat(3, minmax(8rem, 1fr));
+  }
+  .search {
+    grid-column: span 2;
+  }
+  .documentGrid {
+    grid-template-columns: 1fr;
+  }
+  .documentGrid p {
+    min-height: auto;
+  }
+}
+@media (max-width: 640px) {
+  .panel {
+    padding: 1rem;
+  }
+  .heading {
+    margin: -1rem -1rem 0;
+    padding: 1rem;
+  }
+  .tabs {
+    width: 100%;
+  }
+  .filters {
+    grid-template-columns: 1fr;
+  }
+  .search {
+    grid-column: auto;
+  }
+  .clear,
+  .export {
+    width: 100%;
+  }
+  .pagination {
+    align-items: start;
+    flex-direction: column;
+  }
+  .documents {
+    margin: 1.25rem -1rem -1rem;
+    padding: 1rem;
+  }
+}
