@@ -1,3 +1,4 @@
+import { eventClientFixture } from '../testing/event-client.fixture';
 import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
@@ -49,6 +50,7 @@ test('HTTP: presupuestos, alertas, auditoría y métricas usan la sesión autori
       method: 'POST',
       session: ownerSession,
       body: {
+        client: eventClientFixture(),
         name: 'Evento con presupuesto',
         startAt: '2030-03-10T10:00:00.000Z',
         endAt: '2030-03-10T18:00:00.000Z',

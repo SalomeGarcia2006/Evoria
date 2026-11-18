@@ -1,3 +1,4 @@
+import { eventClientFixture } from '../testing/event-client.fixture';
 import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
@@ -117,6 +118,7 @@ test('HTTP: confirmación de proveedor, presupuesto, correo y aislamiento en Mon
           method: 'POST',
           session: owner,
           body: {
+            client: eventClientFixture(),
             name: 'Evento confirmaciones',
             startAt: '2030-01-10T10:00:00Z',
             endAt: '2030-01-10T18:00:00Z',

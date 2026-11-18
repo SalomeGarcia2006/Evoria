@@ -1,11 +1,17 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import type { HydratedDocument, Types } from 'mongoose';
 import { EVENT_STATUSES, type EventStatus } from '../events.constants';
+import { EventClient, EventClientSchema } from './event-client.schema';
 
 export type EventDocument = HydratedDocument<Event>;
 
 @Schema({ collection: 'events', timestamps: true, versionKey: false })
 export class Event {
+  // Legacy events may have no client. New events are required to provide one
+  // through CreateEventDto and EventsService, without fabricating historical data.
+  @Prop({ type: EventClientSchema, default: null })
+  client!: EventClient | null;
+
   @Prop({ type: 'ObjectId', ref: 'Tenant', required: true, index: true })
   tenantId!: Types.ObjectId;
 

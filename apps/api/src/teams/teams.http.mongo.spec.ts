@@ -1,3 +1,4 @@
+import { eventClientFixture } from '../testing/event-client.fixture';
 import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
@@ -161,6 +162,7 @@ test('equipos respetan empresa, permisos, horarios y finalización', async () =>
     const hour = 3600000;
     async function event(name: string, responsibleUserId = ownerId) {
       const response = await request('events', 'POST', {
+        client: eventClientFixture(),
         name,
         startAt: start.toISOString(),
         endAt: new Date(start.getTime() + 10 * hour).toISOString(),

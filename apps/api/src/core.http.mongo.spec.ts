@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { eventClientFixture } from './testing/event-client.fixture';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { AddressInfo } from 'node:net';
@@ -161,6 +162,7 @@ test('HTTP y Mongo aislado: autenticación, empresa y gestión básica', async (
       },
       body: JSON.stringify({
         name: 'Evento de prueba',
+        client: eventClientFixture(),
         startAt: '2030-01-10T10:00:00.000Z',
         endAt: '2030-01-10T18:00:00.000Z',
         baseBudget: 500000,
