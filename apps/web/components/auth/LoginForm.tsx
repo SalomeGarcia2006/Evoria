@@ -8,6 +8,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { apiErrorMessage } from '../../services/api';
 import { startGoogleLogin } from '../../services/auth.service';
 import type { AuthUser } from '../../types/auth';
+import { FeedbackMessages, useFeedback } from '../ui/Feedback';
 import { TurnstileWidget } from './TurnstileWidget';
 
 const captchaConfigured = Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY);
@@ -15,6 +16,7 @@ const captchaConfigured = Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY);
 export function LoginForm() {
   const router = useRouter();
   const { isLoading, signIn, user } = useAuth();
+  const feedback = useFeedback();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -91,6 +93,11 @@ export function LoginForm() {
       setIsAlertVisible(false);
       setFailedAttempts(0);
       setSuccessfulLogin(user);
+      feedback.guide(
+        `Bienvenido/a, ${user.name}. Tu inicio de sesión fue exitoso.`,
+        '¡Inicio de sesión exitoso!',
+        'success',
+      );
     } catch (submitError) {
       setCaptchaResetKey((value) => value + 1);
       isLoginFlow.current = false;
@@ -172,22 +179,13 @@ export function LoginForm() {
         <div className="login-field">
           <label htmlFor="password">Contraseña</label>
           <div className="login-input-container">
-            <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
-              <rect
-                height="11"
-                rx="2"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                width="16"
-                x="4"
-                y="10"
-              />
-              <path
-                d="M8 10V7a4 4 0 0 1 8 0v3"
-                stroke="currentColor"
-                strokeWidth="1.8"
-              />
-            </svg>
+            <Image
+              alt=""
+              className="login-input-icon"
+              height={22}
+              src="/icons/candado.svg"
+              width={22}
+            />
             <input
               autoComplete="current-password"
               id="password"
@@ -253,13 +251,7 @@ export function LoginForm() {
           onClick={handleGoogleLogin}
           type="button"
         >
-          <Image
-            alt=""
-            height={18}
-            src="https://developers.google.com/static/identity/images/g-logo.png"
-            unoptimized
-            width={18}
-          />
+          <Image alt="" height={18} src="/icons/google-g.svg" width={18} />
           Continuar con Google
         </button>
         {captchaConfigured ? (
@@ -276,6 +268,9 @@ export function LoginForm() {
             />
           </div>
         ) : null}
+        <p className="login-registration">
+          ¿Aún no tienes una cuenta? <a href="/registro">Regístrate</a>
+        </p>
       </form>
 
       {error && isAlertVisible ? (
@@ -310,27 +305,7 @@ export function LoginForm() {
           </div>
         </div>
       ) : null}
-      {successfulLogin ? (
-        <div
-          aria-label="Inicio de sesión exitoso"
-          aria-live="polite"
-          className="login-alert-backdrop fixed inset-0 z-[1100] grid place-items-center p-6"
-          role="status"
-        >
-          <div className="event-success-modal">
-            <div className="event-success-icon" aria-hidden="true">
-              ✓
-            </div>
-            <p className="event-success-title">
-              ¡Hola, {successfulLogin.name}!
-            </p>
-            <p className="event-success-message">
-              {successfulLogin.role ? `${successfulLogin.role}. ` : ''}
-              Bienvenido/a, inicio de sesión exitoso.
-            </p>
-          </div>
-        </div>
-      ) : null}
+      <FeedbackMessages feedback={feedback} />
     </>
   );
 }
