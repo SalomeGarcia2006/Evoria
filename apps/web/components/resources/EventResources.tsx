@@ -36,6 +36,8 @@ export function EventResources({
   onChanged,
   onBusyChange,
   inDialog = false,
+  showAssignmentForm = true,
+  showAssignmentList = true,
 }: {
   eventId: string;
   cancelled?: boolean;
@@ -55,11 +57,14 @@ export function EventResources({
   onChanged?: () => void;
   onBusyChange?: (busy: boolean) => void;
   inDialog?: boolean;
+  showAssignmentForm?: boolean;
+  showAssignmentList?: boolean;
 }) {
   const { can } = useAuth();
   const canView = can('asignaciones.ver');
   const canAssign =
     editable &&
+    showAssignmentForm &&
     canView &&
     can('asignaciones.crear') &&
     can('inventario.ver') &&
@@ -67,6 +72,7 @@ export function EventResources({
     !cancelled;
   const showAssignForm =
     editable &&
+    showAssignmentForm &&
     canView &&
     can('asignaciones.crear') &&
     can('inventario.ver') &&
@@ -463,6 +469,7 @@ export function EventResources({
           ) : null}
         </form>
       ) : editable &&
+        showAssignmentForm &&
         !cancelled &&
         can('asignaciones.crear') &&
         !can('inventario.ver') ? (
@@ -471,119 +478,120 @@ export function EventResources({
           disponibles.
         </p>
       ) : null}
-      {loading ? (
-        <LoadingState label="Cargando asignaciones…" />
-      ) : assignments.length === 0 && loadError ? null : assignments.length ===
-        0 ? (
-        inDialog ? (
-          <EmptyState
-            title="Todavía no hay reservas"
-            description="Selecciona un recurso y una cantidad para reservar unidades para este evento."
-          />
+      {showAssignmentList &&
+        (loading ? (
+          <LoadingState label="Cargando asignaciones…" />
+        ) : assignments.length === 0 &&
+          loadError ? null : assignments.length === 0 ? (
+          inDialog ? (
+            <EmptyState
+              title="Todavía no hay reservas"
+              description="Selecciona un recurso y una cantidad para reservar unidades para este evento."
+            />
+          ) : (
+            <p className="my-5 text-muted">
+              No hay recursos asignados a este evento.
+            </p>
+          )
         ) : (
-          <p className="my-5 text-muted">
-            No hay recursos asignados a este evento.
-          </p>
-        )
-      ) : (
-        <>
-          {editable && (
-            <div
-              className={
-                inDialog
-                  ? 'grid gap-3 border-t border-sky-blue pt-5'
-                  : 'grid gap-4 md:grid-cols-2 xl:grid-cols-3'
-              }
-            >
-              {assignments.map((item) => (
-                <article
-                  className="min-w-0 rounded-xl border border-sky-blue p-4"
-                  key={item.id}
-                >
-                  <h4 className="break-words font-semibold">
-                    {item.inventoryItem.name}
-                  </h4>
-                  <p className="mt-2 text-sm text-muted">
-                    {item.quantity} unidades reservadas · Costo unitario:{' '}
-                    {new Intl.NumberFormat('es-CO', {
-                      style: 'currency',
-                      currency: 'COP',
-                    }).format(item.inventoryItem.unitCost)}
-                  </p>
-                  <p className="mt-2 text-xs text-muted">
-                    Asignado:{' '}
-                    {new Date(item.assignedAt).toLocaleString('es-CO')}
-                  </p>
-                  {editable && can('asignaciones.eliminar') && (
-                    <Button
-                      className="mt-3"
-                      type="button"
-                      variant="secondary"
-                      disabled={busy || updating || loading}
-                      onClick={() => void release(item)}
-                    >
-                      Liberar recurso
-                    </Button>
-                  )}
-                </article>
-              ))}
-            </div>
-          )}
-          {!editable && (
-            <div>
-              <DataTable
-                rows={assignments}
-                rowKey={(item) => item.id}
-                columns={[
-                  {
-                    key: 'name',
-                    header: 'Recurso',
-                    render: (item) => item.inventoryItem.name,
-                  },
-                  {
-                    key: 'quantity',
-                    header: 'Unidades asignadas',
-                    render: (item) => item.quantity,
-                  },
-                  {
-                    key: 'cost',
-                    header: 'Costo unitario',
-                    render: (item) =>
-                      new Intl.NumberFormat('es-CO', {
+          <>
+            {editable && (
+              <div
+                className={
+                  inDialog
+                    ? 'grid gap-3 border-t border-sky-blue pt-5'
+                    : 'grid gap-4 md:grid-cols-2 xl:grid-cols-3'
+                }
+              >
+                {assignments.map((item) => (
+                  <article
+                    className="min-w-0 rounded-xl border border-sky-blue p-4"
+                    key={item.id}
+                  >
+                    <h4 className="break-words font-semibold">
+                      {item.inventoryItem.name}
+                    </h4>
+                    <p className="mt-2 text-sm text-muted">
+                      {item.quantity} unidades reservadas · Costo unitario:{' '}
+                      {new Intl.NumberFormat('es-CO', {
                         style: 'currency',
                         currency: 'COP',
-                      }).format(item.inventoryItem.unitCost),
-                  },
-                  {
-                    key: 'date',
-                    header: 'Fecha de asignación',
-                    render: (item) =>
-                      new Date(item.assignedAt).toLocaleString('es-CO'),
-                  },
-                  ...(editable && can('asignaciones.eliminar')
-                    ? [
-                        {
-                          key: 'action',
-                          header: 'Acción',
-                          render: (item: EventResourceAssignment) => (
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              disabled={busy || loading}
-                              onClick={() => void release(item)}
-                            >
-                              Liberar recurso
-                            </Button>
-                          ),
-                        },
-                      ]
-                    : []),
-                ]}
-              />
-            </div>
-          )}
-        </>
-      )}
+                      }).format(item.inventoryItem.unitCost)}
+                    </p>
+                    <p className="mt-2 text-xs text-muted">
+                      Asignado:{' '}
+                      {new Date(item.assignedAt).toLocaleString('es-CO')}
+                    </p>
+                    {editable && can('asignaciones.eliminar') && (
+                      <Button
+                        className="mt-3"
+                        type="button"
+                        variant="secondary"
+                        disabled={busy || updating || loading}
+                        onClick={() => void release(item)}
+                      >
+                        Liberar recurso
+                      </Button>
+                    )}
+                  </article>
+                ))}
+              </div>
+            )}
+            {!editable && (
+              <div>
+                <DataTable
+                  rows={assignments}
+                  rowKey={(item) => item.id}
+                  columns={[
+                    {
+                      key: 'name',
+                      header: 'Recurso',
+                      render: (item) => item.inventoryItem.name,
+                    },
+                    {
+                      key: 'quantity',
+                      header: 'Unidades asignadas',
+                      render: (item) => item.quantity,
+                    },
+                    {
+                      key: 'cost',
+                      header: 'Costo unitario',
+                      render: (item) =>
+                        new Intl.NumberFormat('es-CO', {
+                          style: 'currency',
+                          currency: 'COP',
+                        }).format(item.inventoryItem.unitCost),
+                    },
+                    {
+                      key: 'date',
+                      header: 'Fecha de asignación',
+                      render: (item) =>
+                        new Date(item.assignedAt).toLocaleString('es-CO'),
+                    },
+                    ...(editable && can('asignaciones.eliminar')
+                      ? [
+                          {
+                            key: 'action',
+                            header: 'Acción',
+                            render: (item: EventResourceAssignment) => (
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                disabled={busy || loading}
+                                onClick={() => void release(item)}
+                              >
+                                Liberar recurso
+                              </Button>
+                            ),
+                          },
+                        ]
+                      : []),
+                  ]}
+                />
+              </div>
+            )}
+          </>
+        ))}
     </Card>
   );
 }

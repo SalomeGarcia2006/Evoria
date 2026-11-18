@@ -5,6 +5,8 @@ import { useAuth } from '../../hooks/useAuth';
 import { apiErrorMessage } from '../../services/api';
 import {
   getTenantContext,
+  getTenantRegistrationLink,
+  rotateTenantRegistrationLink,
   updateTenantContext,
   type TenantContext,
   type TenantContextUpdate,
@@ -17,6 +19,7 @@ import { EventTypesInput } from './EventTypesInput';
 import styles from './TenantContextPanel.module.css';
 
 type Draft = {
+  emailDomain: string;
   sector: string;
   operationalDescription: string;
   eventTypes: string;
@@ -31,6 +34,7 @@ const lines = (value: string) =>
     .map((item) => item.trim())
     .filter(Boolean);
 const toDraft = (context: TenantContext): Draft => ({
+  emailDomain: context.emailDomain ?? '',
   sector: context.sector ?? '',
   operationalDescription: context.operationalDescription ?? '',
   eventTypes: context.eventTypes.join('\n'),
@@ -40,6 +44,7 @@ const toDraft = (context: TenantContext): Draft => ({
 const toPayload = (
   draft: Draft,
 ): Omit<Required<TenantContextUpdate>, 'operationalAreas'> => ({
+  emailDomain: draft.emailDomain.trim().toLowerCase(),
   sector: draft.sector.trim(),
   operationalDescription: draft.operationalDescription.trim(),
   eventTypes: lines(draft.eventTypes),
@@ -62,6 +67,8 @@ export function TenantContextPanel() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [attempt, setAttempt] = useState(0);
+  const [registrationLink, setRegistrationLink] = useState<string>();
+  const [registrationBusy, setRegistrationBusy] = useState(false);
   const feedback = useFeedback();
 
   useEffect(() => {
@@ -72,6 +79,7 @@ export function TenantContextPanel() {
         if (active) {
           setContext(value);
           setDraft(toDraft(value));
+          setRegistrationLink(undefined);
           setError('');
         }
       })
@@ -136,12 +144,52 @@ export function TenantContextPanel() {
       });
       setContext(updated);
       setDraft(toDraft(updated));
+      setRegistrationLink(undefined);
       setEditing(false);
       feedback.notify('El contexto operativo se actualizó correctamente.');
     } catch (err) {
       feedback.notify(apiErrorMessage(err), 'error');
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function copyRegistrationLink() {
+    if (registrationBusy) return;
+    setRegistrationBusy(true);
+    try {
+      const link = registrationLink
+        ? { url: registrationLink }
+        : await getTenantRegistrationLink();
+      setRegistrationLink(link.url);
+      await navigator.clipboard.writeText(link.url);
+      feedback.notify('El enlace de registro se copió al portapapeles.');
+    } catch (err) {
+      feedback.notify(apiErrorMessage(err), 'error');
+    } finally {
+      setRegistrationBusy(false);
+    }
+  }
+
+  async function renewRegistrationLink() {
+    if (registrationBusy) return;
+    const confirmed = await feedback.confirm(
+      'Renovar enlace de registro',
+      'El enlace actual dejará de funcionar de inmediato, incluso para registros que aún no se hayan confirmado.',
+      'Renovar enlace',
+      'warning',
+      'RENOVAR',
+    );
+    if (!confirmed) return;
+    setRegistrationBusy(true);
+    try {
+      const link = await rotateTenantRegistrationLink();
+      setRegistrationLink(link.url);
+      feedback.notify('Se generó un nuevo enlace de registro.');
+    } catch (err) {
+      feedback.notify(apiErrorMessage(err), 'error');
+    } finally {
+      setRegistrationBusy(false);
     }
   }
 
@@ -217,6 +265,43 @@ export function TenantContextPanel() {
                 </p>
               </div>
             </div>
+            <div className={styles.registration}>
+              <div className={styles.registrationIntro}>
+                <h3>Registro de usuarios por empresa</h3>
+                <p>
+                  {context.emailDomain
+                    ? `Las personas podrán registrarse con un correo @${context.emailDomain}. Comparte el enlace solo con quienes desees invitar.`
+                    : 'Configura el dominio corporativo para habilitar el enlace de registro de usuarios.'}
+                </p>
+              </div>
+              {editable && context.emailDomain && (
+                <div className={styles.registrationActions}>
+                  <Button
+                    className={styles.copyButton}
+                    type="button"
+                    disabled={registrationBusy}
+                    onClick={copyRegistrationLink}
+                  >
+                    {registrationBusy ? 'Preparando enlace…' : 'Copiar enlace'}
+                  </Button>
+                  <Button
+                    className={styles.renewButton}
+                    type="button"
+                    variant="ghost"
+                    disabled={registrationBusy}
+                    onClick={renewRegistrationLink}
+                  >
+                    Renovar enlace
+                  </Button>
+                </div>
+              )}
+              {registrationLink && (
+                <div className={styles.linkBlock}>
+                  <span>Enlace de registro activo</span>
+                  <p className={styles.registrationLink}>{registrationLink}</p>
+                </div>
+              )}
+            </div>
             <div className={styles.section}>
               <h3>Descripción de la operación</h3>
               <p>{context.operationalDescription || 'Sin descripción.'}</p>
@@ -252,6 +337,20 @@ export function TenantContextPanel() {
                   value={draft.sector}
                   onChange={(e) =>
                     setDraft({ ...draft, sector: e.target.value })
+                  }
+                />
+              </label>
+              <label className="grid gap-2 text-sm font-semibold">
+                Dominio para registro
+                <input
+                  className={inputClass}
+                  aria-label="Dominio para registro"
+                  disabled={!editing || busy}
+                  placeholder="empresa.com"
+                  maxLength={253}
+                  value={draft.emailDomain}
+                  onChange={(e) =>
+                    setDraft({ ...draft, emailDomain: e.target.value })
                   }
                 />
               </label>

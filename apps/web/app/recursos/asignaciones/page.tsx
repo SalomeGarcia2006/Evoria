@@ -2,7 +2,7 @@
 import cardStyles from '../../../components/ui/InventoryStyleCard.module.css';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AppShell } from '../../../components/layout/AppShell';
 import { Card } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
@@ -15,7 +15,6 @@ import { Pagination } from '../../../components/ui/Pagination';
 import { StatusBadge } from '../../../components/ui/StatusBadge';
 import { AssignmentIcon } from '../../../components/resources/AssignmentIcon';
 import {
-  EventAssignmentsDialog,
   assignmentEventDate,
   assignmentEventStatusLabels,
 } from '../../../components/resources/EventAssignmentsDialog';
@@ -35,7 +34,6 @@ export default function AsignacionesPage() {
 function AssignmentsContent() {
   const { can } = useAuth();
   const canSeeEvents = can('eventos.ver');
-  const [selectedId, setSelectedId] = useState('');
   const [page, setPage] = useState(1);
   const [attempt, setAttempt] = useState(0);
   const [result, setResult] = useState<{
@@ -67,18 +65,6 @@ function AssignmentsContent() {
   const currentPage = Math.min(page, totalPages);
   const visibleEvents = events?.slice((currentPage - 1) * 12, currentPage * 12);
   const error = result?.attempt === attempt ? result.error : undefined;
-  const onEventLoaded = useCallback((event: EventItem) => {
-    setResult((previous) =>
-      previous
-        ? {
-            ...previous,
-            events: previous.events?.map((item) =>
-              item.id === event.id ? event : item,
-            ),
-          }
-        : previous,
-    );
-  }, []);
   return (
     <AppShell hideTitle title="Asignación de recursos">
       <div className="grid min-w-0 gap-6">
@@ -173,13 +159,10 @@ function AssignmentsContent() {
             </div>
             <div className="module-panel__content grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
               {visibleEvents?.map((event) => (
-                <button
-                  type="button"
+                <Link
                   key={event.id}
-                  aria-haspopup="dialog"
-                  aria-expanded={selectedId === event.id}
                   aria-label={`Ver asignaciones de ${event.name}`}
-                  onClick={() => setSelectedId(event.id)}
+                  href={`/recursos/asignaciones/${encodeURIComponent(event.id)}`}
                   className={`${cardStyles.card} ${cardStyles.interactive} group flex h-full flex-col items-start text-left focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal`}
                 >
                   <div className="flex w-full flex-wrap items-center justify-between gap-3">
@@ -212,7 +195,7 @@ function AssignmentsContent() {
                   <span className="mt-auto w-full border-t border-violet/20 pt-4 text-right text-base font-semibold text-violet">
                     Ver detalles y asignar →
                   </span>
-                </button>
+                </Link>
               ))}
             </div>
             <div className="px-6 pb-5">
@@ -225,14 +208,6 @@ function AssignmentsContent() {
               />
             </div>
           </section>
-        )}
-        {selectedId && canSeeEvents && (
-          <EventAssignmentsDialog
-            key={selectedId}
-            eventId={selectedId}
-            onClose={() => setSelectedId('')}
-            onEventLoaded={onEventLoaded}
-          />
         )}
       </div>
     </AppShell>

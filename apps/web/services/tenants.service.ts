@@ -59,6 +59,7 @@ export type TenantArea = {
 };
 export type TenantContext = {
   id: string;
+  emailDomain: string | null;
   sector: string | null;
   operationalDescription: string | null;
   eventTypes: string[];
@@ -90,6 +91,28 @@ export async function updateTenantContext(
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     },
+  );
+  return response.data;
+}
+
+export type TenantRegistrationLink = {
+  token: string;
+  url: string;
+  emailDomain: string;
+};
+
+export async function getTenantRegistrationLink(): Promise<TenantRegistrationLink> {
+  const response = await apiRequest<{ data: TenantRegistrationLink }>(
+    '/tenants/registration-link',
+    { credentials: 'include', cache: 'no-store' },
+  );
+  return response.data;
+}
+
+export async function rotateTenantRegistrationLink(): Promise<TenantRegistrationLink> {
+  const response = await apiRequest<{ data: TenantRegistrationLink }>(
+    '/tenants/registration-link/rotate',
+    { method: 'POST', credentials: 'include', cache: 'no-store' },
   );
   return response.data;
 }

@@ -1,35 +1,19 @@
 'use client';
-import cardStyles from '../../components/ui/InventoryStyleCard.module.css';
 
 import Image from 'next/image';
-import Link from 'next/link';
-import { AppShell } from '../../components/layout/AppShell';
-import { Card } from '../../components/ui/Card';
-import { Button } from '../../components/ui/Button';
-import { PageHero } from '../../components/ui/PageHero';
-import { ModuleBanner } from '../../components/ui/ModuleBanner';
-import { LoadingState } from '../../components/ui/LoadingState';
 import { cop } from '../../components/budgets/BudgetAmountsView';
-import { useOperationalOverview } from '../../hooks/useOperationalOverview';
+import { AppShell } from '../../components/layout/AppShell';
+import { ReportsExplorer } from '../../components/reports/ReportsExplorer';
+import { Button } from '../../components/ui/Button';
+import { Card } from '../../components/ui/Card';
+import cardStyles from '../../components/ui/InventoryStyleCard.module.css';
+import { LoadingState } from '../../components/ui/LoadingState';
+import { ModuleBanner } from '../../components/ui/ModuleBanner';
+import { PageHero } from '../../components/ui/PageHero';
+import { useReportsOverview } from '../../hooks/useReportsOverview';
 import styles from './reportes.module.css';
 
-const statusLabels: Record<string, string> = {
-  borrador: 'Borrador',
-  planificado: 'Planificado',
-  en_progreso: 'En ejecución',
-  finalizado: 'Finalizado',
-  cancelado: 'Cancelado',
-};
-
-function Status({ status }: { status: string }) {
-  return (
-    <span className={`${styles.status} ${styles[`status_${status}`] ?? ''}`}>
-      {statusLabels[status] ?? status}
-    </span>
-  );
-}
-
-function SectionHeading({
+function Heading({
   icon,
   children,
 }: {
@@ -38,7 +22,7 @@ function SectionHeading({
 }) {
   return (
     <div className={styles.cardHeading}>
-      <span className={styles.icon} aria-hidden="true">
+      <span className={styles.icon}>
         <Image src={`/icons/${icon}`} alt="" width={22} height={22} />
       </span>
       <h3>{children}</h3>
@@ -46,43 +30,14 @@ function SectionHeading({
   );
 }
 
-function Execution({ allocated, spent }: { allocated: number; spent: number }) {
-  if (allocated <= 0 && spent !== 0) {
-    return <span className="text-sm text-muted">Sin asignación</span>;
-  }
-  const percent = allocated > 0 ? (spent / allocated) * 100 : 0;
-  const label = `${new Intl.NumberFormat('es-CO', { maximumFractionDigits: 1 }).format(percent)} %`;
-  return (
-    <div className={styles.execution}>
-      <div
-        role="progressbar"
-        aria-label="Ejecución presupuestal"
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={Math.max(0, Math.min(100, percent))}
-        aria-valuetext={`${label} ejecutado`}
-        className={styles.track}
-      >
-        <div
-          className={styles.fill}
-          style={{ width: `${Math.max(0, Math.min(100, percent))}%` }}
-        />
-      </div>
-      <span className={styles.percent}>{label}</span>
-    </div>
-  );
-}
-
 export default function ReportesPage() {
-  const { data, loading, refresh } = useOperationalOverview();
-  const summary = data?.summary;
-  const inventory = summary?.inventory;
+  const { data, error, loading, refresh } = useReportsOverview();
   return (
     <AppShell hideTitle title="Reportes">
       <div className="grid min-w-0 gap-6">
         <PageHero
           title="Reportes"
-          description="Resumen actual de eventos, recursos y ejecución presupuestal."
+          description="Consulta información actual de eventos, recursos y ejecución presupuestal."
           actions={
             <Button variant="secondary" onClick={refresh}>
               Actualizar
@@ -92,273 +47,118 @@ export default function ReportesPage() {
         <ModuleBanner
           icon="reporte.svg"
           title="Tu operación en perspectiva"
-          description="Consulta la actividad de eventos, el uso de recursos y la ejecución presupuestal."
+          description="Filtra y exporta los datos disponibles según los permisos de tu perfil."
         />
         {loading ? (
           <LoadingState label="Cargando reportes…" />
-        ) : (
-          data &&
-          summary && (
-            <>
-              {data.errors.map((error) => (
-                <Card key={error}>
-                  <p role="alert" className="text-sm text-red-800">
-                    {error}
-                  </p>
-                  <Button
-                    className="mt-3"
-                    variant="secondary"
-                    onClick={refresh}
-                  >
-                    Reintentar
-                  </Button>
-                </Card>
-              ))}
-              {!summary.events &&
-                !inventory &&
-                !summary.budgets &&
-                data.errors.length === 0 && (
-                  <Card>
-                    Necesitas permisos de consulta de eventos, inventario o
-                    presupuestos para ver los reportes de tu empresa.
-                  </Card>
-                )}
-              <section aria-label="Resumen operativo" className="module-panel">
+        ) : error ? (
+          <Card>
+            <p role="alert" className="text-sm text-red-800">
+              {error}
+            </p>
+            <Button className="mt-3" variant="secondary" onClick={refresh}>
+              Reintentar
+            </Button>
+          </Card>
+        ) : data ? (
+          <>
+            {!data.events && !data.inventory && !data.budgets ? (
+              <Card>
+                <p className="text-sm text-muted">
+                  No tienes información de reportes disponible con los permisos
+                  actuales.
+                </p>
+              </Card>
+            ) : (
+              <section
+                aria-label="Resumen de reportes"
+                className="module-panel"
+              >
                 <div className={`module-panel__heading ${styles.panelHeading}`}>
-                  <h2 className="text-xl font-bold">Resumen operativo</h2>
+                  <h2 className="text-xl font-bold">Resumen general</h2>
                   <p className="mt-1 text-sm text-muted">
-                    Consulta los datos disponibles de tu empresa.
+                    Los valores corresponden a los filtros y permisos de la
+                    sesión activa.
                   </p>
                 </div>
                 <div className="module-panel__content grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {summary.events && (
+                  {data.events && (
                     <Card
                       className={`${styles.summaryCard} ${cardStyles.card}`}
                     >
-                      <SectionHeading icon="eventos.svg">
-                        Actividad de eventos
-                      </SectionHeading>
+                      <Heading icon="eventos.svg">Actividad de eventos</Heading>
                       <p className={styles.summaryValue}>
-                        {summary.events.length}
+                        {data.events.pagination.total}
                       </p>
-                      <p className="text-sm text-muted">Eventos registrados</p>
+                      <p className="text-sm text-muted">
+                        Eventos registrados · {data.events.invitados} invitados
+                      </p>
                       <dl className={styles.summaryList}>
-                        {Object.entries(statusLabels).map(([status, label]) => (
-                          <div key={status}>
-                            <dt>
-                              <span
-                                className={`${styles.dot} ${styles[`dot_${status}`]}`}
-                              />
-                              {label}
-                            </dt>
-                            <dd>
-                              {
-                                summary.events!.filter(
-                                  (event) => event.status === status,
-                                ).length
-                              }
-                            </dd>
-                          </div>
-                        ))}
+                        {Object.entries(data.events.byStatus).map(
+                          ([label, total]) => (
+                            <div key={label}>
+                              <dt>{label.replace('_', ' ')}</dt>
+                              <dd>{total}</dd>
+                            </div>
+                          ),
+                        )}
                       </dl>
-                      <Link className={styles.cardLink} href="/eventos">
-                        Consultar eventos →
-                      </Link>
                     </Card>
                   )}
-                  {inventory && (
+                  {data.inventory && (
                     <Card
                       className={`${styles.summaryCard} ${cardStyles.card}`}
                     >
-                      <SectionHeading icon="recursos.svg">
-                        Uso de recursos
-                      </SectionHeading>
-                      <p className={styles.summaryValue}>{inventory.total}</p>
+                      <Heading icon="recursos.svg">Uso de recursos</Heading>
+                      <p className={styles.summaryValue}>
+                        {data.inventory.total}
+                      </p>
                       <p className="text-sm text-muted">Unidades totales</p>
                       <dl className={styles.summaryList}>
                         {[
-                          ['Recursos activos', inventory.resources],
-                          ['Unidades disponibles', inventory.available],
-                          ['Unidades reservadas', inventory.reserved],
-                          ['Recursos en mantenimiento', inventory.maintenance],
-                        ].map(([label, value]) => (
+                          ['Recursos activos', data.inventory.resources],
+                          ['Unidades disponibles', data.inventory.available],
+                          ['Unidades reservadas', data.inventory.reserved],
+                          ['En mantenimiento', data.inventory.maintenance],
+                        ].map(([label, total]) => (
                           <div key={label}>
                             <dt>{label}</dt>
-                            <dd>{value}</dd>
+                            <dd>{total}</dd>
                           </div>
                         ))}
                       </dl>
-                      <Link className={styles.cardLink} href="/inventario">
-                        Consultar recursos →
-                      </Link>
                     </Card>
                   )}
-                  {summary.budgets && (
+                  {data.budgets && (
                     <Card
                       className={`${styles.summaryCard} ${cardStyles.card}`}
                     >
-                      <SectionHeading icon="presupuesto.svg">
+                      <Heading icon="presupuesto.svg">
                         Ejecución presupuestal
-                      </SectionHeading>
+                      </Heading>
                       <p className="mt-3 text-sm text-muted">
-                        Totales de eventos no cancelados.
+                        Totales de eventos incluidos en el reporte.
                       </p>
                       <dl className={styles.budgetTotals}>
                         {[
-                          ['Asignado', summary.budgets.totals.allocatedCop],
-                          ['Gastado', summary.budgets.totals.spentCop],
-                          ['Disponible', summary.budgets.totals.remainingCop],
-                        ].map(([label, value]) => (
+                          ['Asignado', data.budgets.allocatedCop],
+                          ['Gastado', data.budgets.spentCop],
+                          ['Disponible', data.budgets.remainingCop],
+                        ].map(([label, total]) => (
                           <div key={label}>
                             <dt>{label}</dt>
-                            <dd>{cop(Number(value))}</dd>
+                            <dd>{cop(Number(total))}</dd>
                           </div>
                         ))}
                       </dl>
-                      <Execution
-                        allocated={summary.budgets.totals.allocatedCop}
-                        spent={summary.budgets.totals.spentCop}
-                      />
-                      <Link className={styles.cardLink} href="/presupuestos">
-                        Consultar presupuestos →
-                      </Link>
                     </Card>
                   )}
                 </div>
               </section>
-              {summary.budgets && (
-                <section
-                  aria-label="Reporte de presupuesto por evento"
-                  className="module-panel"
-                >
-                  <div
-                    className={`module-panel__heading ${styles.panelHeading}`}
-                  >
-                    <h2 className="text-xl font-bold">
-                      Presupuesto por evento
-                    </h2>
-                    <p className="mt-1 text-sm text-muted">
-                      Consulta la asignación y ejecución de cada evento.
-                    </p>
-                  </div>
-                  {!summary.budgets.items.length ? (
-                    <p className="module-panel__content text-sm text-muted">
-                      No hay eventos con información presupuestal registrada.
-                    </p>
-                  ) : (
-                    <div className={styles.rows}>
-                      {summary.budgets.items.map((item) => (
-                        <article
-                          key={item.eventId}
-                          className={styles.budgetRow}
-                        >
-                          <div className={styles.rowTitle}>
-                            <h3>{item.eventName}</h3>
-                            <Status status={item.eventStatus} />
-                          </div>
-                          {item.initialized ? (
-                            <>
-                              <dl className={styles.rowAmounts}>
-                                {[
-                                  ['Asignado', item.allocatedCop],
-                                  ['Gastado', item.spentCop],
-                                  ['Disponible', item.remainingCop],
-                                ].map(([label, value]) => (
-                                  <div key={label}>
-                                    <dt>{label}</dt>
-                                    <dd>{cop(Number(value))}</dd>
-                                  </div>
-                                ))}
-                              </dl>
-                              <div className={styles.rowProgress}>
-                                <p>Ejecución</p>
-                                <Execution
-                                  allocated={item.allocatedCop}
-                                  spent={item.spentCop}
-                                />
-                              </div>
-                            </>
-                          ) : (
-                            <p className="text-sm text-muted">
-                              Presupuesto inicial pendiente.
-                            </p>
-                          )}
-                          <Link
-                            href={`/presupuestos?eventId=${encodeURIComponent(item.eventId)}`}
-                            className={styles.rowLink}
-                          >
-                            Ver detalle →
-                          </Link>
-                        </article>
-                      ))}
-                    </div>
-                  )}
-                </section>
-              )}
-              {summary.events && (
-                <section
-                  aria-label="Reporte de eventos"
-                  className="module-panel"
-                >
-                  <div
-                    className={`module-panel__heading ${styles.panelHeading}`}
-                  >
-                    <h2 className="text-xl font-bold">Eventos registrados</h2>
-                    <p className="mt-1 text-sm text-muted">
-                      Consulta los eventos de tu empresa y su estado actual.
-                    </p>
-                  </div>
-                  {!summary.events.length ? (
-                    <p className="module-panel__content text-sm text-muted">
-                      Todavía no hay eventos registrados.
-                    </p>
-                  ) : (
-                    <div className={styles.rows}>
-                      {summary.events.map((event) => (
-                        <article key={event.id} className={styles.eventRow}>
-                          <div className={styles.eventDate}>
-                            <span
-                              className={styles.dateIcon}
-                              aria-hidden="true"
-                            >
-                              <Image
-                                src="/icons/FECHA.svg"
-                                alt=""
-                                width={16}
-                                height={16}
-                              />
-                            </span>
-                            {new Intl.DateTimeFormat('es-CO', {
-                              day: '2-digit',
-                              month: '2-digit',
-                              year: 'numeric',
-                              timeZone: 'America/Bogota',
-                            }).format(new Date(event.startAt))}
-                          </div>
-                          <div className={styles.rowTitle}>
-                            <h3>{event.name}</h3>
-                            {event.location && (
-                              <p className="text-sm text-muted">
-                                {event.location}
-                              </p>
-                            )}
-                          </div>
-                          <Status status={event.status} />
-                          <Link
-                            href={`/eventos/${encodeURIComponent(event.id)}`}
-                            className={styles.rowLink}
-                          >
-                            Ver evento →
-                          </Link>
-                        </article>
-                      ))}
-                    </div>
-                  )}
-                </section>
-              )}
-            </>
-          )
-        )}
+            )}
+            <ReportsExplorer />
+          </>
+        ) : null}
       </div>
     </AppShell>
   );
