@@ -1,54 +1,61 @@
 'use client';
 
-import Image from 'next/image';
 import { cop } from '../../components/budgets/BudgetAmountsView';
 import { AppShell } from '../../components/layout/AppShell';
 import { ReportsExplorer } from '../../components/reports/ReportsExplorer';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
-import cardStyles from '../../components/ui/InventoryStyleCard.module.css';
 import { LoadingState } from '../../components/ui/LoadingState';
 import { ModuleBanner } from '../../components/ui/ModuleBanner';
 import { PageHero } from '../../components/ui/PageHero';
 import { useReportsOverview } from '../../hooks/useReportsOverview';
 import styles from './reportes.module.css';
 
-function Heading({
-  icon,
-  children,
-}: {
-  icon: string;
-  children: React.ReactNode;
-}) {
+const statusLabel = (status: string) => status.replaceAll('_', ' ');
+
+function Meter({ value, tone = 'violet' }: { value: number; tone?: string }) {
   return (
-    <div className={styles.cardHeading}>
-      <span className={styles.icon}>
-        <Image src={`/icons/${icon}`} alt="" width={22} height={22} />
-      </span>
-      <h3>{children}</h3>
-    </div>
+    <span className={styles.meter} aria-hidden="true">
+      <span
+        className={`${styles.meterFill} ${styles[`meter_${tone}`]}`}
+        style={{ width: `${Math.max(0, Math.min(value, 100))}%` }}
+      />
+    </span>
   );
 }
 
 export default function ReportesPage() {
   const { data, error, loading, refresh } = useReportsOverview();
+  const events = data?.summary.events;
+  const budgets = data?.summary.budgets;
+  const inventory = data?.summary.inventory;
+  const schedules = data?.schedules;
+  const totalActivities = schedules?.total ?? 0;
+  const scheduleProgress = totalActivities
+    ? Math.round(((schedules?.completed ?? 0) / totalActivities) * 100)
+    : 0;
+  const budgetProgress = budgets?.allocatedCop
+    ? Math.round((budgets.spentCop / budgets.allocatedCop) * 100)
+    : 0;
+
   return (
     <AppShell hideTitle title="Reportes">
-      <div className="grid min-w-0 gap-6">
+      <div className={styles.page}>
         <PageHero
           title="Reportes"
-          description="Consulta información actual de eventos, recursos y ejecución presupuestal."
+          description="Consulta eventos, presupuestos, inventario y más, según los permisos de tu perfil."
           actions={
-            <Button variant="secondary" onClick={refresh}>
-              Actualizar
+            <Button onClick={refresh} disabled={loading}>
+              ↻ Actualizar
             </Button>
           }
         />
         <ModuleBanner
           icon="reporte.svg"
-          title="Tu operación en perspectiva"
-          description="Filtra y exporta los datos disponibles según los permisos de tu perfil."
+          title="Información de tu empresa"
+          description="Consulta el estado de tu operación y genera documentos PDF listos para compartir."
         />
+
         {loading ? (
           <LoadingState label="Cargando reportes…" />
         ) : error ? (
@@ -62,100 +69,100 @@ export default function ReportesPage() {
           </Card>
         ) : data ? (
           <>
-            {!data.events && !data.inventory && !data.budgets ? (
-              <Card>
-                <p className="text-sm text-muted">
-                  No tienes información de reportes disponible con los permisos
-                  actuales.
-                </p>
-              </Card>
-            ) : (
-              <section
-                aria-label="Resumen de reportes"
-                className="module-panel"
-              >
-                <div className={`module-panel__heading ${styles.panelHeading}`}>
-                  <h2 className="text-xl font-bold">Resumen general</h2>
-                  <p className="mt-1 text-sm text-muted">
-                    Los valores corresponden a los filtros y permisos de la
-                    sesión activa.
+            <section className={styles.metrics} aria-label="Resumen general">
+              {events && (
+                <article className={styles.metricCard}>
+                  <h2>Eventos</h2>
+                  <p className={styles.metricValue}>
+                    {events.pagination.total}
+                    <span>registrados · {events.invitados} invitados</span>
                   </p>
-                </div>
-                <div className="module-panel__content grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {data.events && (
-                    <Card
-                      className={`${styles.summaryCard} ${cardStyles.card}`}
-                    >
-                      <Heading icon="eventos.svg">Actividad de eventos</Heading>
-                      <p className={styles.summaryValue}>
-                        {data.events.pagination.total}
-                      </p>
-                      <p className="text-sm text-muted">
-                        Eventos registrados · {data.events.invitados} invitados
-                      </p>
-                      <dl className={styles.summaryList}>
-                        {Object.entries(data.events.byStatus).map(
-                          ([label, total]) => (
-                            <div key={label}>
-                              <dt>{label.replace('_', ' ')}</dt>
-                              <dd>{total}</dd>
-                            </div>
-                          ),
-                        )}
-                      </dl>
-                    </Card>
-                  )}
-                  {data.inventory && (
-                    <Card
-                      className={`${styles.summaryCard} ${cardStyles.card}`}
-                    >
-                      <Heading icon="recursos.svg">Uso de recursos</Heading>
-                      <p className={styles.summaryValue}>
-                        {data.inventory.total}
-                      </p>
-                      <p className="text-sm text-muted">Unidades totales</p>
-                      <dl className={styles.summaryList}>
-                        {[
-                          ['Recursos activos', data.inventory.resources],
-                          ['Unidades disponibles', data.inventory.available],
-                          ['Unidades reservadas', data.inventory.reserved],
-                          ['En mantenimiento', data.inventory.maintenance],
-                        ].map(([label, total]) => (
-                          <div key={label}>
-                            <dt>{label}</dt>
-                            <dd>{total}</dd>
-                          </div>
-                        ))}
-                      </dl>
-                    </Card>
-                  )}
-                  {data.budgets && (
-                    <Card
-                      className={`${styles.summaryCard} ${cardStyles.card}`}
-                    >
-                      <Heading icon="presupuesto.svg">
-                        Ejecución presupuestal
-                      </Heading>
-                      <p className="mt-3 text-sm text-muted">
-                        Totales de eventos incluidos en el reporte.
-                      </p>
-                      <dl className={styles.budgetTotals}>
-                        {[
-                          ['Asignado', data.budgets.allocatedCop],
-                          ['Gastado', data.budgets.spentCop],
-                          ['Disponible', data.budgets.remainingCop],
-                        ].map(([label, total]) => (
-                          <div key={label}>
-                            <dt>{label}</dt>
-                            <dd>{cop(Number(total))}</dd>
-                          </div>
-                        ))}
-                      </dl>
-                    </Card>
-                  )}
-                </div>
-              </section>
-            )}
+                  <Meter
+                    tone="events"
+                    value={events.pagination.total ? 100 : 0}
+                  />
+                  <div className={styles.statuses}>
+                    {Object.entries(events.byStatus).map(([name, total]) => (
+                      <span key={name} className={styles[`status_${name}`]}>
+                        {statusLabel(name)} · <strong>{total}</strong>
+                      </span>
+                    ))}
+                  </div>
+                </article>
+              )}
+              {budgets && (
+                <article className={styles.metricCard}>
+                  <h2>Presupuesto</h2>
+                  <p className={styles.metricValue}>
+                    {cop(budgets.remainingCop)} <span>disponible</span>
+                  </p>
+                  <Meter tone="budget" value={budgetProgress} />
+                  <dl className={styles.metricRows}>
+                    <div>
+                      <dt>Asignado</dt>
+                      <dd>{cop(budgets.allocatedCop)}</dd>
+                    </div>
+                    <div>
+                      <dt>Gastado ({budgetProgress}%)</dt>
+                      <dd>{cop(budgets.spentCop)}</dd>
+                    </div>
+                  </dl>
+                </article>
+              )}
+              {inventory && (
+                <article className={styles.metricCard}>
+                  <h2>Inventario</h2>
+                  <p className={styles.metricValue}>
+                    {inventory.total} <span>unidades</span>
+                  </p>
+                  <div className={styles.inventoryBar} aria-hidden="true">
+                    <span
+                      style={{
+                        width: `${inventory.total ? (inventory.available / inventory.total) * 100 : 0}%`,
+                      }}
+                    />
+                    <span
+                      style={{
+                        width: `${inventory.total ? (inventory.reserved / inventory.total) * 100 : 0}%`,
+                      }}
+                    />
+                    <span
+                      style={{
+                        width: `${inventory.total ? (inventory.maintenance / inventory.total) * 100 : 0}%`,
+                      }}
+                    />
+                  </div>
+                  <p className={styles.inventoryLegend}>
+                    Disponibles · Reservadas · Mant.
+                    <strong>
+                      {inventory.available} · {inventory.reserved} ·{' '}
+                      {inventory.maintenance}
+                    </strong>
+                  </p>
+                </article>
+              )}
+              {schedules && (
+                <article className={styles.metricCard}>
+                  <h2>Cronogramas</h2>
+                  <p className={styles.metricValue}>
+                    {scheduleProgress}% <span>de avance</span>
+                  </p>
+                  <Meter tone="schedule" value={scheduleProgress} />
+                  <dl className={styles.metricRows}>
+                    <div>
+                      <dt>Actividades completadas</dt>
+                      <dd>
+                        {schedules.completed} de {schedules.total}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Eventos con cronograma</dt>
+                      <dd>{schedules.eventsWithSchedule}</dd>
+                    </div>
+                  </dl>
+                </article>
+              )}
+            </section>
             <ReportsExplorer />
           </>
         ) : null}
