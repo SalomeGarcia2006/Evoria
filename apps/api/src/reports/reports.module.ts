@@ -25,6 +25,15 @@ import {
 } from '../permissions/schemas/permission.schema';
 import { ReportsController } from './reports.controller';
 import { ReportsService } from './reports.service';
+import { ReportsPdfService } from './reports-pdf.service';
+import { Tenant, TenantSchema } from '../tenants/schemas/tenant.schema';
+import { Team, TeamSchema } from '../teams/schemas/team.schema';
+import {
+  Membership,
+  MembershipSchema,
+} from '../memberships/schemas/membership.schema';
+import { User, UserSchema } from '../users/schemas/user.schema';
+import { Provider, ProviderSchema } from '../providers/schemas/provider.schema';
 
 @Module({
   imports: [
@@ -37,9 +46,14 @@ import { ReportsService } from './reports.service';
       { name: Schedule.name, schema: ScheduleSchema },
       { name: Profile.name, schema: ProfileSchema },
       { name: Permission.name, schema: PermissionSchema },
+      { name: Tenant.name, schema: TenantSchema },
+      { name: Team.name, schema: TeamSchema },
+      { name: Membership.name, schema: MembershipSchema },
+      { name: User.name, schema: UserSchema },
+      { name: Provider.name, schema: ProviderSchema },
     ]),
   ],
   controllers: [ReportsController],
-  providers: [ReportsService],
+  providers: [ReportsService, ReportsPdfService],
 })
 export class ReportsModule {}
