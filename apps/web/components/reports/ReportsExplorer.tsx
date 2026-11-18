@@ -1,10 +1,10 @@
 'use client';
 
-import type { ReportKind, ReportQuery } from '@evoria/contracts';
+import type { PdfReportKind, ReportKind, ReportQuery } from '@evoria/contracts';
 import { useEffect, useMemo, useState } from 'react';
 import { apiErrorMessage } from '../../services/api';
 import {
-  downloadReport,
+  downloadPdfReport,
   getReport,
   type ReportData,
 } from '../../services/reports.service';
@@ -84,6 +84,8 @@ export function ReportsExplorer() {
   const [data, setData] = useState<ReportData>();
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState<PdfReportKind>();
+  const [eventPdfId, setEventPdfId] = useState('');
 
   const query = useMemo<ReportQuery>(
     () => ({
@@ -132,17 +134,29 @@ export function ReportsExplorer() {
     setPage(1);
     setStatus('');
   };
-  const exportCsv = async () => {
+  const exportFile = async (exportKind: PdfReportKind) => {
+    if (exporting) return;
+    setExporting(exportKind);
     try {
-      const blob = await downloadReport(kind, query);
+      const exportQuery =
+        exportKind === 'event'
+          ? { eventId: eventPdfId }
+          : exportKind === 'teams'
+            ? {}
+            : query;
+      const blob = await downloadPdfReport(exportKind, exportQuery);
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `reporte-${kind}.csv`;
+      link.download = `reporte-${exportKind}.pdf`;
+      document.body.append(link);
       link.click();
-      URL.revokeObjectURL(url);
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
     } catch (reason) {
       setError(apiErrorMessage(reason));
+    } finally {
+      setExporting(undefined);
     }
   };
 
@@ -218,10 +232,67 @@ export function ReportsExplorer() {
             </label>
           </div>
         )}
-        <div className="flex justify-end">
-          <Button variant="secondary" onClick={exportCsv} disabled={loading}>
-            Exportar CSV
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button
+            onClick={() => exportFile(kind)}
+            disabled={loading || Boolean(exporting)}
+          >
+            {exporting === kind ? 'Preparando…' : 'Exportar PDF'}
           </Button>
+        </div>
+        <div className="grid gap-3 rounded-2xl border border-violet/20 bg-lilac/30 p-4">
+          <div>
+            <h3 className="font-semibold">Documentos PDF empresariales</h3>
+            <p className="mt-1 text-sm text-muted">
+              Genera una ficha de empresa, el listado de equipos o el detalle de
+              un evento.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="secondary"
+              onClick={() => exportFile('company')}
+              disabled={Boolean(exporting)}
+            >
+              PDF de empresa
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => exportFile('teams')}
+              disabled={Boolean(exporting)}
+            >
+              PDF de equipos
+            </Button>
+          </div>
+          {kind === 'events' && (
+            <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+              <label className="grid gap-1 text-sm font-semibold">
+                Ficha individual del evento
+                <select
+                  className="rounded-xl border border-sky-blue bg-white px-3 py-2 text-navy"
+                  value={eventPdfId}
+                  onChange={(event) => setEventPdfId(event.target.value)}
+                >
+                  <option value="">Selecciona un evento de esta página</option>
+                  {(data?.items ?? []).map((item) => {
+                    const event = item as unknown as Record<string, unknown>;
+                    return (
+                      <option key={String(event.id)} value={String(event.id)}>
+                        {String(event.name ?? 'Evento sin nombre')}
+                      </option>
+                    );
+                  })}
+                </select>
+              </label>
+              <Button
+                variant="secondary"
+                onClick={() => exportFile('event')}
+                disabled={!eventPdfId || Boolean(exporting)}
+              >
+                PDF del evento
+              </Button>
+            </div>
+          )}
         </div>
         {error ? (
           <Card>

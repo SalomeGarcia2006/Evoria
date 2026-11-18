@@ -2,6 +2,8 @@ import type {
   BudgetReport,
   EventReport,
   InventoryReport,
+  PdfReportKind,
+  ReportExportQuery,
   ReportKind,
   ReportQuery,
   ReportsSummary,
@@ -47,12 +49,13 @@ export async function getReport(kind: ReportKind, query: ReportQuery = {}) {
   return response.data;
 }
 
-export async function downloadReport(
-  kind: ReportKind,
-  query: ReportQuery = {},
+export async function downloadPdfReport(
+  kind: PdfReportKind,
+  query: ReportExportQuery = {},
 ) {
+  const exportQuery = { ...query, format: 'pdf' as const };
   const response = await fetch(
-    `${apiUrl}/reports/export/${kind}${queryString(query)}`,
+    `${apiUrl}/reports/export/${kind}${queryString(exportQuery)}`,
     { credentials: 'include', cache: 'no-store' },
   );
   if (!response.ok) throw new Error('No se pudo exportar el reporte.');
