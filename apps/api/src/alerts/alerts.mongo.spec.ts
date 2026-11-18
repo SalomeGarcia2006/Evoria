@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { eventClientFixture } from '../testing/event-client.fixture';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { spawn } from 'node:child_process';
@@ -277,6 +278,7 @@ test('Mongo aislado: deduplicación, lectura personal y revocación', async () =
     );
     const created = await eventService.create(
       {
+        client: eventClientFixture(),
         name: 'Evento de prueba',
         startAt: '2027-01-01T00:00:00.000Z',
         endAt: '2027-01-02T00:00:00.000Z',
@@ -817,6 +819,7 @@ test('Mongo aislado: deduplicación, lectura personal y revocación', async () =
     );
     const activeEvent = await eventService.create(
       {
+        client: eventClientFixture(),
         name: 'Evento de recursos',
         startAt: '2027-01-01T00:00:00.000Z',
         endAt: '2027-01-02T00:00:00.000Z',

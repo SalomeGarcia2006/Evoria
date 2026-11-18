@@ -47,6 +47,7 @@ export class RegistrationService {
     const tenant = await this.tenants
       .findOne({
         registrationToken: token,
+        registrationTokenExpiresAt: { $gt: new Date() },
         status: 'activo',
         emailDomain: { $type: 'string' },
       })
@@ -60,6 +61,7 @@ export class RegistrationService {
     const tenant = await this.tenants
       .findOne({
         registrationToken: input.token,
+        registrationTokenExpiresAt: { $gt: new Date() },
         status: 'activo',
         emailDomain: { $type: 'string' },
       })
@@ -152,6 +154,7 @@ export class RegistrationService {
             _id: pending.tenantId,
             status: 'activo',
             registrationToken: input.token,
+            registrationTokenExpiresAt: { $gt: new Date() },
             emailDomain: email.split('@')[1],
           },
           { $set: { registrationToken: input.token } },

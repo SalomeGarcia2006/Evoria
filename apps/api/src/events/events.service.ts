@@ -25,6 +25,9 @@ import { UpdateEventDto } from './dto/update-event.dto';
 import { Event, type EventDocument } from './schemas/event.schema';
 import { Tenant } from '../tenants/schemas/tenant.schema';
 import { Schedule } from '../schedules/schemas/schedule.schema';
+import { plainToInstance } from 'class-transformer';
+import { validateSync } from 'class-validator';
+import { EventClientDto } from './dto/event-client.dto';
 
 const DEFAULT_EVENT_TYPES = [
   'Congreso',
@@ -98,6 +101,7 @@ export class EventsService {
 
   async create(createEventDto: CreateEventDto, user: AuthenticatedUser) {
     const tenantId = this.getTenantId(user);
+    const client = this.normalizeClient(createEventDto.client);
     await this.validateResponsible(createEventDto.responsibleUserId, tenantId);
     this.validateDates(createEventDto.startAt, createEventDto.endAt);
     if (createEventDto.status === 'cancelado') {
@@ -109,6 +113,7 @@ export class EventsService {
 
     const event = await this.eventModel.create({
       tenantId,
+      client,
       createdBy: user.id,
       name: createEventDto.name.trim(),
       description: this.trimOptional(createEventDto.description),
@@ -212,6 +217,11 @@ export class EventsService {
       throw new ConflictException('No puedes editar un evento cancelado.');
     }
 
+    const client =
+      updateEventDto.client !== undefined
+        ? this.normalizeClient(updateEventDto.client)
+        : undefined;
+
     const startAt = updateEventDto.startAt ?? event.startAt.toISOString();
     const endAt = updateEventDto.endAt ?? event.endAt.toISOString();
     this.validateDates(startAt, endAt);
@@ -293,6 +303,7 @@ export class EventsService {
     }
 
     if (name !== undefined) event.name = name;
+    if (client !== undefined) event.client = client;
     if (updateEventDto.invitados !== undefined)
       event.invitados = updateEventDto.invitados;
     if (updateEventDto.description !== undefined) {
@@ -489,10 +500,43 @@ export class EventsService {
     return value?.trim() || null;
   }
 
+  private normalizeClient(value: EventClientDto): EventClientDto {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      throw new BadRequestException(
+        'Debes proporcionar los datos completos del cliente del evento.',
+      );
+    }
+    const client = plainToInstance(EventClientDto, value);
+    if (
+      validateSync(client, { whitelist: true, forbidNonWhitelisted: true })
+        .length
+    ) {
+      throw new BadRequestException(
+        'Los datos del cliente son inválidos o están incompletos.',
+      );
+    }
+    return {
+      name: client.name,
+      identification: client.identification,
+      phone: client.phone,
+      address: client.address,
+      email: client.email,
+    };
+  }
+
   private toResponse(event: EventDocument | (Event & { _id: Types.ObjectId })) {
     return {
       id: event._id.toString(),
       name: event.name,
+      client: event.client
+        ? {
+            name: event.client.name,
+            identification: event.client.identification,
+            phone: event.client.phone,
+            address: event.client.address,
+            email: event.client.email,
+          }
+        : null,
       description: event.description,
       startAt: event.startAt,
       endAt: event.endAt,

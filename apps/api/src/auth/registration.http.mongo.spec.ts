@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { Types } from 'mongoose';
 import {
   createHttpTestApi,
   createTenantTestContext,
@@ -355,6 +356,146 @@ test('HTTP: registro rechaza códigos agotados, vencidos y enlaces renovados', a
         .collection('users')
         .countDocuments({ email: input.email }),
       0,
+    );
+  } finally {
+    await api.close();
+  }
+});
+
+test('HTTP: el enlace vence a los 30 minutos y requiere renovación explícita', async () => {
+  let message = '';
+  const api = await createHttpTestApi(
+    'registration_expiration_test',
+    undefined,
+    {
+      send: async (_to, _subject, text) => void (message = text),
+    },
+  );
+  try {
+    const { ownerSession, tenantId } = await createTenantTestContext(api);
+    const before = Date.now();
+    assert.equal(
+      (
+        await api.request('tenants/context', {
+          method: 'PATCH',
+          session: ownerSession,
+          body: { emailDomain: 'empresa.test' },
+        })
+      ).status,
+      200,
+    );
+    const link = (await (
+      await api.request('tenants/registration-link', { session: ownerSession })
+    ).json()) as {
+      data: { token: string; expiresAt: string };
+    };
+    const token = link.data.token;
+    const expires = new Date(link.data.expiresAt).getTime();
+    assert.ok(
+      expires >= before + 30 * 60_000 && expires <= Date.now() + 30 * 60_000,
+    );
+    const input = {
+      token,
+      name: 'Ana',
+      lastName: 'García',
+      email: 'ana@empresa.test',
+      password: 'Segura-123!',
+    };
+    assert.equal(
+      (
+        await api.request('auth/registration/request', {
+          method: 'POST',
+          body: input,
+        })
+      ).status,
+      200,
+    );
+    const code = message.match(/es ([A-Z0-9]{6})\./)?.[1];
+    assert.ok(code);
+    await api.connection
+      .collection('tenants')
+      .updateOne(
+        { _id: new Types.ObjectId(tenantId) },
+        { $set: { registrationTokenExpiresAt: new Date(Date.now() - 1000) } },
+      );
+    assert.equal((await api.request(`auth/registration/${token}`)).status, 404);
+    assert.equal(
+      (
+        await api.request('auth/registration/request', {
+          method: 'POST',
+          body: input,
+        })
+      ).status,
+      404,
+    );
+    assert.equal(
+      (
+        await api.request('auth/registration/confirm', {
+          method: 'POST',
+          body: { token, email: input.email, code },
+        })
+      ).status,
+      401,
+    );
+    assert.equal(
+      await api.connection
+        .collection('users')
+        .countDocuments({ email: input.email }),
+      0,
+    );
+    const expired = await api.request('tenants/registration-link', {
+      session: ownerSession,
+    });
+    assert.equal(expired.status, 410);
+    assert.match((await expired.json()).message, /renovarlo/);
+    await api.connection
+      .collection('tenants')
+      .updateOne(
+        { _id: new Types.ObjectId(tenantId) },
+        { $unset: { registrationTokenExpiresAt: '' } },
+      );
+    assert.equal((await api.request(`auth/registration/${token}`)).status, 404);
+    assert.equal(
+      (
+        await api.request('tenants/registration-link', {
+          session: ownerSession,
+        })
+      ).status,
+      410,
+    );
+    const renewed = (
+      await (
+        await api.request('tenants/registration-link/rotate', {
+          method: 'POST',
+          session: ownerSession,
+        })
+      ).json()
+    ).data;
+    assert.notEqual(renewed.token, token);
+    assert.ok(new Date(renewed.expiresAt).getTime() > Date.now());
+    assert.equal(
+      (await api.request(`auth/registration/${renewed.token}`)).status,
+      200,
+    );
+    assert.equal(
+      (
+        await api.request('auth/registration/request', {
+          method: 'POST',
+          body: { ...input, token: renewed.token },
+        })
+      ).status,
+      200,
+    );
+    const newCode = message.match(/es ([A-Z0-9]{6})\./)?.[1];
+    assert.ok(newCode);
+    assert.equal(
+      (
+        await api.request('auth/registration/confirm', {
+          method: 'POST',
+          body: { token: renewed.token, email: input.email, code: newCode },
+        })
+      ).status,
+      200,
     );
   } finally {
     await api.close();

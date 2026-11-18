@@ -10,11 +10,23 @@ import {
   Min,
   MinLength,
   ValidateIf,
+  IsDefined,
+  IsObject,
+  ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { EVENT_STATUSES, type EventStatus } from '../events.constants';
+import { EventClientDto } from './event-client.dto';
 
 export class UpdateEventDto {
+  // Omission preserves the client; null and incomplete replacements are invalid.
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsDefined()
+  @IsObject()
+  @ValidateNested()
+  @Type(() => EventClientDto)
+  client?: EventClientDto;
+
   @IsOptional()
   @IsString()
   @MinLength(2)

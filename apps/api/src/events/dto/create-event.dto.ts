@@ -10,11 +10,21 @@ import {
   Min,
   MinLength,
   ValidateIf,
+  IsDefined,
+  IsObject,
+  ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { EVENT_STATUSES, type EventStatus } from '../events.constants';
+import { EventClientDto } from './event-client.dto';
 
 export class CreateEventDto {
+  @IsDefined()
+  @IsObject()
+  @ValidateNested()
+  @Type(() => EventClientDto)
+  client!: EventClientDto;
+
   @IsString()
   @MinLength(2)
   @MaxLength(120)

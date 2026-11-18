@@ -1,3 +1,4 @@
+import { eventClientFixture } from '../testing/event-client.fixture';
 import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
@@ -108,6 +109,7 @@ test('HTTP: una sesión solo accede a las rutas de sus permisos', async () => {
       method: 'POST',
       session: ownerSession,
       body: {
+        client: eventClientFixture(),
         name: 'Evento visible',
         startAt: '2030-01-10T10:00:00.000Z',
         endAt: '2030-01-10T18:00:00.000Z',
