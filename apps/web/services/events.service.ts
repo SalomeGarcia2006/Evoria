@@ -23,6 +23,7 @@ export function isActiveEvent(status: string) {
 export interface EventItem {
   id: string;
   name: string;
+  client: EventClient | null;
   description: string | null;
   startAt: string;
   endAt: string;
@@ -37,8 +38,17 @@ export interface EventItem {
   updatedAt: string;
 }
 
+export interface EventClient {
+  name: string;
+  identification: string;
+  phone: string;
+  address: string;
+  email: string;
+}
+
 export interface CreateEventPayload {
   name: string;
+  client: EventClient;
   description?: string;
   startAt: string;
   endAt: string;
@@ -50,7 +60,9 @@ export interface CreateEventPayload {
   responsibleUserId?: string;
 }
 
-export type UpdateEventPayload = CreateEventPayload;
+export type UpdateEventPayload = Omit<CreateEventPayload, 'client'> & {
+  client?: EventClient;
+};
 
 interface ApiResponse<T> {
   data: T;
