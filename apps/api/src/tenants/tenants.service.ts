@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  GoneException,
   Injectable,
 } from '@nestjs/common';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
@@ -189,8 +190,10 @@ export class TenantsService {
         })
       )
         throw new ConflictException('El dominio ya pertenece a otra empresa.');
-      if (!tenant.emailDomain)
+      if (!tenant.emailDomain) {
         changes.registrationToken = randomBytes(32).toString('hex');
+        changes.registrationTokenExpiresAt = new Date(Date.now() + 30 * 60_000);
+      }
     }
     if (!Object.keys(changes).length)
       throw new BadRequestException('Debes indicar al menos un cambio.');
@@ -222,8 +225,9 @@ export class TenantsService {
       .findById(tenant._id)
       .select('+registrationToken');
     if (!result) throw new NotFoundException('La empresa activa no existe.');
-    if (rotate || !result.registrationToken) {
+    if (rotate) {
       result.registrationToken = randomBytes(32).toString('hex');
+      result.registrationTokenExpiresAt = new Date(Date.now() + 30 * 60_000);
       await result.save();
       await this.auditsService.record({
         tenantId: tenant._id.toString(),
@@ -235,6 +239,12 @@ export class TenantsService {
         description: 'Generó un enlace de registro para la empresa.',
       });
     }
+    const active =
+      !!result.registrationToken &&
+      !!result.registrationTokenExpiresAt &&
+      result.registrationTokenExpiresAt.getTime() > Date.now();
+    if (!active)
+      throw new GoneException('El enlace de registro venció. Debes renovarlo.');
     const registrationUrl = new URL(
       '/registro',
       process.env.WEB_ORIGIN?.trim() || 'http://localhost:3000',
@@ -244,6 +254,7 @@ export class TenantsService {
       token: result.registrationToken,
       url: registrationUrl.toString(),
       emailDomain: tenant.emailDomain,
+      expiresAt: result.registrationTokenExpiresAt ?? null,
     };
   }
 
