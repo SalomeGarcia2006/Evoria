@@ -50,6 +50,7 @@ function PasswordVisibilityButton({
 export function RegistrationForm() {
   const tokenRef = useRef('');
   const [company, setCompany] = useState<RegistrationCompany | null>(null);
+  const [requiresInvitation, setRequiresInvitation] = useState(false);
   const [linkError, setLinkError] = useState<string | null>(null);
   const [loadingLink, setLoadingLink] = useState(true);
   const [step, setStep] = useState<1 | 2>(1);
@@ -72,7 +73,18 @@ export function RegistrationForm() {
       .get('token')
       ?.trim();
 
-    if (!registrationToken || !TOKEN_PATTERN.test(registrationToken)) {
+    if (!registrationToken) {
+      queueMicrotask(() => {
+        if (!active) return;
+        setRequiresInvitation(true);
+        setLoadingLink(false);
+      });
+      return () => {
+        active = false;
+      };
+    }
+
+    if (!TOKEN_PATTERN.test(registrationToken)) {
       queueMicrotask(() => {
         if (!active) return;
         setLinkError('El enlace de registro no es válido.');
@@ -220,9 +232,20 @@ export function RegistrationForm() {
   if (linkError || !company)
     return (
       <div className="registration-empty">
-        <p className="login-error" role="alert">
-          {linkError ?? 'El enlace de registro no está disponible.'}
-        </p>
+        {requiresInvitation ? (
+          <>
+            <h3>Necesitas un enlace empresarial</h3>
+            <p>
+              Solicítalo a la persona administradora de tu empresa. Ese enlace
+              identifica la empresa y permite usar únicamente su correo
+              corporativo.
+            </p>
+          </>
+        ) : (
+          <p className="login-error" role="alert">
+            {linkError ?? 'El enlace de registro no está disponible.'}
+          </p>
+        )}
         <a className="recovery-card__back" href="/login">
           Volver al inicio de sesión
         </a>
@@ -263,11 +286,27 @@ export function RegistrationForm() {
             <div className="login-field">
               <label htmlFor="registration-name">Nombre</label>
               <div className="login-input-container">
+                <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
+                  <circle
+                    cx="12"
+                    cy="8"
+                    r="3.5"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                  />
+                  <path
+                    d="M4.5 20c.65-3.25 3.05-5 7.5-5s6.85 1.75 7.5 5"
+                    stroke="currentColor"
+                    strokeLinecap="round"
+                    strokeWidth="1.8"
+                  />
+                </svg>
                 <input
                   autoComplete="given-name"
                   id="registration-name"
                   maxLength={120}
                   onChange={(event) => setName(event.target.value)}
+                  placeholder="Ingresa tu nombre"
                   required
                   value={name}
                 />
@@ -276,11 +315,27 @@ export function RegistrationForm() {
             <div className="login-field">
               <label htmlFor="registration-last-name">Apellidos</label>
               <div className="login-input-container">
+                <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
+                  <circle
+                    cx="12"
+                    cy="8"
+                    r="3.5"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                  />
+                  <path
+                    d="M4.5 20c.65-3.25 3.05-5 7.5-5s6.85 1.75 7.5 5"
+                    stroke="currentColor"
+                    strokeLinecap="round"
+                    strokeWidth="1.8"
+                  />
+                </svg>
                 <input
                   autoComplete="family-name"
                   id="registration-last-name"
                   maxLength={120}
                   onChange={(event) => setLastName(event.target.value)}
+                  placeholder="Ingresa tus apellidos"
                   required
                   value={lastName}
                 />
@@ -290,6 +345,24 @@ export function RegistrationForm() {
           <div className="login-field">
             <label htmlFor="registration-email">Correo corporativo</label>
             <div className="login-input-container">
+              <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
+                <rect
+                  height="14"
+                  rx="2"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  width="18"
+                  x="3"
+                  y="5"
+                />
+                <path
+                  d="m4.5 7 7.5 5.7L19.5 7"
+                  stroke="currentColor"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="1.8"
+                />
+              </svg>
               <input
                 autoComplete="email"
                 id="registration-email"
@@ -306,12 +379,30 @@ export function RegistrationForm() {
             <div className="login-field">
               <label htmlFor="registration-password">Contraseña</label>
               <div className="login-input-container">
+                <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
+                  <rect
+                    height="10"
+                    rx="2"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    width="14"
+                    x="5"
+                    y="11"
+                  />
+                  <path
+                    d="M8 11V8a4 4 0 1 1 8 0v3"
+                    stroke="currentColor"
+                    strokeLinecap="round"
+                    strokeWidth="1.8"
+                  />
+                </svg>
                 <input
                   autoComplete="new-password"
                   id="registration-password"
                   maxLength={128}
                   minLength={8}
                   onChange={(event) => setPassword(event.target.value)}
+                  placeholder="Crea una contraseña"
                   required
                   type={showPassword ? 'text' : 'password'}
                   value={password}
@@ -328,12 +419,30 @@ export function RegistrationForm() {
                 Repite la contraseña
               </label>
               <div className="login-input-container">
+                <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
+                  <rect
+                    height="10"
+                    rx="2"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    width="14"
+                    x="5"
+                    y="11"
+                  />
+                  <path
+                    d="M8 11V8a4 4 0 1 1 8 0v3"
+                    stroke="currentColor"
+                    strokeLinecap="round"
+                    strokeWidth="1.8"
+                  />
+                </svg>
                 <input
                   autoComplete="new-password"
                   id="registration-confirmation"
                   maxLength={128}
                   minLength={8}
                   onChange={(event) => setConfirmation(event.target.value)}
+                  placeholder="Repite tu contraseña"
                   required
                   type={showConfirmation ? 'text' : 'password'}
                   value={confirmation}
@@ -367,7 +476,24 @@ export function RegistrationForm() {
         <form className="login-form" noValidate onSubmit={submitCode}>
           <div className="recovery-card__heading registration-code-heading">
             <span aria-hidden="true" className="recovery-card__icon">
-              ✉
+              <svg fill="none" viewBox="0 0 24 24">
+                <rect
+                  height="14"
+                  rx="2"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  width="18"
+                  x="3"
+                  y="5"
+                />
+                <path
+                  d="m4.5 7 7.5 5.7L19.5 7"
+                  stroke="currentColor"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="1.8"
+                />
+              </svg>
             </span>
             <div>
               <h2>Verifica tu correo</h2>
