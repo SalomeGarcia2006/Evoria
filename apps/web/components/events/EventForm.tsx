@@ -729,7 +729,7 @@ export function EventForm({
           <>
             <div
               aria-label={`Paso ${step} de 3`}
-              className="grid grid-cols-3 gap-3 border-b border-sky-blue pb-5 sm:gap-4"
+              className="event-wizard-stepper grid grid-cols-3 gap-3 border-b border-sky-blue pb-5 sm:gap-4"
               role="list"
             >
               {[
@@ -743,7 +743,7 @@ export function EventForm({
                 return (
                   <div
                     aria-current={active ? 'step' : undefined}
-                    className="flex min-w-0 items-center gap-3"
+                    className="event-wizard-step flex min-w-0 items-center gap-3"
                     key={number}
                     role="listitem"
                   >
@@ -754,7 +754,8 @@ export function EventForm({
                       {completed ? '✓' : number}
                     </span>
                     <span
-                      className={`min-w-0 text-sm font-semibold ${active ? 'text-navy' : completed ? 'text-teal' : 'text-muted'}`}
+                      className={`event-wizard-step-label min-w-0 text-sm font-semibold ${active ? 'text-navy' : completed ? 'text-teal' : 'text-muted'}`}
+                      data-current={active ? 'true' : undefined}
                     >
                       {label}
                     </span>

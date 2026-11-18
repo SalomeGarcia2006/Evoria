@@ -10,13 +10,13 @@ export function Topbar({
   hideTitle?: boolean;
 }) {
   return (
-    <header className="relative z-20 flex items-center justify-between gap-4 border-b border-sky-blue/80 bg-beige/90 px-6 py-4 backdrop-blur-sm">
+    <header className="evoria-topbar relative z-20 flex min-w-0 items-center justify-between gap-4 border-b border-sky-blue/80 bg-beige/90 px-6 py-4 backdrop-blur-sm">
       {hideTitle ? (
         <span aria-hidden="true" />
       ) : (
         <h1 className="text-xl font-bold tracking-tight">{title}</h1>
       )}
-      <div className="flex items-center gap-2">
+      <div className="evoria-topbar__actions flex min-w-0 items-center gap-2">
         <FirstVisitTour />
         <ThemeToggle />
         <UserPill />
