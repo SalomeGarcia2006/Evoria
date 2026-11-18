@@ -27,6 +27,84 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1rem;
 }
+.registration {
+  display: grid;
+  gap: 1rem;
+  overflow: hidden;
+  padding: 1.2rem 1.25rem;
+  border: 1px solid #dcd1ff;
+  border-radius: 1rem;
+  background: linear-gradient(120deg, #f7f4ff 0%, #fbfcff 55%, #eefafa 100%);
+  box-shadow: 0 10px 24px rgba(76, 51, 163, 0.07);
+}
+.registrationIntro {
+  position: relative;
+  padding-left: 3.25rem;
+}
+.registrationIntro::before {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: grid;
+  width: 2.35rem;
+  height: 2.35rem;
+  place-items: center;
+  border-radius: 0.75rem;
+  background: linear-gradient(135deg, #157d89, #4431a3);
+  box-shadow: 0 7px 16px rgba(68, 49, 163, 0.22);
+  color: white;
+  content: '↗';
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+.registration h3 {
+  margin-bottom: 0.4rem;
+  color: #332862;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.registration p {
+  overflow-wrap: anywhere;
+  line-height: 1.55;
+}
+.registrationActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+.copyButton {
+  min-width: 8.6rem;
+}
+.renewButton {
+  color: #4431a3;
+}
+.renewButton:hover {
+  color: #2f2179;
+  background: #ece7fb;
+}
+.linkBlock {
+  display: grid;
+  gap: 0.45rem;
+}
+.linkBlock > span {
+  color: #5f5878;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.registrationLink {
+  border: 1px dashed #bcaef2;
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.72);
+  padding: 0.8rem 0.9rem;
+  color: #3f2b9e;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
 .fact {
   min-width: 0;
   padding: 1rem 1.1rem;
@@ -78,6 +156,32 @@
 }
 :global(html[data-theme='dark']) .fact {
   border-color: #71678d;
+}
+:global(html[data-theme='dark']) .registration {
+  border-color: #71678d;
+  background: linear-gradient(120deg, #292344, #222b45);
+  box-shadow: none;
+}
+:global(html[data-theme='dark']) .registrationIntro::before {
+  box-shadow: none;
+}
+:global(html[data-theme='dark']) .registration h3 {
+  color: #c7bfdb;
+}
+:global(html[data-theme='dark']) .linkBlock > span {
+  color: #c7bfdb;
+}
+:global(html[data-theme='dark']) .renewButton {
+  color: #d6cdff;
+}
+:global(html[data-theme='dark']) .renewButton:hover {
+  color: #fff;
+  background: #43376d;
+}
+:global(html[data-theme='dark']) .registrationLink {
+  border-color: #71678d;
+  background: #211d37;
+  color: #eee9ff;
 }
 :global(html[data-theme='dark']) .fact h3,
 :global(html[data-theme='dark']) .section h3 {

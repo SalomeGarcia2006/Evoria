@@ -432,6 +432,7 @@ export function EventAssignmentsDialog({
                       onRefreshResult={setInventoryResult}
                       onChanged={assignmentChanged}
                       onBusyChange={setInventoryBusy}
+                      showAssignmentList={false}
                     />
                   )}
                   {can('servicios_proveedor.ver') && (
@@ -447,6 +448,7 @@ export function EventAssignmentsDialog({
                       onRefreshingChange={setServicesRefreshing}
                       onRefreshResult={setServicesResult}
                       onChanged={assignmentChanged}
+                      showItems={false}
                     />
                   )}
                 </div>
