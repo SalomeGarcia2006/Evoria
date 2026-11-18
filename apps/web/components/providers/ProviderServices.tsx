@@ -34,6 +34,8 @@ export function ProviderServices({
   onRefreshResult,
   onChanged,
   inDialog = false,
+  readOnly = false,
+  showItems = true,
 }: {
   event: EventItem;
   budgetReady?: boolean;
@@ -45,6 +47,8 @@ export function ProviderServices({
   onRefreshResult?: (result: { revision: number; errors: string[] }) => void;
   onChanged?: () => void;
   inDialog?: boolean;
+  readOnly?: boolean;
+  showItems?: boolean;
 }) {
   const { can } = useAuth();
   const [revision, setRevision] = useState(0);
@@ -75,6 +79,12 @@ export function ProviderServices({
     return () => onRefreshingChange?.(false);
   }, [key, result?.key, onRefreshingChange]);
   useEffect(() => {
+    if (!showItems) {
+      Promise.resolve().then(() => {
+        setResult({ key, items: [], refreshRevision });
+      });
+      return;
+    }
     let active = true;
     getProviderServices(event.id, true)
       .then((items) => {
@@ -107,7 +117,7 @@ export function ProviderServices({
     return () => {
       active = false;
     };
-  }, [event.id, key, refreshRevision]);
+  }, [event.id, key, refreshRevision, showItems]);
   const items = result?.key.startsWith(`${event.id}:`)
     ? result.refreshRevision > committedRevision
       ? result.previousItems
@@ -150,25 +160,29 @@ export function ProviderServices({
                 Acuerdos y valores pactados para este evento.
               </p>
             </div>
-            {can('servicios_proveedor.crear') && can('proveedores.ver') && (
-              <Button
-                className="disabled:cursor-not-allowed disabled:opacity-50"
-                disabled={cancelled || !budgetReady || updating}
-                onClick={() => setPanel('create')}
-              >
-                {inDialog
-                  ? '+ Asignar servicio'
-                  : 'Asignar servicio de proveedor'}
-              </Button>
-            )}
+            {!readOnly &&
+              can('servicios_proveedor.crear') &&
+              can('proveedores.ver') && (
+                <Button
+                  className="disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={cancelled || !budgetReady || updating}
+                  onClick={() => setPanel('create')}
+                >
+                  {inDialog
+                    ? '+ Asignar servicio'
+                    : 'Asignar servicio de proveedor'}
+                </Button>
+              )}
           </div>
           {cancelled && (
             <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
-              Evento cancelado: puedes consultar o cancelar acuerdos existentes;
-              no crear ni editar.
+              {readOnly
+                ? 'Evento cancelado: puedes consultar sus acuerdos históricos.'
+                : 'Evento cancelado: puedes consultar o cancelar acuerdos existentes; no crear ni editar.'}
             </p>
           )}
-          {!cancelled &&
+          {!readOnly &&
+            !cancelled &&
             can('servicios_proveedor.crear') &&
             !can('proveedores.ver') && (
               <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
@@ -176,7 +190,7 @@ export function ProviderServices({
                 servicio.
               </p>
             )}
-          {!cancelled && budgetMissing && (
+          {!readOnly && !cancelled && budgetMissing && (
             <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
               No puedes crear ni editar acuerdos hasta consultar e iniciar el
               presupuesto del evento. Revísalo desde Presupuestos y luego vuelve
@@ -206,98 +220,100 @@ export function ProviderServices({
               </Button>
             </>
           )}
-          {!items && !error ? (
-            <LoadingState label="Cargando servicios de proveedores…" />
-          ) : items?.length === 0 ? (
-            inDialog ? (
-              <div className="grid justify-items-center gap-4 py-5">
-                <AssignmentIcon name="provedores" />
-                <EmptyState title="No hay servicios de proveedores registrados para este evento" />
-              </div>
-            ) : (
-              <p className="py-5 text-muted">
-                No hay servicios de proveedores registrados para este evento.
-              </p>
-            )
-          ) : items ? (
-            <div
-              className={
-                inDialog
-                  ? 'grid gap-3'
-                  : 'grid gap-4 md:grid-cols-2 xl:grid-cols-3'
-              }
-            >
-              {items.map((item) => (
-                <article
-                  key={item.id}
-                  className="flex min-w-0 flex-col rounded-xl border border-sky-blue p-5"
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <h3 className="break-words text-lg font-bold">
-                      {item.serviceName}
-                    </h3>
-                    <StatusBadge
-                      status={
-                        item.status === 'confirmado'
-                          ? 'Confirmado'
-                          : 'Cancelado'
-                      }
-                    />
-                  </div>
-                  <p className="mt-3 break-words font-semibold text-muted">
-                    {item.provider.name}
-                  </p>
-                  {item.provider.status === 'inactivo' && (
-                    <p className="mt-1 text-xs text-muted">
-                      Proveedor inactivo · Acuerdo histórico
+          {showItems &&
+            (!items && !error ? (
+              <LoadingState label="Cargando servicios de proveedores…" />
+            ) : items?.length === 0 ? (
+              inDialog ? (
+                <div className="grid justify-items-center gap-4 py-5">
+                  <AssignmentIcon name="provedores" />
+                  <EmptyState title="No hay servicios de proveedores registrados para este evento" />
+                </div>
+              ) : (
+                <p className="py-5 text-muted">
+                  No hay servicios de proveedores registrados para este evento.
+                </p>
+              )
+            ) : items ? (
+              <div
+                className={
+                  inDialog
+                    ? 'grid gap-3'
+                    : 'grid gap-4 md:grid-cols-2 xl:grid-cols-3'
+                }
+              >
+                {items.map((item) => (
+                  <article
+                    key={item.id}
+                    className="flex min-w-0 flex-col rounded-xl border border-sky-blue p-5"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <h3 className="break-words text-lg font-bold">
+                        {item.serviceName}
+                      </h3>
+                      <StatusBadge
+                        status={
+                          item.status === 'confirmado'
+                            ? 'Confirmado'
+                            : 'Cancelado'
+                        }
+                      />
+                    </div>
+                    <p className="mt-3 break-words font-semibold text-muted">
+                      {item.provider.name}
                     </p>
-                  )}
-                  {item.description && (
-                    <p className="mt-3 whitespace-pre-wrap break-words text-sm">
-                      {item.description}
+                    {item.provider.status === 'inactivo' && (
+                      <p className="mt-1 text-xs text-muted">
+                        Proveedor inactivo · Acuerdo histórico
+                      </p>
+                    )}
+                    {item.description && (
+                      <p className="mt-3 whitespace-pre-wrap break-words text-sm">
+                        {item.description}
+                      </p>
+                    )}
+                    <p className="mt-4 text-sm text-muted">
+                      Desde {item.startDate} {item.startTime}
+                      {item.endDate
+                        ? ` hasta ${item.endDate} ${item.endTime ?? ''}`
+                        : ''}
                     </p>
-                  )}
-                  <p className="mt-4 text-sm text-muted">
-                    Desde {item.startDate} {item.startTime}
-                    {item.endDate
-                      ? ` hasta ${item.endDate} ${item.endTime ?? ''}`
-                      : ''}
-                  </p>
-                  <p className="my-4 break-words text-xl font-bold">
-                    {cop.format(item.agreedAmountCop)}
-                  </p>
-                  {item.status === 'cancelado' ? (
-                    <p className="text-xs text-muted">
-                      Histórico · No cuenta como gasto.
+                    <p className="my-4 break-words text-xl font-bold">
+                      {cop.format(item.agreedAmountCop)}
                     </p>
-                  ) : (
-                    <div className="mt-auto flex flex-wrap gap-2">
-                      {can('servicios_proveedor.editar') &&
-                        !cancelled &&
-                        budgetReady && (
+                    {item.status === 'cancelado' ? (
+                      <p className="text-xs text-muted">
+                        Histórico · No cuenta como gasto.
+                      </p>
+                    ) : (
+                      <div className="mt-auto flex flex-wrap gap-2">
+                        {!readOnly &&
+                          can('servicios_proveedor.editar') &&
+                          !cancelled &&
+                          budgetReady && (
+                            <Button
+                              variant="secondary"
+                              disabled={updating}
+                              onClick={() => setPanel(item)}
+                            >
+                              Editar servicio
+                            </Button>
+                          )}
+                        {!readOnly && can('servicios_proveedor.cancelar') && (
                           <Button
-                            variant="secondary"
+                            variant="ghost"
                             disabled={updating}
-                            onClick={() => setPanel(item)}
+                            onClick={() => setCancelling(item)}
                           >
-                            Editar servicio
+                            Cancelar servicio
                           </Button>
                         )}
-                      {can('servicios_proveedor.cancelar') && (
-                        <Button
-                          variant="ghost"
-                          disabled={updating}
-                          onClick={() => setCancelling(item)}
-                        >
-                          Cancelar servicio
-                        </Button>
-                      )}
-                    </div>
-                  )}
-                </article>
-              ))}
-            </div>
-          ) : null}
+                      </div>
+                    )}
+                  </article>
+                ))}
+              </div>
+            ) : null)}
           {panel && (
             <ProviderServiceDialog
               event={event}
