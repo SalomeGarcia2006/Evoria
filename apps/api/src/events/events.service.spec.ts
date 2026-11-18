@@ -14,6 +14,7 @@ import { UpdateEventDto } from './dto/update-event.dto';
 import { Event, EventSchema } from './schemas/event.schema';
 import { model } from 'mongoose';
 import { EventsService } from './events.service';
+import { eventClientFixture } from '../testing/event-client.fixture';
 
 const tenantId = new Types.ObjectId().toString();
 const user = {
@@ -25,6 +26,7 @@ const audits = { record: async () => undefined } as unknown as AuditsService;
 
 function eventDto(baseBudget: number) {
   return plainToInstance(CreateEventDto, {
+    client: eventClientFixture(),
     name: 'Evento de prueba',
     startAt: '2026-12-05T15:00:00.000Z',
     endAt: '2026-12-06T02:00:00.000Z',

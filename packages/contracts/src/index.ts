@@ -14,6 +14,15 @@ export type {
 } from './alerts';
 export type { AuthScope, AuthSession, LoginRequest } from './auth';
 export type {
+  EventClient,
+  EventStatus,
+  CreateEventRequest,
+  UpdateEventRequest,
+  EventItem,
+  EventQuery,
+  EventList,
+} from './events';
+export type {
   ReportKind,
   PdfReportKind,
   ReportExportFormat,

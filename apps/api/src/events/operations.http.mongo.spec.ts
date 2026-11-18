@@ -1,3 +1,4 @@
+import { eventClientFixture } from '../testing/event-client.fixture';
 import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
@@ -66,6 +67,7 @@ test('HTTP: tipos aislados por empresa y acceso para crear o editar', async () =
       method: 'POST',
       session: otherSession,
       body: {
+        client: eventClientFixture(),
         name: 'Evento ajeno',
         type: 'Boda',
         startAt: '2030-01-10T10:00:00.000Z',
@@ -156,6 +158,7 @@ test('HTTP: operaciones de eventos, recursos y proveedores conservan sus datos',
           method: 'POST',
           session: ownerSession,
           body: {
+            client: eventClientFixture(),
             name: 'Tipo inválido',
             startAt: '2030-01-10T10:00:00.000Z',
             endAt: '2030-01-10T18:00:00.000Z',
@@ -170,6 +173,7 @@ test('HTTP: operaciones de eventos, recursos y proveedores conservan sus datos',
       method: 'POST',
       session: ownerSession,
       body: {
+        client: eventClientFixture(),
         name: 'Evento inválido',
         startAt: '2030-01-11T18:00:00.000Z',
         endAt: '2030-01-10T10:00:00.000Z',
@@ -182,6 +186,7 @@ test('HTTP: operaciones de eventos, recursos y proveedores conservan sus datos',
       method: 'POST',
       session: ownerSession,
       body: {
+        client: eventClientFixture(),
         name: 'Evento operativo',
         description: 'Evento para probar operaciones relacionadas.',
         startAt: '2030-01-10T10:00:00.000Z',
@@ -467,6 +472,7 @@ test('HTTP: operaciones de eventos, recursos y proveedores conservan sus datos',
       method: 'POST',
       session: ownerSession,
       body: {
+        client: eventClientFixture(),
         name: 'Evento a cancelar',
         startAt: '2030-02-10T10:00:00.000Z',
         endAt: '2030-02-10T18:00:00.000Z',
