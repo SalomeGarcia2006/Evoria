@@ -203,7 +203,9 @@ export function BudgetPanel({
               <span
                 className={`rounded-full px-3 py-1 text-xs font-semibold capitalize ${['borrador', 'planificado', 'en_progreso'].includes(budget.eventStatus) ? 'bg-teal/10 text-muted' : 'bg-beige text-navy'}`}
               >
-                {budget.eventStatus.replaceAll('_', ' ')}
+                {budget.eventStatus === 'borrador'
+                  ? 'Creado'
+                  : budget.eventStatus.replaceAll('_', ' ')}
               </span>
               {can('eventos.ver') && (
                 <Link

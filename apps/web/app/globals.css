@@ -1202,6 +1202,10 @@ textarea:focus {
   font-size: 0.82rem;
 }
 
+.event-wizard-actions {
+  background: rgb(255 255 255 / 95%);
+}
+
 .events-list-panel__pagination {
   display: flex;
   align-items: center;
@@ -1475,6 +1479,9 @@ textarea:disabled:not(:root:not([data-theme='dark']) [data-inventory-scope] *),
 }
 [data-theme='dark'] .bg-white\/70 {
   background-color: rgb(27 40 59 / 70%);
+}
+[data-theme='dark'] .event-wizard-actions {
+  background: rgb(23 35 58 / 95%);
 }
 [data-theme='dark'] .dashboard-hero__button {
   background: #fff;

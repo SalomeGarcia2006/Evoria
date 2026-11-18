@@ -135,7 +135,7 @@ export const manualContent: Record<string, ManualTopic[]> = {
     {
       title: 'Eventos disponibles',
       description:
-        'Aparecen eventos en borrador, planificados o en ejecución. Los finalizados y cancelados no permiten nuevas asignaciones desde esta vista.',
+        'Aparecen eventos creados, planificados o en ejecución. Los finalizados y cancelados no permiten nuevas asignaciones desde esta vista.',
     },
     {
       title: 'Abrir una tarjeta',

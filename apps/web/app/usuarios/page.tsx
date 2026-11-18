@@ -88,7 +88,7 @@ export default function UsuariosPage() {
   const loadData = useCallback(() => {
     return Promise.all([
       getUsers(),
-      can('usuarios.crear') ? getUserProfiles() : Promise.resolve([]),
+      can('usuarios.editar') ? getUserProfiles() : Promise.resolve([]),
     ])
       .then(([userItems, profileItems]) => {
         setUsers(userItems);
@@ -135,7 +135,7 @@ export default function UsuariosPage() {
       name: user.name,
       email: user.email,
       password: '',
-      profileId: user.profile.id,
+      profileId: user.profile?.id ?? '',
       status: user.status,
     });
     userDialog.current?.showModal();
@@ -307,12 +307,16 @@ export default function UsuariosPage() {
                 value={form.profileId}
               >
                 {editing &&
+                editing.profile &&
                 !profiles.some(
-                  (profile) => profile.id === editing.profile.id,
+                  (profile) => profile.id === editing.profile?.id,
                 ) ? (
                   <option value={editing.profile.id}>
                     {editing.profile.name}
                   </option>
+                ) : null}
+                {!form.profileId ? (
+                  <option value="">Pendiente de asignación</option>
                 ) : null}
                 {profiles.map((profile) => (
                   <option key={profile.id} value={profile.id}>
@@ -441,7 +445,8 @@ export default function UsuariosPage() {
                 {
                   key: 'profile',
                   header: 'Perfil',
-                  render: (user) => user.profile.name,
+                  render: (user) =>
+                    user.profile?.name ?? 'Pendiente de asignación',
                 },
                 {
                   key: 'status',
