@@ -330,7 +330,10 @@ export function EventForm({
   }
 
   function continueToSchedule() {
-    if (!validateGeneralInformation()) return;
+    if (!validateGeneralInformation()) {
+      setValidationAlert(null);
+      return;
+    }
     setStep(2);
   }
 
