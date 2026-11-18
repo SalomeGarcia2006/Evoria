@@ -4,8 +4,10 @@ El desarrollador sigue creando la empresa y su administrador. El administrador c
 
 Los endpoints requieren una sesión de empresa y el permiso `empresa_contexto.editar`:
 
-- `GET /api/tenants/registration-link`: obtiene `{ token, url, emailDomain }`. La URL apunta a `/registro` en `WEB_ORIGIN` y está destinada a la futura vista del frontend.
-- `POST /api/tenants/registration-link/rotate`: genera otra clave. La anterior deja de funcionar, incluso para verificaciones pendientes. El enlace es sensible y debe compartirse solo con quien se desee invitar.
+- `GET /api/tenants/registration-link`: obtiene `{ token, url, emailDomain, expiresAt }`. La URL apunta a `/registro` en `WEB_ORIGIN`. Si el enlace venció o se generó antes de incorporar la fecha de vencimiento, responde 410 con un mensaje para renovarlo; consultarlo no lo renueva.
+- `POST /api/tenants/registration-link/rotate`: genera otra clave válida durante 30 minutos. La anterior deja de funcionar, incluso para verificaciones pendientes. El enlace es sensible y debe compartirse solo con quien se desee invitar.
+
+El primer enlace se genera al configurar el dominio y también dura 30 minutos. Los enlaces creados antes de este cambio no tienen fecha de vencimiento y dejan de ser válidos: un administrador debe renovarlos. Si el enlace vence antes de confirmar el código, hay que iniciar nuevamente el registro con el enlace renovado.
 
 ## Registro público
 
