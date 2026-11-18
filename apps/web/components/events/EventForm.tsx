@@ -662,7 +662,7 @@ export function EventForm({
               </section>
             )}
 
-            <div className="sticky bottom-0 z-10 flex flex-wrap justify-between gap-3 border-t border-sky-blue bg-white/95 py-4 backdrop-blur-sm">
+            <div className="event-wizard-actions sticky bottom-0 z-10 flex flex-wrap justify-between gap-3 border-t border-sky-blue py-4 backdrop-blur-sm">
               {step === 1 ? (
                 <Button
                   onClick={() =>
