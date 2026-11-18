@@ -135,6 +135,50 @@ export async function verifyPasswordReset(
   });
 }
 
+export type RegistrationCompany = {
+  companyName: string;
+  emailDomain: string;
+};
+
+export type RegistrationPayload = {
+  token: string;
+  name: string;
+  lastName: string;
+  email: string;
+  password: string;
+};
+
+export async function getRegistrationCompany(
+  token: string,
+): Promise<RegistrationCompany> {
+  const response = await apiRequest<ApiResponse<RegistrationCompany>>(
+    `/auth/registration/${encodeURIComponent(token)}`,
+  );
+  return response.data;
+}
+
+export async function requestRegistration(
+  payload: RegistrationPayload,
+): Promise<void> {
+  await apiRequest<ApiResponse<null>>('/auth/registration/request', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function confirmRegistration(input: {
+  token: string;
+  email: string;
+  code: string;
+}): Promise<void> {
+  await apiRequest<ApiResponse<null>>('/auth/registration/confirm', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+}
+
 export async function changeTenant(tenantId: string | null): Promise<AuthUser> {
   const response = await apiRequest<ApiResponse<AuthSession>>(
     tenantId
