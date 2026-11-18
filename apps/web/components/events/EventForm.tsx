@@ -53,7 +53,7 @@ function formFromEvent(event?: EventItem) {
     location: event?.location ?? '',
     type: event?.type ?? '',
     baseBudget: event ? String(event.baseBudget) : '',
-    invitados: event ? String(event.invitados ?? 0) : '0',
+    invitados: event ? String(event.invitados ?? 0) : '',
     responsibleUserId: event?.responsibleUserId ?? '',
   };
 }
@@ -165,6 +165,7 @@ export function EventForm({
           items.filter(
             (companyUser) =>
               companyUser.status === 'activo' &&
+              companyUser.profile !== null &&
               profilesWithEventsAccess.has(companyUser.profile.id),
           ),
         );
@@ -330,19 +331,11 @@ export function EventForm({
   }
 
   function continueToSchedule() {
-    if (!validateGeneralInformation()) {
-      setValidationAlert(null);
-      return;
-    }
+    setValidationAlert(null);
     setStep(2);
   }
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (isCreationWizard && step === 1) {
-      continueToSchedule();
-      return;
-    }
+  async function submitEvent() {
     if (!validateGeneralInformation() || !validateSchedule()) return;
 
     const startAt = combineDateAndTime(form.startDate, form.startTime);
@@ -391,6 +384,11 @@ export function EventForm({
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    void submitEvent();
   }
 
   function closeSuccessAlert() {
@@ -516,7 +514,7 @@ export function EventForm({
           </option>
           {users.map((person) => (
             <option key={person.id} value={person.id}>
-              {person.name} · {person.profile.name}
+              {person.name} · {person.profile?.name ?? 'Sin perfil'}
             </option>
           ))}
         </select>
@@ -584,7 +582,13 @@ export function EventForm({
 
   return (
     <>
-      <form className="grid min-h-0 gap-6" noValidate onSubmit={handleSubmit}>
+      <form
+        className="grid min-h-0 gap-6"
+        noValidate
+        onSubmit={
+          isCreationWizard ? (event) => event.preventDefault() : handleSubmit
+        }
+      >
         {error ? <ErrorMessage message={error} /> : null}
         {isCreationWizard ? (
           <>
@@ -690,7 +694,11 @@ export function EventForm({
                   Continuar
                 </Button>
               ) : (
-                <Button disabled={isSubmitting} type="submit">
+                <Button
+                  disabled={isSubmitting}
+                  onClick={() => void submitEvent()}
+                  type="button"
+                >
                   {isSubmitting ? 'Creando…' : 'Crear evento'}
                 </Button>
               )}

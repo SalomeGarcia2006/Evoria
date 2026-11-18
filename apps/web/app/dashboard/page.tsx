@@ -20,7 +20,7 @@ const money = (value: number) =>
     maximumFractionDigits: 0,
   }).format(value);
 const labels = {
-  borrador: 'Borrador',
+  borrador: 'Creado',
   planificado: 'Planificado',
   en_progreso: 'En ejecución',
   finalizado: 'Finalizado',

@@ -21,7 +21,7 @@ import { EventLocation } from './EventLocation';
 import { EventLocationMap } from './EventLocationMap';
 
 const STATUS_LABELS: Record<EventStatus, string> = {
-  borrador: 'Borrador',
+  borrador: 'Creado',
   planificado: 'Planificado',
   en_progreso: 'En ejecución',
   finalizado: 'Finalizado',

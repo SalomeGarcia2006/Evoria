@@ -291,7 +291,7 @@ export function ReportsExplorer() {
             }}
           >
             <option value="">Todos</option>
-            <option value="borrador">Borrador</option>
+            <option value="borrador">Creado</option>
             <option value="planificado">Planificado</option>
             <option value="en_progreso">En progreso</option>
             <option value="finalizado">Finalizado</option>

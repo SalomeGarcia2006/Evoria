@@ -131,8 +131,8 @@ function AssignmentsContent() {
           <Card>
             <h2 className="text-xl font-bold">No hay eventos activos</h2>
             <p className="mt-2 text-sm text-muted">
-              Aquí aparecen los eventos en borrador, planificados y en
-              ejecución. Los eventos finalizados o cancelados no admiten nuevas
+              Aquí aparecen los eventos creados, planificados y en ejecución.
+              Los eventos finalizados o cancelados no admiten nuevas
               asignaciones desde esta vista.
             </p>
             {can('eventos.crear') && (
