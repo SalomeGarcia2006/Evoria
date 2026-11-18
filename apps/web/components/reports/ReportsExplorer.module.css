@@ -71,10 +71,9 @@
 }
 .filters {
   display: grid;
-  grid-template-columns: repeat(3, minmax(8rem, 1fr)) minmax(
-      12rem,
-      1.8fr
-    ) auto auto;
+  grid-template-columns:
+    repeat(3, minmax(8rem, 1fr)) minmax(12rem, 1.8fr)
+    auto auto;
   gap: 0.75rem;
   align-items: end;
   margin: 1.4rem 0 1.15rem;
