@@ -66,6 +66,9 @@ export class Tenant {
   @Prop({ type: String, select: false, default: null })
   registrationToken!: string | null;
 
+  @Prop({ type: Date, default: null })
+  registrationTokenExpiresAt!: Date | null;
+
   @Prop({ type: String, trim: true, maxlength: 1500, default: null })
   operationalDescription!: string | null;
 
