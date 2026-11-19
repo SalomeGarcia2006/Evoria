@@ -28,6 +28,10 @@ type Draft = {
 };
 const inputClass =
   'w-full rounded-xl border border-sky-blue bg-white px-3 py-2 font-normal outline-none focus:border-teal focus:ring-2 focus:ring-sky-blue';
+const emailDomainPattern =
+  /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/i;
+const emailDomainExplanation =
+  'Escribe solo el dominio, sin @ ni nombre de usuario (por ejemplo: empresa.com o eventos.empresa.co). Debe tener partes separadas por puntos; cada parte admite letras, números y guiones, pero no puede empezar ni terminar en guion. La terminación debe tener entre 2 y 63 letras y el dominio completo no superar 253 caracteres.';
 const lines = (value: string) =>
   value
     .split('\n')
@@ -95,6 +99,19 @@ export function TenantContextPanel() {
     event.preventDefault();
     if (!draft || !context || busy || !editable) return;
     const payload = toPayload(draft);
+    const emailDomain = payload.emailDomain?.trim().toLowerCase() ?? '';
+    const currentEmailDomain = context.emailDomain?.trim().toLowerCase() ?? '';
+    if (
+      emailDomain !== currentEmailDomain &&
+      !emailDomainPattern.test(emailDomain)
+    ) {
+      feedback.guide(
+        emailDomainExplanation,
+        'Dominio de correo no válido',
+        'warning',
+      );
+      return;
+    }
     if (
       payload.eventTypes.length > 20 ||
       payload.eventTypes.some((item) => item.length > 80)
@@ -148,7 +165,19 @@ export function TenantContextPanel() {
       setEditing(false);
       feedback.notify('El contexto operativo se actualizó correctamente.');
     } catch (err) {
-      feedback.notify(apiErrorMessage(err), 'error');
+      const message = apiErrorMessage(err);
+      if (
+        /emaildomain/i.test(message) &&
+        /must match|regular expression/i.test(message)
+      ) {
+        feedback.guide(
+          emailDomainExplanation,
+          'Dominio de correo no válido',
+          'warning',
+        );
+      } else {
+        feedback.notify(message, 'error');
+      }
     } finally {
       setBusy(false);
     }
