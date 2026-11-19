@@ -6,7 +6,6 @@ import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { DataTable } from '../../components/ui/DataTable';
 import { FeedbackMessages, useFeedback } from '../../components/ui/Feedback';
-import { StatusBadge } from '../../components/ui/StatusBadge';
 import { PermissionGate } from '../../components/auth/PermissionGate';
 import { useAuth } from '../../hooks/useAuth';
 import {
@@ -62,13 +61,71 @@ function PasswordVisibilityButton({
   );
 }
 
+function userInitials(name: string) {
+  return name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0]?.toLocaleUpperCase('es') ?? '')
+    .join('');
+}
+
+function UserMetricIcon({
+  type,
+}: {
+  type: 'total' | 'active' | 'inactive' | 'pending';
+}) {
+  const common = {
+    'aria-hidden': true as const,
+    className: 'size-5',
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeLinecap: 'round' as const,
+    strokeLinejoin: 'round' as const,
+    strokeWidth: 1.8,
+    viewBox: '0 0 24 24',
+  };
+
+  if (type === 'active') {
+    return (
+      <svg {...common}>
+        <path d="m5 12 4 4L19 6" />
+        <circle cx="12" cy="12" r="9" />
+      </svg>
+    );
+  }
+  if (type === 'inactive') {
+    return (
+      <svg {...common}>
+        <circle cx="12" cy="12" r="9" />
+        <path d="M8 12h8" />
+      </svg>
+    );
+  }
+  if (type === 'pending') {
+    return (
+      <svg {...common}>
+        <path d="M12 3 3.8 7.5v4.2c0 4.7 3.3 8.1 8.2 9.3 4.9-1.2 8.2-4.6 8.2-9.3V7.5L12 3Z" />
+        <path d="M12 8v4l2.5 1.5" />
+      </svg>
+    );
+  }
+  return (
+    <svg {...common}>
+      <path d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+      <circle cx="10" cy="7" r="4" />
+      <path d="M20 8v6m3-3h-6" />
+    </svg>
+  );
+}
+
 export default function UsuariosPage() {
   const { can } = useAuth();
   const feedback = useFeedback();
+  const notify = feedback.notify;
   const [users, setUsers] = useState<CompanyUser[]>([]);
   const [profiles, setProfiles] = useState<UserProfileOption[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [editing, setEditing] = useState<CompanyUser | null>(null);
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -84,6 +141,32 @@ export default function UsuariosPage() {
   });
   const passwordsDoNotMatch =
     !editing && confirmPassword.length > 0 && form.password !== confirmPassword;
+  const userMetrics = [
+    {
+      label: 'Usuarios registrados',
+      value: users.length,
+      type: 'total' as const,
+      tone: 'bg-violet/15 text-violet',
+    },
+    {
+      label: 'Usuarios activos',
+      value: users.filter((user) => user.status === 'activo').length,
+      type: 'active' as const,
+      tone: 'bg-teal/15 text-teal',
+    },
+    {
+      label: 'Usuarios inactivos',
+      value: users.filter((user) => user.status === 'inactivo').length,
+      type: 'inactive' as const,
+      tone: 'bg-sky-blue/70 text-muted',
+    },
+    {
+      label: 'Pendientes de perfil',
+      value: users.filter((user) => !user.profile).length,
+      type: 'pending' as const,
+      tone: 'bg-violet/10 text-violet',
+    },
+  ];
 
   const loadData = useCallback(() => {
     return Promise.all([
@@ -93,19 +176,19 @@ export default function UsuariosPage() {
       .then(([userItems, profileItems]) => {
         setUsers(userItems);
         setProfiles(profileItems);
-        setError('');
       })
       .catch((loadError: unknown) => {
-        setError(
+        notify(
           loadError instanceof Error
             ? loadError.message
             : 'No fue posible cargar los usuarios.',
+          'error',
         );
       })
       .finally(() => {
         setIsLoading(false);
       });
-  }, [can]);
+  }, [can, notify]);
 
   useEffect(() => {
     void loadData();
@@ -150,7 +233,29 @@ export default function UsuariosPage() {
     event.preventDefault();
     feedback.dismiss();
 
+    const invalidControl = Array.from(event.currentTarget.elements).find(
+      (control): control is HTMLInputElement | HTMLSelectElement =>
+        (control instanceof HTMLInputElement ||
+          control instanceof HTMLSelectElement) &&
+        !control.validity.valid,
+    );
+    if (invalidControl) {
+      const fieldName = invalidControl.labels?.[0]?.textContent
+        ?.replace('*', '')
+        .trim();
+      const message = invalidControl.validity.valueMissing
+        ? `Completa el campo ${fieldName ? `“${fieldName}”` : 'obligatorio'}.`
+        : invalidControl.validity.typeMismatch
+          ? 'Ingresa un correo electrónico válido.'
+          : invalidControl.validity.tooShort
+            ? `La contraseña debe tener al menos ${invalidControl instanceof HTMLInputElement ? invalidControl.minLength : 0} caracteres.`
+            : 'Revisa los datos ingresados.';
+      feedback.notify(message, 'error');
+      return;
+    }
+
     if (!editing && form.password !== confirmPassword) {
+      feedback.notify('Las contraseñas no coinciden.', 'error');
       return;
     }
 
@@ -199,51 +304,79 @@ export default function UsuariosPage() {
       'CANCELAR',
     );
     if (!confirmed) return;
-    setError('');
     try {
       const saved = await deactivateUser(user.id);
       setUsers((current) =>
         current.map((item) => (item.id === saved.id ? saved : item)),
       );
     } catch (deactivateError) {
-      setError(
+      feedback.notify(
         deactivateError instanceof Error
           ? deactivateError.message
           : 'No fue posible desactivar el usuario.',
+        'error',
       );
     }
   }
 
   return (
     <AppShell title="Usuarios">
-      <div className="grid gap-6">
-        <Card>
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-wide text-muted">
-                Administración
-              </p>
-              <h2 className="mt-1 text-2xl font-bold">Usuarios del sistema</h2>
-              <p className="mt-2 text-muted">
-                Crea, consulta, edita y desactiva usuarios. El perfil define sus
-                permisos de acceso.
-              </p>
+      <div className="grid min-w-0 gap-5">
+        <Card className="relative overflow-hidden border-sky-blue bg-[var(--evoria-surface)]">
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-center gap-4">
+              <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-violet/15 text-violet ring-1 ring-violet/20">
+                <UserMetricIcon type="total" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-xs font-bold uppercase tracking-[.16em] text-violet">
+                  Administración de acceso
+                </p>
+                <h2 className="mt-1 text-2xl font-bold sm:text-3xl">
+                  Usuarios
+                </h2>
+                <p className="mt-1 max-w-2xl text-sm text-muted sm:text-base">
+                  Administra las cuentas, sus perfiles y el acceso a la empresa.
+                </p>
+              </div>
             </div>
             <PermissionGate permission="usuarios.crear">
-              <Button onClick={openCreateForm} type="button">
+              <Button
+                className="shrink-0 self-start sm:self-auto"
+                onClick={openCreateForm}
+                type="button"
+              >
+                <span aria-hidden="true" className="mr-1 text-lg leading-none">
+                  ＋
+                </span>
                 Nuevo usuario
               </Button>
             </PermissionGate>
           </div>
         </Card>
-        {error ? (
-          <p
-            className="rounded-lg bg-red-50 p-3 text-sm text-red-800"
-            role="alert"
-          >
-            {error}
-          </p>
-        ) : null}
+        <section
+          aria-label="Resumen de usuarios"
+          className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
+        >
+          {userMetrics.map((metric) => (
+            <article
+              className="flex min-w-0 items-center gap-3 rounded-2xl border border-sky-blue bg-[var(--evoria-surface)] p-4 shadow-sm"
+              key={metric.label}
+            >
+              <span
+                className={`grid size-11 shrink-0 place-items-center rounded-xl ${metric.tone}`}
+              >
+                <UserMetricIcon type={metric.type} />
+              </span>
+              <div className="min-w-0">
+                <p className="truncate text-sm text-muted">{metric.label}</p>
+                <p className="mt-0.5 text-2xl font-bold leading-none">
+                  {isLoading ? '—' : metric.value}
+                </p>
+              </div>
+            </article>
+          ))}
+        </section>
 
         <dialog
           aria-labelledby="user-dialog-title"
@@ -270,7 +403,11 @@ export default function UsuariosPage() {
               ×
             </Button>
           </div>
-          <form className="grid gap-4 p-6 md:grid-cols-3" onSubmit={saveUser}>
+          <form
+            className="grid gap-4 p-6 md:grid-cols-3"
+            noValidate
+            onSubmit={saveUser}
+          >
             <label className="grid gap-2 text-sm font-semibold">
               Nombre completo
               <input
@@ -421,9 +558,19 @@ export default function UsuariosPage() {
           </form>
         </dialog>
 
-        <Card className="p-0">
-          <div className="border-b border-sky-blue px-6 py-4">
-            <h3 className="font-bold">Usuarios registrados</h3>
+        <Card className="min-w-0 overflow-hidden p-0">
+          <div className="flex flex-col gap-2 border-b border-sky-blue bg-[var(--evoria-surface)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+            <div>
+              <div className="flex flex-wrap items-center gap-2.5">
+                <h3 className="text-lg font-bold">Listado de usuarios</h3>
+                <span className="rounded-full bg-violet/15 px-3 py-1 text-xs font-semibold text-violet">
+                  {users.length} {users.length === 1 ? 'cuenta' : 'cuentas'}
+                </span>
+              </div>
+              <p className="mt-1 text-sm text-muted">
+                Consulta el perfil y el estado de acceso de cada cuenta.
+              </p>
+            </div>
           </div>
           {isLoading ? (
             <p className="p-6 text-sm text-muted">Cargando usuarios…</p>
@@ -434,28 +581,61 @@ export default function UsuariosPage() {
                   key: 'name',
                   header: 'Usuario',
                   render: (user) => (
-                    <span className="font-semibold">{user.name}</span>
+                    <div className="flex min-w-52 items-center gap-3">
+                      <span className="grid size-10 shrink-0 place-items-center rounded-full bg-linear-to-br from-violet to-fuchsia-600 text-xs font-bold text-white shadow-sm">
+                        {userInitials(user.name)}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-[var(--evoria-ink)]">
+                          {user.name}
+                        </p>
+                        <p className="mt-0.5 text-xs text-muted">
+                          Cuenta de empresa
+                        </p>
+                      </div>
+                    </div>
                   ),
                 },
                 {
                   key: 'email',
                   header: 'Correo',
-                  render: (user) => user.email,
+                  render: (user) => (
+                    <span className="whitespace-nowrap text-muted">
+                      {user.email}
+                    </span>
+                  ),
                 },
                 {
                   key: 'profile',
                   header: 'Perfil',
                   render: (user) =>
-                    user.profile?.name ?? 'Pendiente de asignación',
+                    user.profile?.name ? (
+                      <span className="inline-flex max-w-48 items-center rounded-full border border-sky-blue bg-[var(--evoria-bg)] px-3 py-1 text-xs font-semibold text-muted">
+                        <span className="truncate">{user.profile.name}</span>
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center rounded-full border border-sky-blue bg-[var(--evoria-bg)] px-3 py-1 text-xs font-medium text-muted">
+                        Pendiente de asignación
+                      </span>
+                    ),
                 },
                 {
                   key: 'status',
                   header: 'Estado',
-                  render: (user) => (
-                    <StatusBadge
-                      status={user.status === 'activo' ? 'Activo' : 'Inactivo'}
-                    />
-                  ),
+                  render: (user) => {
+                    const isActive = user.status === 'activo';
+                    return (
+                      <span
+                        className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold ${isActive ? 'border-teal/20 bg-teal/10 text-teal' : 'border-sky-blue bg-[var(--evoria-bg)] text-muted'}`}
+                      >
+                        <span
+                          aria-hidden="true"
+                          className={`size-1.5 rounded-full ${isActive ? 'bg-teal' : 'bg-muted'}`}
+                        />
+                        {isActive ? 'Activo' : 'Inactivo'}
+                      </span>
+                    );
+                  },
                 },
                 {
                   key: 'actions',
