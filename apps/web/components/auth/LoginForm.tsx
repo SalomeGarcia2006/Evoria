@@ -11,7 +11,9 @@ import type { AuthUser } from '../../types/auth';
 import { FeedbackMessages, useFeedback } from '../ui/Feedback';
 import { TurnstileWidget } from './TurnstileWidget';
 
-const captchaConfigured = Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY);
+const captchaConfigured =
+  process.env.NEXT_PUBLIC_CAPTCHA_ENABLED === 'true' &&
+  Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY);
 
 export function LoginForm() {
   const router = useRouter();
