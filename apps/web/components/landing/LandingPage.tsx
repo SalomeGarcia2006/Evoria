@@ -77,7 +77,7 @@ export function LandingPage() {
           <Image
             width={348}
             height={204}
-            src="/landing/logo.png"
+            src="/images/logoevoria.png"
             alt="EVORIA"
             className="evoria-logo"
           />
@@ -495,6 +495,19 @@ export function LandingPage() {
                   EC
                 </div>
                 <h3>Esthefany Chávez Parra</h3>
+                <span className="team-role">Frontend Developer</span>
+                <p>Diseño y desarrollo de interfaces de usuario para EVORIA.</p>
+              </div>
+              <div className="team-card">
+                <div
+                  className="team-avatar"
+                  style={{
+                    background: 'linear-gradient(135deg, #4a6a85, #1a2a3a)',
+                  }}
+                >
+                  CP
+                </div>
+                <h3>Cristian Pereira</h3>
                 <span className="team-role">Backend Developer</span>
                 <p>
                   Lógica de negocio, diseño de base de datos y desarrollo de la
