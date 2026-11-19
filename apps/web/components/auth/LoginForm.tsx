@@ -49,7 +49,7 @@ export function LoginForm() {
 
   useEffect(() => {
     if (!isLoading && user && !isLoginFlow.current) {
-      router.replace(defaultRouteFor(user.permissions));
+      router.replace(defaultRouteFor(user.permissions, user.isDeveloper));
     }
   }, [isLoading, router, user]);
 
@@ -58,7 +58,12 @@ export function LoginForm() {
 
     const timeout = window.setTimeout(() => {
       isLoginFlow.current = false;
-      router.replace(defaultRouteFor(successfulLogin.permissions));
+      router.replace(
+        defaultRouteFor(
+          successfulLogin.permissions,
+          successfulLogin.isDeveloper,
+        ),
+      );
     }, 2500);
 
     return () => window.clearTimeout(timeout);

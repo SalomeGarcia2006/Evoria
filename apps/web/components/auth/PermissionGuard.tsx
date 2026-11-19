@@ -27,7 +27,7 @@ export function PermissionGuard({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!isLoading && user && !hasAccess) {
-      router.replace(defaultRouteFor(user.permissions));
+      router.replace(defaultRouteFor(user.permissions, user.isDeveloper));
     }
   }, [hasAccess, isLoading, router, user]);
 
