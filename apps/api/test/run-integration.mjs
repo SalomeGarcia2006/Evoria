@@ -52,6 +52,7 @@ try {
       'src/tenants/tenant-context.http.mongo.spec.ts',
       'src/profiles/profiles-users.http.mongo.spec.ts',
       'src/events/operations.http.mongo.spec.ts',
+      'src/events/event-clients.http.mongo.spec.ts',
       'src/teams/teams.http.mongo.spec.ts',
       'src/budgets/budgets-dashboard.http.mongo.spec.ts',
       'src/reports/reports.http.mongo.spec.ts',

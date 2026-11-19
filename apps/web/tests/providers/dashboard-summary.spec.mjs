@@ -131,7 +131,7 @@ test('próximos eventos muestra fecha, etiquetas y enlace a cada evento', async 
   await page.goto('/dashboard');
   const today = page.getByRole('link', { name: /Evento de hoy/ });
   await expect(today).toContainText('Hoy');
-  await expect(today).toContainText('Borrador');
+  await expect(today).toContainText('Creado');
   await expect(today).toContainText('dic');
   await expect(today).toHaveAttribute('href', '/eventos/hoy');
   await expect(

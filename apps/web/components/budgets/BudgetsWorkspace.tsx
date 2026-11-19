@@ -24,7 +24,7 @@ import { cop, requestLabels } from './BudgetAmountsView';
 import { FeedbackMessages, useFeedback } from '../ui/Feedback';
 
 const statusLabels: Record<string, string> = {
-  borrador: 'Borrador',
+  borrador: 'Creado',
   planificado: 'Planificado',
   en_progreso: 'En ejecución',
 };
@@ -205,8 +205,8 @@ function BudgetsWorkspaceContent() {
                 <Card>
                   <h3 className="font-bold">Todavía no hay eventos activos</h3>
                   <p className="mt-2 text-sm text-muted">
-                    Los eventos en borrador, planificados o en ejecución
-                    aparecerán aquí cuando estén registrados en tu empresa.
+                    Los eventos creados, planificados o en ejecución aparecerán
+                    aquí cuando estén registrados en tu empresa.
                   </p>
                 </Card>
               ) : (

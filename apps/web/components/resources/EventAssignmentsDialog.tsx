@@ -22,7 +22,7 @@ import { StatusBadge } from '../ui/StatusBadge';
 import { FeedbackMessages, useFeedback } from '../ui/Feedback';
 
 export const assignmentEventStatusLabels = {
-  borrador: 'Borrador',
+  borrador: 'Creado',
   planificado: 'Planificado',
   en_progreso: 'En ejecución',
   finalizado: 'Finalizado',

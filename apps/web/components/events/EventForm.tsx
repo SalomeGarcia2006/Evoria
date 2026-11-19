@@ -45,6 +45,11 @@ function formFromEvent(event?: EventItem) {
 
   return {
     name: event?.name ?? '',
+    clientName: event?.client?.name ?? '',
+    clientIdentification: event?.client?.identification ?? '',
+    clientPhone: event?.client?.phone ?? '',
+    clientAddress: event?.client?.address ?? '',
+    clientEmail: event?.client?.email ?? '',
     description: event?.description ?? '',
     startDate: startAt ? formatDateForInput(startAt) : '',
     endDate: endAt ? formatDateForInput(endAt) : '',
@@ -53,7 +58,7 @@ function formFromEvent(event?: EventItem) {
     location: event?.location ?? '',
     type: event?.type ?? '',
     baseBudget: event ? String(event.baseBudget) : '',
-    invitados: event ? String(event.invitados ?? 0) : '0',
+    invitados: event ? String(event.invitados ?? 0) : '',
     responsibleUserId: event?.responsibleUserId ?? '',
   };
 }
@@ -102,7 +107,7 @@ export function EventForm({
   const [validationAlert, setValidationAlert] = useState<string | null>(null);
   const [successAlert, setSuccessAlert] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [step, setStep] = useState<1 | 2>(1);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const isCreationWizard = !isEditing;
 
   const updateField = useCallback(
@@ -165,6 +170,7 @@ export function EventForm({
           items.filter(
             (companyUser) =>
               companyUser.status === 'activo' &&
+              companyUser.profile !== null &&
               profilesWithEventsAccess.has(companyUser.profile.id),
           ),
         );
@@ -329,18 +335,76 @@ export function EventForm({
     return true;
   }
 
-  function continueToSchedule() {
-    if (!validateGeneralInformation()) return;
-    setStep(2);
+  function validateClient(): boolean {
+    const client = {
+      name: form.clientName.trim(),
+      identification: form.clientIdentification.trim(),
+      phone: form.clientPhone.trim(),
+      address: form.clientAddress.trim(),
+      email: form.clientEmail.trim(),
+    };
+    const missing = [
+      !client.name && 'Nombre del cliente',
+      !client.identification && 'Identificación',
+      !client.phone && 'Teléfono',
+      !client.address && 'Dirección',
+      !client.email && 'Correo electrónico',
+    ].filter(Boolean);
+    if (missing.length) {
+      setValidationAlert(
+        `Completa los siguientes campos obligatorios: ${missing.join(', ')}.`,
+      );
+      return false;
+    }
+    if (client.name.length < 2 || client.name.length > 160) {
+      setValidationAlert(
+        'El nombre del cliente debe tener entre 2 y 160 caracteres.',
+      );
+      return false;
+    }
+    if (client.identification.length < 3 || client.identification.length > 50) {
+      setValidationAlert(
+        'La identificación debe tener entre 3 y 50 caracteres.',
+      );
+      return false;
+    }
+    if (
+      client.phone.length < 7 ||
+      client.phone.length > 30 ||
+      !/^\+?[0-9 () .-]{7,30}$/.test(client.phone) ||
+      client.phone.replace(/\D/g, '').length < 7 ||
+      client.phone.replace(/\D/g, '').length > 15
+    ) {
+      setValidationAlert(
+        'Ingresa un teléfono válido con entre 7 y 15 dígitos.',
+      );
+      return false;
+    }
+    if (client.address.length < 3 || client.address.length > 255) {
+      setValidationAlert('La dirección debe tener entre 3 y 255 caracteres.');
+      return false;
+    }
+    if (
+      client.email.length > 254 ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(client.email)
+    ) {
+      setValidationAlert('Ingresa un correo válido de máximo 254 caracteres.');
+      return false;
+    }
+    return true;
   }
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (isCreationWizard && step === 1) {
-      continueToSchedule();
+  function continueToSchedule() {
+    setStep(step === 1 ? 2 : 3);
+  }
+
+  async function submitEvent() {
+    if (
+      !validateGeneralInformation() ||
+      (isCreationWizard && !validateClient()) ||
+      !validateSchedule()
+    )
       return;
-    }
-    if (!validateGeneralInformation() || !validateSchedule()) return;
 
     const startAt = combineDateAndTime(form.startDate, form.startTime);
     const endAt = combineDateAndTime(form.endDate, form.endTime);
@@ -361,7 +425,7 @@ export function EventForm({
       return;
     }
 
-    const payload: CreateEventPayload = {
+    const payload = {
       name: form.name.trim(),
       description: form.description.trim() || undefined,
       startAt,
@@ -377,7 +441,19 @@ export function EventForm({
 
     try {
       if (initialEvent) await updateEvent(initialEvent.id, payload);
-      else await createEvent(payload);
+      else {
+        const createPayload: CreateEventPayload = {
+          ...payload,
+          client: {
+            name: form.clientName.trim(),
+            identification: form.clientIdentification.trim(),
+            phone: form.clientPhone.trim(),
+            address: form.clientAddress.trim(),
+            email: form.clientEmail.trim().toLowerCase(),
+          },
+        };
+        await createEvent(createPayload);
+      }
       setSuccessAlert(true);
     } catch (submitError) {
       setError(
@@ -388,6 +464,11 @@ export function EventForm({
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    void submitEvent();
   }
 
   function closeSuccessAlert() {
@@ -513,7 +594,7 @@ export function EventForm({
           </option>
           {users.map((person) => (
             <option key={person.id} value={person.id}>
-              {person.name} · {person.profile.name}
+              {person.name} · {person.profile?.name ?? 'Sin perfil'}
             </option>
           ))}
         </select>
@@ -532,6 +613,61 @@ export function EventForm({
         ) : null}
       </label>
     </>
+  );
+
+  const clientFields = (
+    <div className="grid gap-5 md:grid-cols-2">
+      {(
+        [
+          ['clientName', 'Nombre del cliente', 160],
+          ['clientIdentification', 'Identificación', 50],
+          ['clientPhone', 'Teléfono', 30],
+          ['clientEmail', 'Correo electrónico', 254],
+        ] as const
+      ).map(([field, label, maxLength]) => (
+        <label className="grid gap-2" key={field}>
+          <span className="text-sm font-semibold">{label}</span>
+          <input
+            className={inputClassName}
+            maxLength={maxLength}
+            onChange={(event) => updateField(field, event.target.value)}
+            required
+            type={
+              field === 'clientEmail'
+                ? 'email'
+                : field === 'clientPhone'
+                  ? 'tel'
+                  : 'text'
+            }
+            autoComplete={
+              field === 'clientPhone'
+                ? 'tel'
+                : field === 'clientEmail'
+                  ? 'email'
+                  : undefined
+            }
+            inputMode={
+              field === 'clientPhone'
+                ? 'tel'
+                : field === 'clientEmail'
+                  ? 'email'
+                  : undefined
+            }
+            value={form[field]}
+          />
+        </label>
+      ))}
+      <label className="grid gap-2 md:col-span-2">
+        <span className="text-sm font-semibold">Dirección del cliente</span>
+        <input
+          className={inputClassName}
+          maxLength={255}
+          onChange={(event) => updateField('clientAddress', event.target.value)}
+          required
+          value={form.clientAddress}
+        />
+      </label>
+    </div>
   );
 
   const scheduleFields = (
@@ -581,18 +717,25 @@ export function EventForm({
 
   return (
     <>
-      <form className="grid min-h-0 gap-6" noValidate onSubmit={handleSubmit}>
+      <form
+        className="grid min-h-0 gap-6"
+        noValidate
+        onSubmit={
+          isCreationWizard ? (event) => event.preventDefault() : handleSubmit
+        }
+      >
         {error ? <ErrorMessage message={error} /> : null}
         {isCreationWizard ? (
           <>
             <div
-              aria-label={`Paso ${step} de 2`}
-              className="grid grid-cols-2 gap-4 border-b border-sky-blue pb-5"
+              aria-label={`Paso ${step} de 3`}
+              className="event-wizard-stepper grid grid-cols-3 gap-3 border-b border-sky-blue pb-5 sm:gap-4"
               role="list"
             >
               {[
                 ['1', 'Información general'],
                 ['2', 'Programación y ubicación'],
+                ['3', 'Datos del cliente'],
               ].map(([number, label], index) => {
                 const currentStep = index + 1;
                 const completed = step > currentStep;
@@ -600,7 +743,7 @@ export function EventForm({
                 return (
                   <div
                     aria-current={active ? 'step' : undefined}
-                    className="flex min-w-0 items-center gap-3"
+                    className="event-wizard-step flex min-w-0 items-center gap-3"
                     key={number}
                     role="listitem"
                   >
@@ -611,7 +754,8 @@ export function EventForm({
                       {completed ? '✓' : number}
                     </span>
                     <span
-                      className={`min-w-0 text-sm font-semibold ${active ? 'text-navy' : completed ? 'text-teal' : 'text-muted'}`}
+                      className={`event-wizard-step-label min-w-0 text-sm font-semibold ${active ? 'text-navy' : completed ? 'text-teal' : 'text-muted'}`}
+                      data-current={active ? 'true' : undefined}
                     >
                       {label}
                     </span>
@@ -641,7 +785,7 @@ export function EventForm({
                   {generalFields}
                 </div>
               </section>
-            ) : (
+            ) : step === 2 ? (
               <section
                 aria-labelledby="event-schedule-title"
                 className="grid gap-5"
@@ -660,9 +804,28 @@ export function EventForm({
                 </div>
                 {scheduleFields}
               </section>
+            ) : (
+              <section
+                aria-labelledby="event-client-title"
+                className="grid gap-5"
+              >
+                <div>
+                  <p className="text-sm font-semibold text-violet">Paso 3</p>
+                  <h3
+                    className="mt-1 text-xl font-bold"
+                    id="event-client-title"
+                  >
+                    Datos del cliente
+                  </h3>
+                  <p className="mt-1 text-sm text-muted">
+                    Ingresa la información de quien solicita el evento.
+                  </p>
+                </div>
+                {clientFields}
+              </section>
             )}
 
-            <div className="sticky bottom-0 z-10 flex flex-wrap justify-between gap-3 border-t border-sky-blue bg-white/95 py-4 backdrop-blur-sm">
+            <div className="event-wizard-actions sticky bottom-0 z-10 flex flex-wrap justify-between gap-3 border-t border-sky-blue py-4 backdrop-blur-sm">
               {step === 1 ? (
                 <Button
                   onClick={() =>
@@ -675,19 +838,23 @@ export function EventForm({
                 </Button>
               ) : (
                 <Button
-                  onClick={() => setStep(1)}
+                  onClick={() => setStep(step === 3 ? 2 : 1)}
                   type="button"
                   variant="secondary"
                 >
                   Anterior
                 </Button>
               )}
-              {step === 1 ? (
+              {step < 3 ? (
                 <Button onClick={continueToSchedule} type="button">
                   Continuar
                 </Button>
               ) : (
-                <Button disabled={isSubmitting} type="submit">
+                <Button
+                  disabled={isSubmitting}
+                  onClick={() => void submitEvent()}
+                  type="button"
+                >
                   {isSubmitting ? 'Creando…' : 'Crear evento'}
                 </Button>
               )}

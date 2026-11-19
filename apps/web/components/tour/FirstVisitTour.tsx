@@ -182,7 +182,7 @@ const guides: Record<string, ModuleGuide> = {
       {
         title: '¿Por qué no aparece un evento?',
         description:
-          'Esta vista muestra eventos en borrador, planificados o en ejecución. Los finalizados y cancelados no permiten nuevas asignaciones aquí.',
+          'Esta vista muestra eventos creados, planificados o en ejecución. Los finalizados y cancelados no permiten nuevas asignaciones aquí.',
       },
       {
         title: 'Actualizar eventos',

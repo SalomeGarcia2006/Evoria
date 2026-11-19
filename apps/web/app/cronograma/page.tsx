@@ -145,12 +145,16 @@ export default function CronogramaPage() {
   const { can, user } = useAuth();
   const feedback = useFeedback();
   const dialog = useRef<HTMLDialogElement>(null);
+  const detailDialog = useRef<HTMLDialogElement>(null);
   const teamDialog = useRef<HTMLDialogElement>(null);
   const [events, setEvents] = useState<EventItem[]>([]);
   const [users, setUsers] = useState<CompanyUser[]>([]);
   const [selectedEventId, setSelectedEventId] = useState('');
   const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
   const [editing, setEditing] = useState<ScheduleItem | null>(null);
+  const [viewingSchedule, setViewingSchedule] = useState<ScheduleItem | null>(
+    null,
+  );
   const [form, setForm] = useState<ScheduleForm>(emptyForm());
   const [isLoadingEvents, setIsLoadingEvents] = useState(true);
   const [isLoadingSchedules, setIsLoadingSchedules] = useState(false);
@@ -262,6 +266,11 @@ export default function CronogramaPage() {
     });
     setValidationAlert(null);
     dialog.current?.showModal();
+  }
+
+  function openDetails(schedule: ScheduleItem) {
+    setViewingSchedule(schedule);
+    detailDialog.current?.showModal();
   }
 
   function closeForm() {
@@ -691,8 +700,15 @@ export default function CronogramaPage() {
                           </td>
                           <td>
                             <div className="flex flex-wrap justify-end gap-2">
-                              {isEventResponsible &&
-                              item.status !== 'cancelado' &&
+                              <Button
+                                className="px-3 py-1.5 text-xs"
+                                onClick={() => openDetails(item)}
+                                type="button"
+                                variant="secondary"
+                              >
+                                Ver
+                              </Button>
+                              {item.status !== 'cancelado' &&
                               item.status !== 'completado' ? (
                                 item.teamId ? (
                                   <Button
@@ -774,7 +790,7 @@ export default function CronogramaPage() {
           onClose={() => setEditing(null)}
           ref={dialog}
         >
-          <div className="flex items-start justify-between gap-4 border-b border-sky-blue bg-linear-to-r from-violet/10 via-white to-teal/10 p-6 sm:p-8">
+          <div className="flex items-start justify-between gap-4 border-b border-sky-blue bg-linear-to-r from-violet/10 via-beige to-teal/10 p-6 sm:p-8">
             <div>
               <p className="text-sm font-semibold uppercase tracking-[.16em] text-violet">
                 Cronograma
@@ -866,6 +882,7 @@ export default function CronogramaPage() {
               />
             </label>
             <DateRangePicker
+              key={editing?.id ?? `new-${form.eventId}`}
               endDate={form.endAt.slice(0, 10)}
               label="Fechas de la actividad"
               max={
@@ -958,6 +975,122 @@ export default function CronogramaPage() {
             message={validationAlert}
             onClose={() => setValidationAlert(null)}
           />
+        </dialog>
+        <dialog
+          aria-labelledby="schedule-details-title"
+          className="m-auto max-h-[calc(100dvh-2rem)] w-11/12 max-w-2xl overflow-y-auto rounded-[1.5rem] border border-sky-blue bg-white p-0 text-navy shadow-2xl backdrop:bg-navy/60"
+          onClose={() => setViewingSchedule(null)}
+          ref={detailDialog}
+        >
+          <div className="flex items-start justify-between gap-4 border-b border-sky-blue bg-linear-to-r from-violet/10 via-beige to-teal/10 p-6 sm:p-7">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[.16em] text-violet">
+                Detalle del cronograma
+              </p>
+              <h2
+                className="mt-1 text-2xl font-bold"
+                id="schedule-details-title"
+              >
+                {viewingSchedule?.name ?? 'Actividad'}
+              </h2>
+            </div>
+            <Button
+              aria-label="Cerrar detalle"
+              className="px-3 text-xl leading-none"
+              onClick={() => detailDialog.current?.close()}
+              type="button"
+              variant="ghost"
+            >
+              ×
+            </Button>
+          </div>
+          {viewingSchedule ? (
+            <div className="grid gap-4 p-6 sm:grid-cols-2 sm:p-7">
+              <div className="sm:col-span-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+                  Evento
+                </p>
+                <p className="mt-1 font-semibold">
+                  {events.find((event) => event.id === viewingSchedule.eventId)
+                    ?.name ?? 'Evento'}
+                </p>
+              </div>
+              <div className="sm:col-span-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+                  Descripción
+                </p>
+                <p className="mt-1 whitespace-pre-wrap">
+                  {viewingSchedule.description || 'Sin descripción.'}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+                  Inicio
+                </p>
+                <p className="mt-1 font-medium">
+                  {formatDate(viewingSchedule.startAt)}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+                  Finalización
+                </p>
+                <p className="mt-1 font-medium">
+                  {formatDate(viewingSchedule.endAt)}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+                  Responsable
+                </p>
+                <p className="mt-1 font-medium">
+                  {viewingSchedule.responsibleUserId
+                    ? (userNameById.get(viewingSchedule.responsibleUserId) ??
+                      'Usuario asignado')
+                    : 'Sin responsable'}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+                  Equipo
+                </p>
+                <p className="mt-1 font-medium">
+                  {viewingSchedule.teamId
+                    ? (teamById.get(viewingSchedule.teamId)?.name ??
+                      'Equipo asignado')
+                    : 'Sin equipo'}
+                </p>
+              </div>
+              <div className="sm:col-span-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+                  Estado
+                </p>
+                <span
+                  className={`mt-2 inline-flex rounded-full px-3 py-1 text-xs font-semibold ${statusClasses[viewingSchedule.status === 'cancelado' ? 'cancelado' : getAutomaticStatus(viewingSchedule.startAt, viewingSchedule.endAt)]}`}
+                >
+                  {
+                    statusLabels[
+                      viewingSchedule.status === 'cancelado'
+                        ? 'cancelado'
+                        : getAutomaticStatus(
+                            viewingSchedule.startAt,
+                            viewingSchedule.endAt,
+                          )
+                    ]
+                  }
+                </span>
+              </div>
+              <div className="flex justify-end border-t border-sky-blue pt-4 sm:col-span-2">
+                <Button
+                  onClick={() => detailDialog.current?.close()}
+                  type="button"
+                  variant="secondary"
+                >
+                  Cerrar
+                </Button>
+              </div>
+            </div>
+          ) : null}
         </dialog>
         <dialog
           className="m-auto w-11/12 max-w-xl rounded-2xl border border-sky-blue bg-white p-0 text-navy shadow-2xl backdrop:bg-navy/60"

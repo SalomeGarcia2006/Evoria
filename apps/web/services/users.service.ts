@@ -12,7 +12,7 @@ export interface CompanyUser {
   name: string;
   email: string;
   status: 'activo' | 'inactivo';
-  profile: { id: string; name: string; description: string | null };
+  profile: { id: string; name: string; description: string | null } | null;
 }
 
 interface ApiResponse<T> {

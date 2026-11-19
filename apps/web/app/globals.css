@@ -51,7 +51,7 @@
 }
 
 body {
-  @apply min-h-screen bg-beige font-sans text-navy antialiased;
+  @apply min-h-dvh bg-beige font-sans text-navy antialiased;
 }
 
 button,
@@ -1202,6 +1202,10 @@ textarea:focus {
   font-size: 0.82rem;
 }
 
+.event-wizard-actions {
+  background: rgb(255 255 255 / 95%);
+}
+
 .events-list-panel__pagination {
   display: flex;
   align-items: center;
@@ -1288,6 +1292,25 @@ textarea:focus {
 }
 
 @media (max-width: 640px) {
+  .dashboard-hero {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .dashboard-hero h1 {
+    font-size: clamp(1.75rem, 8vw, 2.25rem);
+  }
+
+  .dashboard-hero__button {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .dashboard-metrics {
+    padding-inline: 0;
+  }
+
   .events-hero {
     align-items: flex-start;
     flex-direction: column;
@@ -1476,6 +1499,9 @@ textarea:disabled:not(:root:not([data-theme='dark']) [data-inventory-scope] *),
 [data-theme='dark'] .bg-white\/70 {
   background-color: rgb(27 40 59 / 70%);
 }
+[data-theme='dark'] .event-wizard-actions {
+  background: rgb(23 35 58 / 95%);
+}
 [data-theme='dark'] .dashboard-hero__button {
   background: #fff;
   color: #492aa3;
@@ -1633,6 +1659,60 @@ textarea:disabled:not(:root:not([data-theme='dark']) [data-inventory-scope] *),
 
   .login-registration {
     margin-top: 1.9rem;
+  }
+}
+
+@media (min-width: 861px) and (max-height: 1100px) {
+  .login-page {
+    padding-block: clamp(1rem, 3vh, 2rem);
+  }
+
+  .login-layout {
+    min-height: 0;
+  }
+}
+
+@media (min-width: 861px) and (max-height: 960px) {
+  .login-card {
+    padding-block: 2.4rem;
+  }
+
+  .login-card__header {
+    margin-bottom: 2rem;
+  }
+
+  .login-field {
+    margin-bottom: 1.25rem;
+  }
+
+  .login-field label {
+    margin-bottom: 0.6rem;
+  }
+
+  .login-input-container {
+    min-height: 3.8rem;
+  }
+
+  .login-field .mt-2 {
+    margin-top: 0.75rem;
+  }
+
+  .login-button,
+  .login-form > button[type='button'] {
+    min-height: 3.75rem;
+  }
+
+  .login-form > .flex.items-center {
+    padding-block: 1.25rem;
+  }
+
+  .login-form > div[role='group'] {
+    margin-top: 1.25rem;
+    padding-top: 0.85rem;
+  }
+
+  .login-registration {
+    margin-top: 1.5rem;
   }
 }
 
@@ -2182,6 +2262,110 @@ textarea:disabled:not(:root:not([data-theme='dark']) [data-inventory-scope] *),
 
   .registration-showcase__content p {
     font-size: 1.35rem;
+  }
+}
+
+/* Keep the two-column registration composition comfortable at 100% zoom on
+   common laptop heights, following the compact-height treatment used by login. */
+@media (min-width: 861px) and (max-height: 1100px) {
+  .registration-page {
+    padding-block: clamp(1rem, 3vh, 2rem);
+  }
+
+  .registration-layout {
+    gap: clamp(1.5rem, 4vw, 4rem);
+  }
+
+  .registration-brand {
+    margin-bottom: 1rem;
+  }
+
+  .registration-card {
+    padding-block: clamp(1.5rem, 3vh, 2rem);
+  }
+
+  .registration-card__intro {
+    margin-bottom: 0.85rem;
+  }
+
+  .registration-card .registration-company {
+    margin-top: 0.8rem;
+    padding-block: 0.75rem;
+  }
+
+  .registration-card .recovery-progress {
+    margin-block: 1rem 0.9rem;
+  }
+
+  .registration-card .login-field {
+    margin-bottom: 0.8rem;
+  }
+
+  .registration-showcase {
+    min-height: 0;
+    transform: none;
+  }
+
+  .registration-showcase__content {
+    margin: 0 0 0.5rem;
+  }
+
+  .registration-showcase__content h2 {
+    font-size: clamp(2.6rem, 4.5vw, 3.7rem);
+  }
+
+  .registration-showcase__content p {
+    margin-top: 0.85rem;
+    font-size: clamp(1.1rem, 1.8vw, 1.5rem);
+  }
+
+  .registration-showcase__line {
+    margin-top: 1rem;
+  }
+
+  .registration-illustration {
+    width: 112%;
+    height: clamp(16rem, 25vw, 22rem);
+    margin: -1rem 0 0 -2rem;
+  }
+}
+
+@media (min-width: 861px) and (max-height: 900px) {
+  .registration-card {
+    padding-block: 1.2rem;
+  }
+
+  .registration-card__intro {
+    margin-bottom: 0.65rem;
+  }
+
+  .registration-card .registration-company {
+    margin-top: 0.65rem;
+    padding-block: 0.6rem;
+  }
+
+  .registration-card .recovery-progress {
+    margin-block: 0.8rem 0.7rem;
+  }
+
+  .registration-card .login-field {
+    margin-bottom: 0.65rem;
+  }
+
+  .registration-card .login-input-container {
+    min-height: 2.9rem;
+  }
+
+  .registration-card .login-button {
+    min-height: 3.25rem;
+  }
+
+  .registration-showcase__content h2 {
+    font-size: clamp(2.4rem, 4vw, 3.3rem);
+  }
+
+  .registration-illustration {
+    height: clamp(14rem, 22vw, 19rem);
   }
 }
 
