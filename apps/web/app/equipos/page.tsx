@@ -158,7 +158,6 @@ export default function EquiposPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [formError, setFormError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<TeamFormErrors>({});
   const [search, setSearch] = useState('');
   const [memberSearch, setMemberSearch] = useState('');
@@ -245,7 +244,6 @@ export default function EquiposPage() {
     setMemberIds([]);
     setLeaderId('');
     setMemberSearch('');
-    setFormError(null);
     setFieldErrors({});
   }
 
@@ -261,7 +259,6 @@ export default function EquiposPage() {
     setMemberIds(team.memberIds);
     setLeaderId(team.leaderId);
     setMemberSearch('');
-    setFormError(null);
     setFieldErrors({});
     teamDialog.current?.showModal();
   }
@@ -273,7 +270,7 @@ export default function EquiposPage() {
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setFormError(null);
+    feedback.dismiss();
     const normalizedName = name.trim().replace(/\s+/g, ' ');
     const normalizedSpecialty = specialty.trim().replace(/\s+/g, ' ');
     const errors: TeamFormErrors = {};
@@ -300,15 +297,26 @@ export default function EquiposPage() {
           ? `${conflictingMember.name} ya pertenece al equipo “${assignedTeam.name}”.`
           : 'Uno de los integrantes seleccionados ya pertenece a otro equipo activo.';
       errors.members = conflictMessage;
-      setFormError(conflictMessage);
     }
     if (!leaderId || !memberIds.includes(leaderId))
       errors.leader =
         'El líder debe pertenecer a los integrantes seleccionados.';
     setFieldErrors(errors);
-    if (Object.keys(errors).length) return;
+    if (Object.keys(errors).length) {
+      const conflictMessage = errors.members?.includes('pertenece al equipo')
+        ? errors.members
+        : `Revisa los campos obligatorios: ${[
+            errors.name ? 'Nombre del equipo' : '',
+            errors.specialty ? 'Especialidad' : '',
+            errors.members ? 'Integrantes' : '',
+            errors.leader ? 'Líder del equipo' : '',
+          ]
+            .filter(Boolean)
+            .join(', ')}.`;
+      feedback.notify(conflictMessage, 'error');
+      return;
+    }
     setSaving(true);
-    setFormError(null);
     try {
       const payload = {
         name: normalizedName,
@@ -367,9 +375,9 @@ export default function EquiposPage() {
           ...current,
           members: conflictMessage,
         }));
-        setFormError(conflictMessage);
+        feedback.notify(conflictMessage, 'error');
       } else {
-        setFormError(message);
+        feedback.notify(message, 'error');
       }
     } finally {
       setSaving(false);
@@ -742,11 +750,6 @@ export default function EquiposPage() {
             noValidate
             onSubmit={submit}
           >
-            {formError ? (
-              <div className="sm:col-span-2" role="alert">
-                <ErrorMessage message={formError} />
-              </div>
-            ) : null}
             <label className="grid gap-2 text-sm font-semibold">
               <span>
                 Nombre del equipo <span className="text-coral">*</span>
