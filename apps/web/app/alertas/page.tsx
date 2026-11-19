@@ -428,7 +428,7 @@ export default function AlertasPage() {
 
       <dialog
         aria-labelledby="alert-detail-title"
-        className="w-[min(100%-2rem,34rem)] rounded-[1.375rem] border border-sky-blue bg-white p-0 text-ink shadow-[0_14px_30px_rgba(20,33,61,0.2)] backdrop:bg-ink/45"
+        className="m-auto max-h-[calc(100dvh-2rem)] w-[min(100%-2rem,34rem)] overflow-y-auto rounded-[1.375rem] border border-sky-blue bg-white p-0 text-ink shadow-[0_14px_30px_rgba(20,33,61,0.2)] backdrop:bg-ink/45"
         onClose={() => setSelectedAlert(null)}
         ref={detailDialog}
       >

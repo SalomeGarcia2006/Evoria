@@ -68,11 +68,8 @@ export default function RegistrationPage() {
           className="registration-showcase"
         >
           <div className="registration-showcase__content">
-            <h2 id="registration-showcase-title">Únete a EVORIA</h2>
-            <p>
-              Gestiona, planifica y haz seguimiento de tus eventos de manera
-              eficiente.
-            </p>
+            <h2 id="registration-showcase-title">EVORIA</h2>
+            <p>Donde la planificación se convierte en resultados.</p>
             <span aria-hidden="true" className="registration-showcase__line" />
           </div>
           <div className="registration-illustration">
