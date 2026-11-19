@@ -59,7 +59,12 @@ export function permissionForPathname(pathname: string): string | null {
   );
 }
 
-export function defaultRouteFor(permissions: string[]): string {
+export function defaultRouteFor(
+  permissions: string[],
+  isDeveloper = false,
+): string {
+  if (isDeveloper) return navigationItems[0].href;
+
   return (
     navigationItems.find(
       (item) =>
