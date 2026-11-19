@@ -85,10 +85,8 @@ export function LoginForm() {
         '¡Inicio de sesión exitoso!',
         'success',
       );
-      window.setTimeout(() => {
-        isLoginFlow.current = false;
-        router.replace(destination);
-      }, 2500);
+      isLoginFlow.current = false;
+      router.replace(destination);
     } catch (submitError) {
       setCaptchaResetKey((value) => value + 1);
       isLoginFlow.current = false;
