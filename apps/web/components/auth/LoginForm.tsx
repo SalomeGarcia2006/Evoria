@@ -7,7 +7,6 @@ import { defaultRouteFor } from '../../lib/access-control';
 import { useAuth } from '../../hooks/useAuth';
 import { apiErrorMessage } from '../../services/api';
 import { startGoogleLogin } from '../../services/auth.service';
-import type { AuthUser } from '../../types/auth';
 import { FeedbackMessages, useFeedback } from '../ui/Feedback';
 import { TurnstileWidget } from './TurnstileWidget';
 
@@ -24,7 +23,6 @@ export function LoginForm() {
   const [isAlertVisible, setIsAlertVisible] = useState(false);
   const [failedAttempts, setFailedAttempts] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [successfulLogin, setSuccessfulLogin] = useState<AuthUser | null>(null);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [captchaResetKey, setCaptchaResetKey] = useState(0);
   const captchaSectionRef = useRef<HTMLDivElement>(null);
@@ -49,20 +47,9 @@ export function LoginForm() {
 
   useEffect(() => {
     if (!isLoading && user && !isLoginFlow.current) {
-      router.replace(defaultRouteFor(user.permissions));
+      router.replace(defaultRouteFor(user.permissions, user.isDeveloper));
     }
   }, [isLoading, router, user]);
-
-  useEffect(() => {
-    if (!successfulLogin) return;
-
-    const timeout = window.setTimeout(() => {
-      isLoginFlow.current = false;
-      router.replace(defaultRouteFor(successfulLogin.permissions));
-    }, 2500);
-
-    return () => window.clearTimeout(timeout);
-  }, [router, successfulLogin]);
 
   function requestCaptcha() {
     setError('Completa la verificación de seguridad para continuar.');
@@ -92,12 +79,14 @@ export function LoginForm() {
       setError(null);
       setIsAlertVisible(false);
       setFailedAttempts(0);
-      setSuccessfulLogin(user);
+      const destination = defaultRouteFor(user.permissions, user.isDeveloper);
       feedback.guide(
         `Bienvenido/a, ${user.name}. Tu inicio de sesión fue exitoso.`,
         '¡Inicio de sesión exitoso!',
         'success',
       );
+      isLoginFlow.current = false;
+      router.replace(destination);
     } catch (submitError) {
       setCaptchaResetKey((value) => value + 1);
       isLoginFlow.current = false;

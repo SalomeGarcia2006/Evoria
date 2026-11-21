@@ -1732,7 +1732,7 @@
 
   .evoria-landing .hero-buttons {
     flex-direction: column;
-    align-items: stretch;
+    align-items: center;
   }
   .evoria-landing .hero-buttons .btn {
     width: 100%;
