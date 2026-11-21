@@ -416,6 +416,7 @@ export function EventList({
                       </td>
                       <td className="text-right">
                         <Button
+                          data-tour="event-view-details"
                           className="whitespace-nowrap px-4 py-2 text-xs"
                           onClick={() => openViewDialog(event)}
                           type="button"
@@ -508,9 +509,18 @@ export function EventList({
       <dialog
         aria-labelledby="event-view-dialog-title"
         className="m-auto max-h-[calc(100dvh-2rem)] w-11/12 max-w-3xl overflow-y-auto rounded-[1.5rem] border border-sky-blue bg-white p-0 text-navy shadow-2xl backdrop:bg-navy/60"
-        onClose={() => setViewEvent(null)}
+        data-tour="event-view-dialog"
+        onClose={(event) => {
+          if (event.currentTarget.dataset.tourNonModal === 'true') return;
+          setViewEvent(null);
+        }}
         ref={viewDialog}
       >
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0"
+          data-tour="event-view-tour-target"
+        />
         <div className="flex items-start justify-between gap-4 border-b border-sky-blue bg-beige/70 p-6">
           <div className="min-w-0">
             <p className="text-sm font-semibold uppercase tracking-[.16em] text-muted">
@@ -518,6 +528,7 @@ export function EventList({
             </p>
             <h2
               className="mt-1 break-words text-3xl font-bold"
+              data-tour="event-view-heading"
               id="event-view-dialog-title"
             >
               {viewEvent?.name}
@@ -526,6 +537,7 @@ export function EventList({
           <Button
             aria-label="Cerrar detalle del evento"
             className="px-3 text-xl leading-none"
+            data-tour="event-view-close"
             onClick={closeViewDialog}
             type="button"
             variant="ghost"
@@ -610,6 +622,7 @@ export function EventList({
               <div className="flex flex-wrap gap-3 border-t border-sky-blue pt-5">
                 {can('eventos.editar') && onEdit ? (
                   <Button
+                    data-tour="event-view-edit"
                     onClick={() => editFromView(viewEvent)}
                     type="button"
                     variant="secondary"
@@ -619,6 +632,7 @@ export function EventList({
                 ) : null}
                 {can('eventos.editar') ? (
                   <Button
+                    data-tour="event-view-status"
                     onClick={() => openStatusFromView(viewEvent)}
                     type="button"
                     variant="secondary"
@@ -629,6 +643,7 @@ export function EventList({
                 {can('eventos.eliminar') ? (
                   <Button
                     className="border border-coral bg-white text-coral shadow-none hover:bg-coral hover:text-white"
+                    data-tour="event-view-cancel"
                     disabled={cancellingId === viewEvent.id}
                     onClick={() => void handleCancel(viewEvent)}
                     type="button"

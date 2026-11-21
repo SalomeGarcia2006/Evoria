@@ -93,7 +93,7 @@ export default function AssignmentDetailsPage() {
           <LoadingState label="Cargando asignaciones del evento…" />
         ) : (
           <>
-            <Card>
+            <Card data-tour="assignment-event-summary">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
                   <StatusBadge
@@ -107,7 +107,10 @@ export default function AssignmentDetailsPage() {
                   </p>
                 </div>
                 {canAssign && isActiveEvent(event.status) && (
-                  <Button onClick={() => setAssignmentOpen(true)}>
+                  <Button
+                    data-tour="assignment-open"
+                    onClick={() => setAssignmentOpen(true)}
+                  >
                     Asignar recursos
                   </Button>
                 )}

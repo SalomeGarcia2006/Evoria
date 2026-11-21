@@ -2,12 +2,17 @@
 
 import { driver, type DriveStep } from 'driver.js';
 import Image from 'next/image';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { permissionForPathname } from '../../lib/access-control';
 import { manualContent } from './manual-content';
-import { findTarget, formGuides, pageSteps } from './interactive-guides';
+import {
+  findTarget,
+  formGuides,
+  pageSteps,
+  type InteractiveStep,
+} from './interactive-guides';
 import styles from './FirstVisitTour.module.css';
 
 type GuideStep = {
@@ -18,6 +23,26 @@ type GuideStep = {
 };
 
 type ModuleGuide = { title: string; description: string; steps: GuideStep[] };
+
+type TourContinuation = {
+  direction: 'forward' | 'back';
+  targetPathPrefix: string;
+  progressOffset: number;
+  totalSteps?: number;
+  createdAt: number;
+};
+
+function guidePathForPathname(pathname: string): string {
+  if (pathname.startsWith('/recursos/asignaciones/'))
+    return '/recursos/asignaciones/[eventId]';
+  return pathname;
+}
+
+function manualPathForGuidePath(guidePathname: string): string {
+  return guidePathname === '/recursos/asignaciones/[eventId]'
+    ? '/recursos/asignaciones'
+    : guidePathname;
+}
 
 const announcements: {
   id: string;
@@ -188,6 +213,25 @@ const guides: Record<string, ModuleGuide> = {
         title: 'Actualizar eventos',
         description:
           'Vuelve a consultar la lista para ver cambios recientes. No asigna ni libera recursos.',
+      },
+    ],
+  },
+  '/recursos/asignaciones/[eventId]': {
+    title: 'Detalle de asignaciones',
+    description:
+      'Consulta las reservas y los servicios del evento y revisa cómo abrir las opciones para gestionarlos.',
+    steps: [
+      {
+        title: 'Evento seleccionado',
+        description:
+          'Revisa el estado y las fechas del evento antes de gestionar sus asignaciones.',
+        selector: '[data-tour="assignment-event-summary"]',
+      },
+      {
+        title: 'Reservas y servicios',
+        description:
+          'Consulta las reservas de inventario y los servicios asociados disponibles para tu perfil.',
+        selector: '[aria-label="Asignaciones actuales"]',
       },
     ],
   },
@@ -445,12 +489,18 @@ const seenInSession = new Set<string>();
 export function FirstVisitTour() {
   const { can, user, isLoading } = useAuth();
   const pathname = usePathname();
+  const router = useRouter();
+  const guidePathname = guidePathForPathname(pathname);
+  const manualPathname = manualPathForGuidePath(guidePathname);
   const userId = user?.id;
   const permissions = user?.permissions;
   const isDeveloper = user?.isDeveloper;
   const requiredPermission = permissionForPathname(pathname);
+  const isAssignmentsRoute =
+    pathname === '/recursos/asignaciones' ||
+    pathname.startsWith('/recursos/asignaciones/');
   const hasAlternativeAccess =
-    (pathname === '/recursos/asignaciones' && can('servicios_proveedor.ver')) ||
+    (isAssignmentsRoute && can('servicios_proveedor.ver')) ||
     (pathname === '/presupuestos' && can('presupuestos.aprobar')) ||
     (pathname === '/empresas' && can('empresa_contexto.ver'));
   const canViewCurrentModule =
@@ -468,23 +518,23 @@ export function FirstVisitTour() {
     (item) =>
       !item.permission || isDeveloper || permissions?.includes(item.permission),
   );
-  const topics = (manualContent[pathname] ?? []).filter(
+  const topics = (manualContent[manualPathname] ?? []).filter(
     (item) =>
       !item.permission || isDeveloper || permissions?.includes(item.permission),
   );
   const hasNews = showGuideUpdate || visibleNews.length > 0;
   const guideVersion = JSON.stringify([
-    guides[pathname],
-    pageSteps[pathname],
-    formGuides[pathname],
+    guides[guidePathname],
+    pageSteps[guidePathname],
+    formGuides[guidePathname],
     topics,
   ]);
 
   useEffect(() => {
-    if (!canUseHelp || !userId || !guides[pathname]) return;
+    if (!canUseHelp || !userId || !guides[guidePathname]) return;
     const timer = window.setTimeout(() => {
       try {
-        const key = `evoria-guide-version:${userId}:${pathname}`;
+        const key = `evoria-guide-version:${userId}:${guidePathname}`;
         const previous = localStorage.getItem(key);
         setGuideChanged(previous !== null && previous !== guideVersion);
         if (previous === null) localStorage.setItem(key, guideVersion);
@@ -493,7 +543,7 @@ export function FirstVisitTour() {
       }
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [canUseHelp, userId, pathname, guideVersion]);
+  }, [canUseHelp, userId, guidePathname, guideVersion]);
 
   useEffect(() => {
     if (!userId) return;
@@ -520,14 +570,66 @@ export function FirstVisitTour() {
   }, [userId, permissions, isDeveloper]);
 
   useEffect(() => {
-    const guide = guides[pathname];
+    const guide = guides[guidePathname];
     if (isLoading || !canUseHelp || !userId || !guide || !permissions) return;
-    const storageKey = `evoria-module-tour:${userId}:${pathname}`;
+    const storageKey = `evoria-module-tour:${userId}:${guidePathname}`;
+    const assignmentsListStorageKey = `evoria-module-tour:${userId}:/recursos/asignaciones`;
+    const assignmentsDetailStorageKey = `evoria-module-tour:${userId}:/recursos/asignaciones/[eventId]`;
+    const continuationStorageKey = `evoria-tour-continuation:${userId}:assignments`;
+    let continuation: TourContinuation | null = null;
+    if (
+      pathname === '/recursos/asignaciones' ||
+      guidePathname === '/recursos/asignaciones/[eventId]'
+    ) {
+      try {
+        const storedContinuation = sessionStorage.getItem(
+          continuationStorageKey,
+        );
+        if (storedContinuation) {
+          const parsed = JSON.parse(
+            storedContinuation,
+          ) as Partial<TourContinuation>;
+          const isFresh =
+            typeof parsed.createdAt === 'number' &&
+            Date.now() >= parsed.createdAt &&
+            Date.now() - parsed.createdAt < 30 * 60 * 1000;
+          const resumesDetails =
+            guidePathname === '/recursos/asignaciones/[eventId]' &&
+            parsed.direction === 'forward' &&
+            parsed.targetPathPrefix === '/recursos/asignaciones/' &&
+            pathname.startsWith(parsed.targetPathPrefix);
+          const resumesList =
+            pathname === '/recursos/asignaciones' &&
+            parsed.direction === 'back' &&
+            parsed.targetPathPrefix === '/recursos/asignaciones';
+          if (
+            (resumesDetails || resumesList) &&
+            typeof parsed.progressOffset === 'number' &&
+            Number.isFinite(parsed.progressOffset) &&
+            (parsed.totalSteps === undefined ||
+              (typeof parsed.totalSteps === 'number' &&
+                Number.isFinite(parsed.totalSteps))) &&
+            isFresh
+          ) {
+            continuation = parsed as TourContinuation;
+          } else {
+            sessionStorage.removeItem(continuationStorageKey);
+          }
+        }
+      } catch {
+        continuation = null;
+      }
+    }
     const requested =
       request?.path === pathname && request.id !== handledRequest.current;
-    if (!requested && seenInSession.has(storageKey)) return;
+    if (!requested && !continuation && seenInSession.has(storageKey)) return;
     try {
-      if (!requested && localStorage.getItem(storageKey) === 'done') return;
+      if (
+        !requested &&
+        !continuation &&
+        localStorage.getItem(storageKey) === 'done'
+      )
+        return;
     } catch {
       // El recorrido sigue disponible si el navegador bloquea el almacenamiento.
     }
@@ -538,24 +640,169 @@ export function FirstVisitTour() {
       if (document.querySelector('dialog[open], .driver-active')) return;
       const main = document.querySelector<HTMLElement>('main');
       if (!main) return;
-      if (
+      const isLoadingAssignmentList =
         pathname === '/recursos/asignaciones' &&
-        main.textContent?.includes('Cargando eventos activos') &&
+        main.textContent?.includes('Cargando eventos activos');
+      const isLoadingAssignmentDetails =
+        guidePathname === '/recursos/asignaciones/[eventId]' &&
+        main.textContent?.includes('Cargando asignaciones del evento');
+      const isLoadingBudgetList =
+        pathname === '/presupuestos' &&
+        main.textContent?.includes('Cargando eventos activos');
+      const isLoadingEventList =
+        pathname === '/eventos' &&
+        main.textContent?.includes('Cargando eventos');
+      const isLoadingInventory =
+        pathname === '/inventario' &&
+        main.textContent?.includes('Cargando recursos');
+      if (
+        (isLoadingAssignmentList ||
+          isLoadingAssignmentDetails ||
+          isLoadingBudgetList ||
+          isLoadingEventList ||
+          isLoadingInventory) &&
         Date.now() - waitStarted < 10000
       )
         return;
       window.clearInterval(timer);
       if (requested && request) handledRequest.current = request.id;
 
-      const steps: DriveStep[] = [
-        {
+      const steps: DriveStep[] = [];
+      if (!continuation || continuation.direction === 'back') {
+        steps.push({
           popover: {
             title: `Conoce ${guide.title}`,
             description: `${guide.description} Puedes avanzar u omitir esta guía.`,
           },
-        },
-      ];
-      for (const item of pageSteps[pathname] ?? []) {
+        });
+      } else if (continuation.direction === 'forward') {
+        // Reserva un índice anterior para habilitar «Anterior» en el primer
+        // paso del detalle. Su acción lleva de vuelta al paso de apertura.
+        steps.push({
+          element: () => main,
+          popover: { title: '', description: '', showButtons: [] },
+        });
+      }
+      const openedDialogs: {
+        dialog: HTMLDialogElement;
+        originalStyle: string;
+        originalVisibility: string;
+      }[] = [];
+      let cancelled = false;
+      const activeTourDialog = () => openedDialogs.at(-1)?.dialog ?? null;
+      const findUntrackedOpenDialog = () =>
+        Array.from(
+          main.querySelectorAll<HTMLDialogElement>('dialog[open]'),
+        ).find(
+          (dialog) => !openedDialogs.some((entry) => entry.dialog === dialog),
+        );
+      const presentDialogForTour = (
+        dialog: HTMLDialogElement,
+        preserveDialog = false,
+        hideUntilReady = false,
+      ) => {
+        if (openedDialogs.some((entry) => entry.dialog === dialog)) return;
+        openedDialogs.push({
+          dialog,
+          originalStyle: dialog.style.cssText,
+          originalVisibility: dialog.style.visibility,
+        });
+        if (preserveDialog) dialog.dataset.tourNonModal = 'true';
+        // Moverlo a no modal permite que Driver.js resalte su contenido.
+        dialog.close();
+        dialog.show();
+        Object.assign(dialog.style, {
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          margin: '0',
+        });
+        if (hideUntilReady) dialog.style.visibility = 'hidden';
+      };
+      const revealTourDialog = (dialog: HTMLDialogElement) => {
+        const entry = openedDialogs.find((item) => item.dialog === dialog);
+        if (!entry) return;
+        dialog.style.visibility = entry.originalVisibility;
+        dialog.scrollTop = 0;
+      };
+      const closeCurrentTourDialog = () => {
+        const entry = openedDialogs.pop();
+        const dialog = entry?.dialog;
+        if (!entry || !dialog?.isConnected) return;
+        dialog.style.cssText = entry.originalStyle;
+        delete dialog.dataset.tourNonModal;
+        const close = dialog.querySelector<HTMLButtonElement>(
+          'button[aria-label="Cerrar formulario"], button[aria-label="Cerrar ventana"]',
+        );
+        if (close && !close.disabled) close.click();
+        else if (dialog.open) dialog.close();
+      };
+      const closeTourDialog = () => {
+        while (openedDialogs.length) closeCurrentTourDialog();
+      };
+      const moveTour = (direction: 'next' | 'previous') => {
+        window.requestAnimationFrame(() =>
+          window.requestAnimationFrame(() => {
+            if (!cancelled && tour?.isActive()) {
+              if (direction === 'next') tour.moveNext();
+              else tour.movePrevious();
+            }
+          }),
+        );
+      };
+      const openRelatedDialog = (
+        action: NonNullable<InteractiveStep['openDialogOnNext']>,
+        direction: 'next' | 'previous',
+      ) => {
+        const currentDialog = activeTourDialog();
+        const trigger =
+          currentDialog?.querySelector<HTMLElement>(action.triggerSelector) ??
+          main.querySelector<HTMLElement>(action.triggerSelector);
+        if (
+          !trigger ||
+          (trigger instanceof HTMLButtonElement && trigger.disabled)
+        ) {
+          moveTour(direction);
+          return;
+        }
+        trigger.click();
+        const started = Date.now();
+        const waitForDialog = () => {
+          const dialog = findUntrackedOpenDialog();
+          if (cancelled || !tour?.isActive()) {
+            if (dialog) {
+              presentDialogForTour(dialog, action.preserveDialogDuringTour);
+              closeCurrentTourDialog();
+            }
+            return;
+          }
+          if (dialog) {
+            presentDialogForTour(dialog, action.preserveDialogDuringTour);
+            moveTour(direction);
+            return;
+          }
+          if (Date.now() - started < 3000)
+            window.requestAnimationFrame(waitForDialog);
+          else moveTour(direction);
+        };
+        window.requestAnimationFrame(waitForDialog);
+      };
+
+      const currentPageSteps = pageSteps[guidePathname] ?? [];
+      const visiblePageSteps =
+        pathname === '/recursos/asignaciones'
+          ? currentPageSteps.filter((item) => item.title !== 'Ver inventario')
+          : currentPageSteps;
+      const nextStepNumber = () => {
+        if (pathname === '/recursos/asignaciones') return steps.length + 1;
+        if (!continuation) return steps.length + 1;
+        if (continuation.direction === 'forward')
+          return continuation.progressOffset + steps.length;
+        return continuation.progressOffset + steps.length + 1;
+      };
+
+      for (const item of visiblePageSteps) {
         if (
           item.permission &&
           !isDeveloper &&
@@ -568,34 +815,186 @@ export function FirstVisitTour() {
           element.closest('dialog:not([open])')
         )
           continue;
+
+        const currentStepNumber = nextStepNumber();
         steps.push({
           element,
           popover: {
             title: item.title,
             description: item.description,
             side: 'bottom',
+            ...(item.continueTourOnPrevious
+              ? {
+                  onPrevClick: () => {
+                    if (!continuation) {
+                      moveTour('previous');
+                      return;
+                    }
+                    try {
+                      sessionStorage.setItem(
+                        continuationStorageKey,
+                        JSON.stringify({
+                          direction: 'back',
+                          targetPathPrefix:
+                            item.continueTourOnPrevious!.targetPath,
+                          progressOffset: 0,
+                          totalSteps: getTourTotal(),
+                          createdAt: Date.now(),
+                        } satisfies TourContinuation),
+                      );
+                    } catch {
+                      // La navegación de regreso continúa sin almacenamiento.
+                    }
+                    router.push(item.continueTourOnPrevious!.targetPath);
+                  },
+                }
+              : {}),
+            ...(item.openDialogOnNext
+              ? {
+                  onNextClick: () =>
+                    openRelatedDialog(item.openDialogOnNext!, 'next'),
+                }
+              : {}),
+            ...(item.closeDialogOnNext
+              ? {
+                  onNextClick: () => {
+                    closeCurrentTourDialog();
+                    moveTour('next');
+                  },
+                }
+              : {}),
+            ...(item.openDialogOnPrevious
+              ? {
+                  onPrevClick: () =>
+                    openRelatedDialog(item.openDialogOnPrevious!, 'previous'),
+                }
+              : {}),
+            ...(item.closeDialogOnPrevious
+              ? {
+                  onPrevClick: () => {
+                    closeCurrentTourDialog();
+                    moveTour('previous');
+                  },
+                }
+              : {}),
+            ...(item.continueTourOnNext
+              ? {
+                  onNextClick: () => {
+                    const link =
+                      element instanceof HTMLAnchorElement ? element : null;
+                    if (
+                      !link ||
+                      !link.pathname.startsWith(
+                        item.continueTourOnNext!.targetPathPrefix,
+                      )
+                    ) {
+                      moveTour('next');
+                      return;
+                    }
+                    try {
+                      sessionStorage.setItem(
+                        continuationStorageKey,
+                        JSON.stringify({
+                          direction: 'forward',
+                          targetPathPrefix:
+                            item.continueTourOnNext!.targetPathPrefix,
+                          progressOffset: currentStepNumber,
+                          ...(continuation?.totalSteps !== undefined
+                            ? { totalSteps: continuation.totalSteps }
+                            : {}),
+                          createdAt: Date.now(),
+                        } satisfies TourContinuation),
+                      );
+                    } catch {
+                      // La navegación continúa aunque el almacenamiento esté bloqueado.
+                    }
+                    link.click();
+                  },
+                }
+              : {}),
           },
+        });
+
+        const dialogSteps = (item.dialogSteps ?? []).filter(
+          (dialogStep) =>
+            !dialogStep.permission ||
+            isDeveloper ||
+            permissions.includes(dialogStep.permission),
+        );
+        dialogSteps.forEach((dialogStep, index) => {
+          const closeAfterNext =
+            dialogStep.closeDialogOnNext ||
+            (index === dialogSteps.length - 1 && !dialogStep.openDialogOnNext);
+          steps.push({
+            element: dialogStep.selector ?? (() => activeTourDialog() ?? main),
+            ...(index > 0 && dialogStep.selector
+              ? { skipMissingElement: true, waitForElement: 2000 }
+              : {}),
+            ...(dialogStep.scrollIntoView === false
+              ? { scrollIntoView: false }
+              : {}),
+            popover: {
+              title: dialogStep.title,
+              description: dialogStep.description,
+              side: 'bottom',
+              ...(dialogStep.closeDialogOnPrevious
+                ? {
+                    onPrevClick: () => {
+                      closeCurrentTourDialog();
+                      moveTour('previous');
+                    },
+                  }
+                : {}),
+              ...(dialogStep.openDialogOnNext
+                ? {
+                    onNextClick: () =>
+                      openRelatedDialog(dialogStep.openDialogOnNext!, 'next'),
+                  }
+                : {}),
+              ...(closeAfterNext
+                ? {
+                    onNextClick: () => {
+                      closeCurrentTourDialog();
+                      moveTour('next');
+                    },
+                  }
+                : {}),
+              ...(dialogStep.openDialogOnPrevious
+                ? {
+                    onPrevClick: () =>
+                      openRelatedDialog(
+                        dialogStep.openDialogOnPrevious!,
+                        'previous',
+                      ),
+                  }
+                : {}),
+              ...(dialogStep.closeDialogOnPrevious
+                ? {
+                    onPrevClick: () => {
+                      closeCurrentTourDialog();
+                      moveTour('previous');
+                    },
+                  }
+                : {}),
+            },
+          });
         });
       }
 
-      let openedDialog: HTMLDialogElement | null = null;
-      let originalStyle = '';
-      let cancelled = false;
-      const closeTourDialog = () => {
-        const dialog = openedDialog;
-        openedDialog = null;
-        if (!dialog?.isConnected) return;
-        dialog.style.cssText = originalStyle;
-        delete dialog.dataset.tourNonModal;
-        const close = dialog.querySelector<HTMLButtonElement>(
-          'button[aria-label="Cerrar formulario"], button[aria-label="Cerrar ventana"]',
-        );
-        if (close && !close.disabled) close.click();
-        else if (dialog.open) dialog.close();
-      };
-      const formGuide = formGuides[pathname];
+      const formGuide = formGuides[guidePathname];
+      const canUseFormGuide =
+        formGuide &&
+        (isDeveloper ||
+          permissions.includes(formGuide.permission) ||
+          formGuide.anyPermissions?.some((permission) =>
+            permissions.includes(permission),
+          ));
+      const formGuideStepEntries: {
+        item: InteractiveStep;
+        step: DriveStep;
+      }[] = [];
       const createButton =
-        formGuide && (isDeveloper || permissions.includes(formGuide.permission))
+        formGuide && canUseFormGuide
           ? formGuide.triggerSelector
             ? (main.querySelector<HTMLButtonElement>(
                 formGuide.triggerSelector,
@@ -622,13 +1021,17 @@ export function FirstVisitTour() {
               if (!tour?.isActive()) return;
               createButton.click();
               const started = Date.now();
+              let openingDialog: HTMLDialogElement | null = null;
               const openForm = () => {
-                const dialog =
-                  main.querySelector<HTMLDialogElement>('dialog[open]');
+                openingDialog ??= findUntrackedOpenDialog() ?? null;
+                const dialog = openingDialog;
                 if (cancelled || !tour?.isActive()) {
                   if (dialog) {
-                    openedDialog = dialog;
-                    originalStyle = dialog.style.cssText;
+                    if (!openedDialogs.some((entry) => entry.dialog === dialog))
+                      presentDialogForTour(
+                        dialog,
+                        formGuide.preserveDialogDuringTour,
+                      );
                     closeTourDialog();
                   }
                   return;
@@ -639,26 +1042,42 @@ export function FirstVisitTour() {
                   else tour.moveTo(steps.length - 1);
                   return;
                 }
-                openedDialog = dialog;
-                originalStyle = dialog.style.cssText;
-                // El diálogo nativo está en la capa superior del navegador; durante
-                // la guía se muestra como no modal para que Driver pueda resaltarlo.
-                if (formGuide.preserveDialogDuringTour) {
-                  dialog.dataset.tourNonModal = 'true';
+                if (!openedDialogs.some((entry) => entry.dialog === dialog))
+                  presentDialogForTour(
+                    dialog,
+                    formGuide.preserveDialogDuringTour,
+                    !!formGuide.readySelector,
+                  );
+                if (
+                  formGuide.readySelector &&
+                  !dialog.querySelector(formGuide.readySelector)
+                ) {
+                  if (Date.now() - started < 10000)
+                    window.requestAnimationFrame(openForm);
+                  else {
+                    closeTourDialog();
+                    tour.moveTo(steps.length - 1);
+                  }
+                  return;
                 }
-                dialog.close();
-                dialog.show();
-                Object.assign(dialog.style, {
-                  position: 'fixed',
-                  top: '50%',
-                  left: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  margin: '0',
-                });
-                window.requestAnimationFrame(() => {
-                  if (!cancelled && tour?.isActive()) tour.moveNext();
-                  else closeTourDialog();
-                });
+                if (formGuide.skipMissingFields) {
+                  const activeIndex = tour.getActiveIndex() ?? -1;
+                  const missingStepIndexes = formGuideStepEntries
+                    .filter(({ item, step }) => {
+                      const stepIndex = steps.indexOf(step);
+                      return (
+                        stepIndex > activeIndex &&
+                        !item.dialogTarget &&
+                        !findTarget(dialog, item)?.getClientRects().length
+                      );
+                    })
+                    .map(({ step }) => steps.indexOf(step))
+                    .filter((index) => index > activeIndex)
+                    .sort((left, right) => right - left);
+                  missingStepIndexes.forEach((index) => steps.splice(index, 1));
+                }
+                revealTourDialog(dialog);
+                moveTour('next');
               };
               window.requestAnimationFrame(openForm);
             },
@@ -672,16 +1091,41 @@ export function FirstVisitTour() {
               permissions.includes(item.permission),
           )
           .forEach((item, index) => {
-            steps.push({
+            const moveWizard = (
+              buttonLabel: 'Anterior' | 'Continuar',
+              direction: 'next' | 'previous',
+            ) => {
+              const wizardButton = Array.from(
+                activeTourDialog()?.querySelectorAll<HTMLButtonElement>(
+                  'button',
+                ) ?? [],
+              ).find(
+                (button) =>
+                  button.textContent?.trim() === buttonLabel &&
+                  !button.disabled,
+              );
+              if (wizardButton) wizardButton.click();
+              moveTour(direction);
+            };
+            const fieldStep: DriveStep = {
               element: () =>
                 (formGuide.skipMissingFields
-                  ? openedDialog && findTarget(openedDialog, item)
-                  : (openedDialog &&
-                      (findTarget(openedDialog, item) ||
-                        openedDialog.querySelector<HTMLElement>('h2'))) ||
+                  ? activeTourDialog() &&
+                    findTarget(activeTourDialog() as HTMLDialogElement, item)
+                  : (activeTourDialog() &&
+                      (findTarget(
+                        activeTourDialog() as HTMLDialogElement,
+                        item,
+                      ) ||
+                        activeTourDialog()?.querySelector<HTMLElement>(
+                          'h2',
+                        ))) ||
                     main) as HTMLElement,
               ...(formGuide.skipMissingFields && index > 0
                 ? { skipMissingElement: true, waitForElement: 2000 }
+                : {}),
+              ...(item.scrollIntoView === false
+                ? { scrollIntoView: false }
                 : {}),
               popover: {
                 title: item.title,
@@ -695,24 +1139,135 @@ export function FirstVisitTour() {
                       },
                     }
                   : {}),
+                ...(item.openDialogOnNext
+                  ? {
+                      onNextClick: () =>
+                        openRelatedDialog(item.openDialogOnNext!, 'next'),
+                    }
+                  : {}),
+                ...(item.closeDialogOnNext
+                  ? {
+                      onNextClick: () => {
+                        closeCurrentTourDialog();
+                        moveTour('next');
+                      },
+                    }
+                  : {}),
+                ...(item.openDialogOnPrevious
+                  ? {
+                      onPrevClick: () =>
+                        openRelatedDialog(
+                          item.openDialogOnPrevious!,
+                          'previous',
+                        ),
+                    }
+                  : {}),
+                ...(item.closeDialogOnPrevious
+                  ? {
+                      onPrevClick: () => {
+                        closeCurrentTourDialog();
+                        moveTour('previous');
+                      },
+                    }
+                  : {}),
+                ...(item.advanceWizardOnNext
+                  ? { onNextClick: () => moveWizard('Continuar', 'next') }
+                  : {}),
+                ...(item.returnWizardOnPrevious
+                  ? {
+                      onPrevClick: () => moveWizard('Anterior', 'previous'),
+                    }
+                  : {}),
               },
-            });
+            };
+            steps.push(fieldStep);
+            formGuideStepEntries.push({ item, step: fieldStep });
           });
       }
-      steps.push({
-        popover: {
-          title: 'Todo listo',
-          description:
-            'Ya conoces las opciones disponibles. Puedes repetir la guía desde Ayuda.',
-          ...(formGuide && createButton
-            ? {
-                onPrevClick: () => {
-                  tour?.movePrevious();
-                },
-              }
-            : {}),
-        },
-      });
+      const getTourTotal = () => {
+        if (pathname === '/recursos/asignaciones') {
+          if (
+            continuation?.direction === 'back' &&
+            continuation.totalSteps !== undefined
+          )
+            return continuation.totalSteps;
+          const listSteps = Math.max(0, steps.length - 1);
+          const detailPath = '/recursos/asignaciones/[eventId]';
+          const detailPageCount = (pageSteps[detailPath] ?? []).filter(
+            (item) =>
+              !item.permission ||
+              isDeveloper ||
+              permissions.includes(item.permission),
+          ).length;
+          const detailFormGuide = formGuides[detailPath];
+          const canUseDetailFormGuide = Boolean(
+            detailFormGuide &&
+            (isDeveloper ||
+              permissions.includes(detailFormGuide.permission) ||
+              detailFormGuide.anyPermissions?.some((permission) =>
+                permissions.includes(permission),
+              )),
+          );
+          const canOpenDetailAssignments =
+            (can('asignaciones.crear') && can('inventario.ver')) ||
+            (can('servicios_proveedor.crear') && can('proveedores.ver'));
+          const detailFormCount =
+            detailFormGuide && canUseDetailFormGuide && canOpenDetailAssignments
+              ? 1 +
+                detailFormGuide.fields.filter(
+                  (item) =>
+                    !item.permission ||
+                    isDeveloper ||
+                    permissions.includes(item.permission),
+                ).length
+              : 0;
+          return listSteps + detailPageCount + detailFormCount + 1;
+        }
+        if (!continuation) return steps.length;
+        if (continuation.direction === 'forward')
+          return continuation.progressOffset + steps.length - 1;
+        return (
+          continuation.totalSteps ?? continuation.progressOffset + steps.length
+        );
+      };
+      if (pathname === '/recursos/asignaciones') {
+        // El paso de apertura debe conservar «Siguiente» y navegar al detalle;
+        // este destino vacío nunca se visita mientras el enlace sea válido.
+        steps.push({
+          element: () => main,
+          popover: { title: '', description: '', showButtons: [] },
+        });
+      } else {
+        steps.push({
+          popover: {
+            title: 'Todo listo',
+            description:
+              guidePathname === '/recursos/asignaciones/[eventId]'
+                ? 'Ya conoces las opciones disponibles. Al finalizar volverás a la lista principal de asignaciones.'
+                : 'Ya conoces las opciones disponibles. Puedes repetir la guía desde Ayuda.',
+            ...(guidePathname === '/recursos/asignaciones/[eventId]' &&
+            formGuide &&
+            createButton
+              ? {
+                  onPrevClick: () =>
+                    openRelatedDialog(
+                      {
+                        triggerSelector: '[data-tour="assignment-open"]',
+                        preserveDialogDuringTour: true,
+                      },
+                      'previous',
+                    ),
+                }
+              : formGuide && createButton
+                ? {
+                    onPrevClick: () => {
+                      tour?.movePrevious();
+                    },
+                  }
+                : {}),
+          },
+        });
+      }
 
       tour = driver({
         animate: true,
@@ -727,23 +1282,62 @@ export function FirstVisitTour() {
         doneBtnText: 'Finalizar',
         closeBtnLabel: 'Omitir tutorial',
         popoverClass: 'evoria-tour',
-        onPopoverRender: (popover) => {
+        onPopoverRender: (popover, { index }) => {
           popover.closeButton.textContent = 'Omitir';
+          if (
+            (pathname === '/recursos/asignaciones' || continuation) &&
+            typeof index === 'number'
+          ) {
+            const currentStep =
+              continuation?.direction === 'forward'
+                ? continuation.progressOffset + index
+                : index + 1;
+            popover.progress.textContent = `Paso ${currentStep} de ${getTourTotal()}`;
+          }
         },
         onDestroyed: (_element, _step, { reason }) => {
           cancelled = true;
           closeTourDialog();
           if (reason === 'api' || reason === 'replaced') return;
+          const completedAssignmentFlow =
+            !!continuation ||
+            guidePathname === '/recursos/asignaciones/[eventId]';
           seenInSession.add(storageKey);
+          if (completedAssignmentFlow) {
+            seenInSession.add(assignmentsListStorageKey);
+            seenInSession.add(assignmentsDetailStorageKey);
+          }
           try {
             localStorage.setItem(storageKey, 'done');
+            if (completedAssignmentFlow) {
+              localStorage.setItem(assignmentsListStorageKey, 'done');
+              localStorage.setItem(assignmentsDetailStorageKey, 'done');
+            }
           } catch {
             // La preferencia se conserva durante la sesión si el almacenamiento está bloqueado.
           }
+          if (continuation) {
+            try {
+              sessionStorage.removeItem(continuationStorageKey);
+            } catch {
+              // La guía sigue completa aunque no se pueda limpiar la sesión.
+            }
+          }
+          if (
+            reason === 'done' &&
+            guidePathname === '/recursos/asignaciones/[eventId]'
+          )
+            router.push('/recursos/asignaciones');
         },
         steps,
       });
-      tour.drive();
+      tour.drive(
+        continuation?.direction === 'forward'
+          ? 1
+          : continuation?.direction === 'back'
+            ? 3
+            : 0,
+      );
     }, 500);
 
     return () => {
@@ -755,9 +1349,11 @@ export function FirstVisitTour() {
     canUseHelp,
     userId,
     pathname,
+    guidePathname,
     permissions,
     isDeveloper,
     request,
+    router,
   ]);
 
   if (isLoading || !userId) return null;
@@ -772,9 +1368,9 @@ export function FirstVisitTour() {
       visibleNews.forEach((item) =>
         localStorage.setItem(`evoria-news:${userId}:${item.id}`, 'read'),
       );
-      if (guides[pathname])
+      if (guides[guidePathname])
         localStorage.setItem(
-          `evoria-guide-version:${userId}:${pathname}`,
+          `evoria-guide-version:${userId}:${guidePathname}`,
           guideVersion,
         );
     } catch {
@@ -833,9 +1429,9 @@ export function FirstVisitTour() {
                     <div>
                       <h4 className={styles.newsTitle}>Guía actualizada</h4>
                       <p>
-                        El manual de {guides[pathname]?.title} cambió. Consulta
-                        sus temas o vuelve a iniciar el recorrido para conocer
-                        la información actualizada.
+                        El manual de {guides[guidePathname]?.title} cambió.
+                        Consulta sus temas o vuelve a iniciar el recorrido para
+                        conocer la información actualizada.
                       </p>
                     </div>
                   )}
@@ -847,7 +1443,7 @@ export function FirstVisitTour() {
                   ))}
                 </section>
               ) : null}
-              {guides[pathname] ? (
+              {guides[guidePathname] ? (
                 <button
                   type="button"
                   className={styles.guideButton}
@@ -863,7 +1459,7 @@ export function FirstVisitTour() {
                     ▶
                   </span>
                   <span>
-                    <strong>Ver guía de {guides[pathname].title}</strong>
+                    <strong>Ver guía de {guides[guidePathname].title}</strong>
                     <small>Recorrido interactivo de 2 minutos</small>
                   </span>
                 </button>
@@ -880,7 +1476,7 @@ export function FirstVisitTour() {
                           <Image
                             alt=""
                             height={18}
-                            src={manualTopicIcon(pathname, item.title)}
+                            src={manualTopicIcon(manualPathname, item.title)}
                             width={18}
                           />
                         </span>

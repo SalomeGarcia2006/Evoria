@@ -118,6 +118,7 @@ export function InventoryView({
             </Button>
             <PermissionGate permission="inventario.ajustar">
               <Button
+                data-tour="resource-create"
                 onClick={() => {
                   feedback.dismiss();
                   setPanel({ kind: 'create' });
@@ -246,6 +247,7 @@ export function InventoryView({
                   <PermissionGate permission="asignaciones.ver">
                     <Link
                       className="rounded-xl border border-violet/30 bg-violet/5 px-4 py-2 text-sm font-semibold text-violet transition hover:bg-violet/10"
+                      data-tour="inventory-assign-events"
                       href="/recursos/asignaciones"
                     >
                       Asignar a eventos →
@@ -327,6 +329,7 @@ export function InventoryView({
                       <div className="my-5 border-t border-violet/20" />
                       <Button
                         className="mt-auto self-end px-0 py-0 text-base text-violet shadow-none hover:bg-transparent"
+                        data-tour="resource-view-details"
                         variant="ghost"
                         onClick={() => {
                           feedback.dismiss();

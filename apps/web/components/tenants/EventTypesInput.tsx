@@ -28,8 +28,39 @@ export function EventTypesInput({
   }
 
   function add() {
-    if (!draft.trim() || entries.length >= 20) return;
-    onChange([...entries, draft.trim()].join('\n'));
+    const normalizedDraft = draft.trim().replace(/\s+/g, ' ');
+    const onlyLettersAndSpaces = /^\p{L}+(?:\s+\p{L}+)*$/u.test(
+      normalizedDraft,
+    );
+    const letterCount = [...normalizedDraft.replace(/\s/g, '')].length;
+
+    if (!normalizedDraft || readOnly) return;
+    if (entries.length >= 20) {
+      feedback.guide(
+        'Solo se permiten hasta 20 tipos de eventos.',
+        'Límite de tipos de eventos',
+        'error',
+      );
+      return;
+    }
+    if (!onlyLettersAndSpaces) {
+      feedback.guide(
+        'El tipo de evento solo puede contener letras y espacios, sin números ni símbolos.',
+        'Revisa el tipo de evento',
+        'error',
+      );
+      return;
+    }
+    if (letterCount < 4) {
+      feedback.guide(
+        'Escribe un tipo de evento con al menos 4 caracteres. Por ejemplo: «Taller».',
+        'Tipo de evento muy corto',
+        'error',
+      );
+      return;
+    }
+
+    onChange([...entries, normalizedDraft].join('\n'));
     setDraft('');
     setOpen(false);
   }

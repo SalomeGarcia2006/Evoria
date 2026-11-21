@@ -162,6 +162,7 @@ function AssignmentsContent() {
                 <Link
                   key={event.id}
                   aria-label={`Ver asignaciones de ${event.name}`}
+                  data-tour="assignment-open-event"
                   href={`/recursos/asignaciones/${encodeURIComponent(event.id)}`}
                   className={`${cardStyles.card} ${cardStyles.interactive} group flex h-full flex-col items-start text-left focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal`}
                 >

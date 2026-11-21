@@ -1,7 +1,6 @@
 'use client';
 
 import { EventTypesInput } from './EventTypesInput';
-import { TenantFormStep } from './TenantFormStep';
 import type {
   TenantContextUpdate,
   TenantOperationMode,
@@ -66,13 +65,35 @@ const inputClass =
 export function TenantCreationContext({
   value,
   onChange,
+  step,
 }: {
   value: CreationContextDraft;
   onChange: (value: CreationContextDraft) => void;
+  step: 2 | 3;
 }) {
+  if (step === 3) {
+    return (
+      <div className="grid min-w-0 gap-4 sm:col-span-2 sm:grid-cols-2">
+        <label className="grid gap-2 text-sm font-semibold sm:col-span-2">
+          Notas operativas (opcional)
+          <textarea
+            aria-label="Notas operativas"
+            placeholder="Ej. Trabajamos con proveedores externos según el evento."
+            className={inputClass}
+            maxLength={2000}
+            rows={4}
+            value={value.operationalNotes}
+            onChange={(event) =>
+              onChange({ ...value, operationalNotes: event.target.value })
+            }
+          />
+        </label>
+      </div>
+    );
+  }
+
   return (
     <div className="grid min-w-0 gap-4 sm:col-span-2 sm:grid-cols-2">
-      <TenantFormStep number={2} title="Contexto operativo" />
       <label className="grid gap-2 text-sm font-semibold">
         Sector
         <input
@@ -125,24 +146,10 @@ export function TenantCreationContext({
       </label>
       <EventTypesInput
         required
+        showEntries
         value={value.eventTypes}
         onChange={(eventTypes) => onChange({ ...value, eventTypes })}
       />
-      <TenantFormStep number={3} title="Información adicional" />
-      <label className="grid gap-2 text-sm font-semibold sm:col-span-2">
-        Notas operativas (opcional)
-        <textarea
-          aria-label="Notas operativas"
-          placeholder="Ej. Trabajamos con proveedores externos según el evento."
-          className={inputClass}
-          maxLength={2000}
-          rows={3}
-          value={value.operationalNotes}
-          onChange={(event) =>
-            onChange({ ...value, operationalNotes: event.target.value })
-          }
-        />
-      </label>
     </div>
   );
 }

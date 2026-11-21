@@ -73,6 +73,11 @@ export default function EventosPage() {
             className="m-auto max-h-[calc(100dvh-2rem)] w-[min(96vw,74rem)] max-w-none overflow-hidden rounded-2xl border border-sky-blue bg-white p-0 text-navy shadow-2xl backdrop:bg-navy/60"
             ref={eventDialog}
           >
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0"
+              data-tour="event-create-tour-target"
+            />
             <div className="flex max-h-[calc(100dvh-2rem)] flex-col">
               <div className="flex shrink-0 items-start justify-between gap-4 border-b border-sky-blue bg-white px-5 py-4 sm:px-6 sm:py-5">
                 <div>

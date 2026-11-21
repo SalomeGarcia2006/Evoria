@@ -149,6 +149,11 @@ export function ResourceDialog({
           close();
       }}
     >
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0"
+        data-tour="resource-dialog-tour-target"
+      />
       <div className="flex items-start justify-between gap-4 border-b border-sky-blue p-6">
         <div className="min-w-0">
           <p className="text-sm font-semibold uppercase tracking-[.16em] text-muted">
@@ -244,6 +249,7 @@ export function ResourceDialog({
                   {canAdjust && resource.status !== 'inactivo' ? (
                     <>
                       <Button
+                        data-tour="resource-edit"
                         type="button"
                         onClick={() => {
                           setEditing(true);
@@ -253,6 +259,7 @@ export function ResourceDialog({
                         Editar recurso
                       </Button>
                       <Button
+                        data-tour="resource-deactivate"
                         variant="secondary"
                         type="button"
                         onClick={() => void requestDeactivation()}
