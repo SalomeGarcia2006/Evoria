@@ -70,7 +70,7 @@ export const pageSteps: Record<string, InteractiveStep[]> = {
       title: 'Empresa activa',
       selector: '[aria-label="Empresa activa"]',
       description:
-        'Aquí ves la empresa en la que trabajas y las opciones para entrar al dashboard o salir.',
+        'Aquí ves la empresa en la que trabajas y las opciones para entrar al panel principal o salir.',
     },
     {
       title: 'Información del propietario',
@@ -528,6 +528,7 @@ export const formGuides: Record<string, FormGuide> = {
       {
         title: 'Detalle del uso',
         selector: '[data-tour="budget-history-content"]',
+        dialogTarget: true,
         description:
           'Aquí puedes revisar los registros que componen ese gasto. Cierra el diálogo para continuar.',
         closeDialogOnNext: true,
@@ -555,6 +556,7 @@ export const formGuides: Record<string, FormGuide> = {
       {
         title: 'Tipo de solicitud',
         selector: '[data-tour="budget-request-type"]',
+        dialogTarget: true,
         permission: 'presupuestos.editar',
         description:
           'Elige si solicitas una ampliación del presupuesto o registras un costo adicional.',
@@ -563,12 +565,14 @@ export const formGuides: Record<string, FormGuide> = {
       {
         title: 'Monto solicitado',
         selector: '[data-tour="budget-request-amount"]',
+        dialogTarget: true,
         permission: 'presupuestos.editar',
         description: 'Indica el monto en pesos colombianos.',
       },
       {
         title: 'Motivo',
         selector: '[data-tour="budget-request-reason"]',
+        dialogTarget: true,
         permission: 'presupuestos.editar',
         description:
           'Explica por qué se necesita el cambio. La solicitud requiere un motivo antes de enviarse.',
@@ -576,6 +580,7 @@ export const formGuides: Record<string, FormGuide> = {
       {
         title: 'Envío de la solicitud',
         selector: '[data-tour="budget-action-submit"]',
+        dialogTarget: true,
         permission: 'presupuestos.editar',
         description:
           'Este botón enviaría la solicitud. El recorrido solo muestra el formulario y no enviará ningún dato.',

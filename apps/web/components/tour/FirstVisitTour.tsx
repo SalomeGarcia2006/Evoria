@@ -86,7 +86,7 @@ function manualTopicIcon(pathname: string, title: string): string {
 
 const guides: Record<string, ModuleGuide> = {
   '/dashboard': {
-    title: 'Resumen general',
+    title: 'Panel principal',
     description:
       'Consulta los indicadores y la actividad disponibles para tu empresa.',
     steps: [
@@ -1060,7 +1060,13 @@ export function FirstVisitTour() {
                   }
                   return;
                 }
-                if (formGuide.skipMissingFields) {
+                const formUsesWizardPages = formGuide.fields.some(
+                  (item) =>
+                    item.advanceWizardOnNext || item.returnWizardOnPrevious,
+                );
+                // Los campos de otras páginas del asistente aún no están en el DOM.
+                // Se esperan en sus pasos en lugar de eliminarlos al abrir el formulario.
+                if (formGuide.skipMissingFields && !formUsesWizardPages) {
                   const activeIndex = tour.getActiveIndex() ?? -1;
                   const missingStepIndexes = formGuideStepEntries
                     .filter(({ item, step }) => {
@@ -1421,12 +1427,19 @@ export function FirstVisitTour() {
             </p>
           ) : (
             <>
-              <p>Consulta cómo funciona el módulo en el que estás.</p>
               {hasNews ? (
                 <section className={styles.news} aria-label="Novedades">
-                  <h3>Novedades</h3>
+                  <h3 className={styles.newsHeading}>
+                    <span className={styles.newsHeadingLabel}>
+                      <span className={styles.newsIcon} aria-hidden="true">
+                        !
+                      </span>
+                      Novedades
+                    </span>
+                    <span className={styles.newsBadge}>Nuevo</span>
+                  </h3>
                   {showGuideUpdate && (
-                    <div>
+                    <div className={styles.newsItem}>
                       <h4 className={styles.newsTitle}>Guía actualizada</h4>
                       <p>
                         El manual de {guides[guidePathname]?.title} cambió.
@@ -1436,13 +1449,14 @@ export function FirstVisitTour() {
                     </div>
                   )}
                   {visibleNews.map((item) => (
-                    <div key={item.id}>
+                    <div key={item.id} className={styles.newsItem}>
                       <h4 className={styles.newsTitle}>{item.title}</h4>
                       <p>{item.description}</p>
                     </div>
                   ))}
                 </section>
               ) : null}
+              <p>Consulta cómo funciona el módulo en el que estás.</p>
               {guides[guidePathname] ? (
                 <button
                   type="button"
