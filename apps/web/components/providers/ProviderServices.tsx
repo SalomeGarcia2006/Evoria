@@ -166,6 +166,7 @@ export function ProviderServices({
                 <Button
                   className="disabled:cursor-not-allowed disabled:opacity-50"
                   disabled={cancelled || !budgetReady || updating}
+                  data-tour={inDialog ? 'assignment-service-open' : undefined}
                   onClick={() => setPanel('create')}
                 >
                   {inDialog

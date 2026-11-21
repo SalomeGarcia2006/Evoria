@@ -26,6 +26,16 @@ const labels = {
   finalizado: 'Finalizado',
   cancelado: 'Cancelado',
 };
+const statusColors: Record<(typeof EVENT_STATUSES)[number], string> = {
+  borrador: '#94a3b8',
+  planificado: '#3b82f6',
+  en_progreso: '#f59e0b',
+  finalizado: '#10b981',
+  cancelado: '#f43f5e',
+};
+const statusRingRadius = 80;
+const statusRingCircumference = 2 * Math.PI * statusRingRadius;
+const statusRingGap = 8;
 
 function daysUntil(date: Date, today: Date) {
   const calendarDay = (value: Date) =>
@@ -103,11 +113,45 @@ export default function DashboardPage() {
   }, [user, can, revision, notify]);
   const data = state?.owner === user ? state?.data : null;
   const summary = data?.summary;
-  const budgetItems = data?.budgets?.items.filter(
-    (budget) => budget.eventStatus !== 'cancelado',
-  );
   const now = new Date();
   const upcoming = summary?.events?.upcoming ?? [];
+  const upcomingEventOrder = new Map(
+    upcoming.map((event, index) => [event.id, index]),
+  );
+  const budgetItems = (data?.budgets?.items ?? [])
+    .filter(
+      (budget) =>
+        budget.eventStatus !== 'cancelado' &&
+        upcomingEventOrder.has(budget.eventId),
+    )
+    .sort(
+      (first, second) =>
+        (upcomingEventOrder.get(first.eventId) ?? Number.MAX_SAFE_INTEGER) -
+        (upcomingEventOrder.get(second.eventId) ?? Number.MAX_SAFE_INTEGER),
+    )
+    .slice(0, 4);
+  const eventStatusBreakdown = EVENT_STATUSES.map((status, index) => {
+    const count = summary?.events?.byStatus[status] ?? 0;
+    const total = summary?.events?.total ?? 0;
+    const previousStatusCount = EVENT_STATUSES.slice(0, index).reduce(
+      (sum, previousStatus) =>
+        sum + (summary?.events?.byStatus[previousStatus] ?? 0),
+      0,
+    );
+    const segmentLength = total ? (statusRingCircumference * count) / total : 0;
+    return {
+      status,
+      count,
+      percent: total ? (count / total) * 100 : 0,
+      offset: total
+        ? (statusRingCircumference * previousStatusCount) / total
+        : 0,
+      segmentLength,
+    };
+  });
+  const activeStatusCount = eventStatusBreakdown.filter(
+    (item) => item.count > 0,
+  ).length;
   const metrics = [
     ...(summary?.events
       ? [
@@ -147,7 +191,7 @@ export default function DashboardPage() {
       : []),
   ];
   return (
-    <AppShell title="Dashboard">
+    <AppShell title="Panel principal">
       <div className="grid gap-6 dashboard-page">
         <FeedbackMessages feedback={feedback} />
         <section className="dashboard-hero">
@@ -237,31 +281,107 @@ export default function DashboardPage() {
         <section className="grid gap-6 xl:grid-cols-2">
           {summary?.events && (
             <Card>
-              <h3 className="text-lg font-bold">Eventos por estado</h3>
-              <div className="mt-5 grid gap-4">
-                {EVENT_STATUSES.map((status) => {
-                  const count = summary.events!.byStatus[status];
-                  const percent = summary.events!.total
-                    ? (count / summary.events!.total) * 100
-                    : 0;
-                  return (
-                    <div key={status}>
-                      <div className="mb-2 flex justify-between text-sm">
-                        <span>{labels[status]}</span>
-                        <span>
-                          {count} ({Math.round(percent)}%)
-                        </span>
-                      </div>
-                      <div className="h-2 rounded-full bg-beige">
-                        <div
-                          className="h-full rounded-full bg-linear-to-r from-teal to-violet"
-                          style={{ width: `${percent}%` }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
+              <div className="flex items-center justify-between gap-4">
+                <h3 className="text-lg font-bold">Eventos por estado</h3>
+                <span className="shrink-0 text-sm text-muted">
+                  {summary.events.total}{' '}
+                  {summary.events.total === 1 ? 'evento' : 'eventos'} en total
+                </span>
               </div>
+              <div className="mt-5 grid items-center gap-5 md:grid-cols-[minmax(12rem,0.9fr)_minmax(0,1.5fr)]">
+                <div className="flex justify-center">
+                  <svg
+                    aria-label={`Distribución de ${summary.events.total} eventos por estado`}
+                    className="size-52 shrink-0 sm:size-60"
+                    viewBox="0 0 200 200"
+                  >
+                    <title>Distribución de eventos por estado</title>
+                    <circle
+                      cx="100"
+                      cy="100"
+                      r={statusRingRadius}
+                      fill="none"
+                      stroke="var(--evoria-border)"
+                      strokeOpacity="0.45"
+                      strokeWidth="18"
+                    />
+                    {eventStatusBreakdown
+                      .filter((item) => item.count > 0)
+                      .map(({ status, offset, segmentLength }) => {
+                        const gap = activeStatusCount > 1 ? statusRingGap : 0;
+                        const visibleLength = Math.max(0, segmentLength - gap);
+                        return (
+                          <Link
+                            key={status}
+                            href={`/eventos?status=${status}`}
+                            aria-label={`Filtrar eventos por ${labels[status]}`}
+                            className="status-donut-segment-link"
+                          >
+                            <circle
+                              cx="100"
+                              cy="100"
+                              r={statusRingRadius}
+                              fill="none"
+                              stroke={statusColors[status]}
+                              strokeDasharray={`${visibleLength} ${statusRingCircumference - visibleLength}`}
+                              strokeDashoffset={-(offset + gap / 2)}
+                              strokeLinecap="butt"
+                              strokeWidth="18"
+                              transform="rotate(-90 100 100)"
+                            />
+                          </Link>
+                        );
+                      })}
+                    <text
+                      x="100"
+                      y="96"
+                      textAnchor="middle"
+                      className="text-4xl font-bold"
+                      style={{ fill: 'var(--evoria-ink)' }}
+                    >
+                      {summary.events.total}
+                    </text>
+                    <text
+                      x="100"
+                      y="121"
+                      textAnchor="middle"
+                      className="text-sm"
+                      style={{ fill: 'var(--evoria-muted)' }}
+                    >
+                      eventos
+                    </text>
+                  </svg>
+                </div>
+                <div className="divide-y divide-sky-blue">
+                  {eventStatusBreakdown.map(({ status, count, percent }) => (
+                    <Link
+                      key={status}
+                      href={`/eventos?status=${status}`}
+                      className={`grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3 py-3 text-sm transition hover:bg-beige/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal sm:gap-4 ${count === 0 ? 'opacity-45' : ''}`}
+                      aria-label={`Filtrar eventos por ${labels[status]}: ${count} (${Math.round(percent)}%)`}
+                    >
+                      <span className="flex min-w-0 items-center gap-3">
+                        <span
+                          aria-hidden="true"
+                          className="size-3 shrink-0 rounded-full"
+                          style={{ backgroundColor: statusColors[status] }}
+                        />
+                        <span className="truncate">{labels[status]}</span>
+                      </span>
+                      <span className="font-semibold">{count}</span>
+                      <span className="w-12 text-right text-muted">
+                        {Math.round(percent)}%
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+              <p className="mt-4 flex items-center gap-2 border-t border-sky-blue pt-4 text-sm text-muted">
+                <span aria-hidden="true" className="text-lg leading-none">
+                  ↗
+                </span>
+                Haz clic en un estado para filtrar la tabla de eventos.
+              </p>
               {summary.events.total === 0 && (
                 <p className="mt-4 text-sm text-muted">
                   No hay eventos registrados.

@@ -19,7 +19,7 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-evoria_local_password}
       MONGO_INITDB_DATABASE: ${MONGO_DATABASE:-evoria}
     ports:
-      - '127.0.0.1:27017:27017'
+      - '127.0.0.1:27018:27017'
     volumes:
       - mongo_replica_data:/data/db
       - mongo_replica_key:/data/replica-key

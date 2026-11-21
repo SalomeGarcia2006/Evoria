@@ -268,7 +268,11 @@ export function EventAssignmentsDialog({
       }
     >
       <FeedbackMessages feedback={feedback} />
-      <div className="grid min-w-0 gap-6">
+      <div
+        className="grid min-w-0 gap-6"
+        data-tour="assignment-guide-ready"
+        data-ready={updating ? 'false' : 'true'}
+      >
         {!allowed ? (
           <p role="status">No tienes permiso para consultar este evento.</p>
         ) : error && !visibleEvent ? (

@@ -60,6 +60,10 @@ function PermissionSwitch({
   );
 }
 
+function permissionModuleLabel(module: PermissionModule) {
+  return module.key === 'dashboard' ? 'Panel principal' : module.name;
+}
+
 export default function PerfilesPage() {
   const { can } = useAuth();
   const feedback = useFeedback();
@@ -122,7 +126,9 @@ export default function PerfilesPage() {
   }
 
   const visibleModules = permissionModules.filter((module) =>
-    module.name.toLowerCase().includes(moduleSearch.toLowerCase()),
+    permissionModuleLabel(module)
+      .toLowerCase()
+      .includes(moduleSearch.toLowerCase()),
   );
   const allPermissionKeys = permissionModules.flatMap((module) =>
     module.permissions.map((permission) => permission.key),
@@ -419,7 +425,9 @@ export default function PerfilesPage() {
                               width={22}
                             />
                           </span>
-                          <h4 className="font-semibold">{module.name}</h4>
+                          <h4 className="font-semibold">
+                            {permissionModuleLabel(module)}
+                          </h4>
                         </div>
                         <div className="grid grid-cols-4 gap-3 px-6 py-4">
                           {module.permissions.map((permission) => (
@@ -434,7 +442,7 @@ export default function PerfilesPage() {
                                 checked={newProfilePermissionKeys.includes(
                                   permission.key,
                                 )}
-                                label={`${permission.name} en ${module.name}`}
+                                label={`${permission.name} en ${permissionModuleLabel(module)}`}
                                 onChange={() =>
                                   setNewProfilePermissionKeys((current) =>
                                     current.includes(permission.key)

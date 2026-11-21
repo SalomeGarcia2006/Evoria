@@ -257,19 +257,13 @@ async function openBudget(page) {
       .getByRole('heading', { name: 'Evento financiero', exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByRole('button', { name: 'Añadir presupuesto' }),
+    page.getByRole('button', { name: 'Solicitar cambio' }),
   ).toBeVisible();
 }
 async function requestChange(page, type = 'ampliacion') {
-  await page
-    .getByRole('button', {
-      name:
-        type === 'ampliacion'
-          ? 'Añadir presupuesto'
-          : 'Registrar costo adicional',
-    })
-    .click();
+  await page.getByRole('button', { name: 'Solicitar cambio' }).click();
   const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('Tipo de solicitud').selectOption(type);
   await expect(dialog.getByLabel('Tipo de solicitud')).toHaveValue(type);
   await dialog.getByLabel('Monto solicitado (COP)').fill('2000');
   await dialog
@@ -308,7 +302,7 @@ test('actualizar presupuesto valida cambios y permite consultar tras una solicit
     ),
   ).toHaveLength(before);
   await alert.getByRole('button', { name: 'Entendido' }).click();
-  await page.getByRole('button', { name: 'Añadir presupuesto' }).click();
+  await page.getByRole('button', { name: 'Solicitar cambio' }).click();
   const action = page.getByRole('dialog', {
     name: 'Solicitar cambio de presupuesto',
   });
@@ -375,7 +369,7 @@ test('eventos activos aparecen como tarjetas sin búsqueda y cargan todas las p�
     page.getByRole('heading', { name: 'Solicitudes y decisiones' }),
   ).toBeVisible();
   await expect(
-    page.getByRole('button', { name: 'Añadir presupuesto' }),
+    page.getByRole('button', { name: 'Solicitar cambio' }),
   ).toBeVisible();
   await page.screenshot({
     path: test.info().outputPath('detalle-presupuesto.png'),
@@ -715,7 +709,7 @@ test('solo lectura: sin operaciones de presupuesto; errores 403 y 404 claros y r
   ).toBeVisible();
   await expect(
     page.getByRole('button', {
-      name: /Añadir presupuesto|Registrar costo adicional|Aprobar|Rechazar|Iniciar presupuesto/,
+      name: /Solicitar cambio|Aprobar|Rechazar|Iniciar presupuesto/,
     }),
   ).toHaveCount(0);
   await page.goto('/presupuestos?view=authorizations');
@@ -758,7 +752,7 @@ test('evento cancelado: conserva detalle sin solicitudes ni decisiones nuevas', 
     page.getByText(/Evento cancelado: se conserva el historial/),
   ).toBeVisible();
   await expect(
-    page.getByRole('button', { name: 'Añadir presupuesto' }),
+    page.getByRole('button', { name: 'Solicitar cambio' }),
   ).toHaveCount(0);
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth > window.innerWidth,
@@ -787,7 +781,7 @@ test('desarrollador usa los permisos efectivos de la empresa', async ({
     .getByRole('button', { name: 'Ver presupuesto de Evento financiero' })
     .click();
   await expect(
-    page.getByRole('button', { name: 'Añadir presupuesto' }),
+    page.getByRole('button', { name: 'Solicitar cambio' }),
   ).toHaveCount(0);
 });
 
@@ -798,7 +792,7 @@ test('solicitud valida COP y motivo, conserva formulario ante 403 y oculta autoa
     permissions: [...basePermissions, 'presupuestos.aprobar'],
   });
   await openBudget(page);
-  await page.getByRole('button', { name: 'Añadir presupuesto' }).click();
+  await page.getByRole('button', { name: 'Solicitar cambio' }).click();
   const dialog = page.getByRole('dialog');
   await dialog.getByRole('button', { name: 'Enviar solicitud' }).click();
   await expect(page.getByRole('alertdialog')).toContainText('Revisa los datos');

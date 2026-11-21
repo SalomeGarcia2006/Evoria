@@ -20,7 +20,6 @@ import panelHeadingStyles from '../../components/ui/PanelHeading.module.css';
 import { FeedbackMessages, useFeedback } from '../../components/ui/Feedback';
 import { TenantSelector } from '../../components/tenants/TenantSelector';
 import { TenantContextPanel } from '../../components/tenants/TenantContextPanel';
-import { TenantFormStep } from '../../components/tenants/TenantFormStep';
 import {
   TenantCreationContext,
   emptyCreationContext,
@@ -78,12 +77,59 @@ function PasswordVisibilityButton({
   );
 }
 
+type TenantCreationStep = 1 | 2 | 3;
+
+const tenantCreationSteps: { number: TenantCreationStep; title: string }[] = [
+  { number: 1, title: 'Datos de la empresa' },
+  { number: 2, title: 'Contexto operativo' },
+  { number: 3, title: 'Información adicional' },
+];
+
+function validateCompanyDetails(form: HTMLFormElement): string[] {
+  const formData = new FormData(form);
+  const name = String(formData.get('name') ?? '').trim();
+  const nit = String(formData.get('nit') ?? '').trim();
+  const ownerName = String(formData.get('ownerName') ?? '').trim();
+  const ownerEmail = String(formData.get('ownerEmail') ?? '').trim();
+  const ownerPassword = String(formData.get('ownerPassword') ?? '');
+  const confirmation = String(formData.get('confirmOwnerPassword') ?? '');
+  const emailInput = form.elements.namedItem(
+    'ownerEmail',
+  ) as HTMLInputElement | null;
+  const errors: string[] = [];
+
+  if (!name) errors.push('Ingresa el nombre de la empresa.');
+  if (name.length > 120)
+    errors.push('El nombre de la empresa no puede superar los 120 caracteres.');
+  const nitValidation = validateNit(nit);
+  if (!nitValidation.valid) errors.push(nitValidation.message);
+  if (ownerName.length < 2)
+    errors.push('Ingresa el nombre del propietario con al menos 2 caracteres.');
+  if (!ownerEmail || emailInput?.validity.typeMismatch)
+    errors.push('Ingresa un correo válido para el propietario.');
+  if (
+    !/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,128}$/.test(
+      ownerPassword,
+    )
+  )
+    errors.push(
+      'La contraseña debe tener entre 8 y 128 caracteres, una minúscula, una mayúscula, un número y un carácter especial.',
+    );
+  if (!confirmation.trim())
+    errors.push('Confirma la contraseña del propietario.');
+  else if (ownerPassword !== confirmation)
+    errors.push('Las contraseñas no coinciden.');
+
+  return errors;
+}
+
 export default function EmpresasPage() {
   const { user, refreshSession } = useAuth();
   const feedback = useFeedback();
   const [isSaving, setIsSaving] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [activeStep, setActiveStep] = useState<TenantCreationStep>(1);
   const [error, setError] = useState('');
   const [createdTenant, setCreatedTenant] = useState<CreatedTenant | null>(
     null,
@@ -94,6 +140,7 @@ export default function EmpresasPage() {
     context: TenantContextUpdate;
   } | null>(null);
   const [contextPendingNotice, setContextPendingNotice] = useState(false);
+  const [preserveCreateDraft, setPreserveCreateDraft] = useState(false);
   const companyDialog = useRef<HTMLDialogElement>(null);
   const companyForm = useRef<HTMLFormElement>(null);
 
@@ -101,9 +148,35 @@ export default function EmpresasPage() {
     setError('');
     setShowPassword(false);
     setShowConfirmation(false);
-    companyForm.current?.reset();
-    setContextDraft(emptyCreationContext());
+    if (pendingContext || preserveCreateDraft) {
+      if (pendingContext) setActiveStep(3);
+    } else {
+      setActiveStep(1);
+      companyForm.current?.reset();
+      setContextDraft(emptyCreationContext());
+    }
     companyDialog.current?.showModal();
+  }
+
+  function showSubmissionWarning(
+    failure: unknown,
+    contextAlreadyCreated: boolean,
+  ) {
+    const detail =
+      failure instanceof Error && failure.message
+        ? `\n\nDetalle: ${failure.message}`
+        : '';
+    const message = contextAlreadyCreated
+      ? 'La empresa sí se creó, pero no se guardó su contexto operativo. La sesión seguía vinculada a otra empresa en otro navegador y no se pudo completar el cambio de contexto. Los datos se conservaron; no vuelvas a crear la empresa. Sal de la otra empresa y luego pulsa «Reintentar guardar contexto».'
+      : 'No se pudo crear la empresa. Si tu sesión sigue vinculada a otra empresa en otro navegador, sal de esa empresa y vuelve a intentarlo. Los datos ingresados se conservaron en este formulario.';
+
+    feedback.guide(
+      `${message}${detail}`,
+      contextAlreadyCreated
+        ? 'Contexto operativo pendiente'
+        : 'No se pudo crear la empresa',
+      'warning',
+    );
   }
 
   async function saveCreatedContext(pending: {
@@ -148,23 +221,33 @@ export default function EmpresasPage() {
     setCreatedTenant(pending.tenant);
     setPendingContext(null);
     setContextPendingNotice(false);
+    setPreserveCreateDraft(false);
     setContextDraft(emptyCreationContext());
     companyForm.current?.reset();
     companyDialog.current?.close();
+  }
+
+  function advanceStep() {
+    if (activeStep === 3 || isSaving || pendingContext) return;
+    setError('');
+    setActiveStep((activeStep + 1) as TenantCreationStep);
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (isSaving) return;
     setError('');
+    if (activeStep < 3) {
+      advanceStep();
+      return;
+    }
     if (pendingContext) {
       setIsSaving(true);
       try {
         await finishPending(pendingContext);
       } catch (err) {
-        setError(
-          `La empresa ya fue creada, pero no se guardó el contexto: ${err instanceof Error ? err.message : 'Intenta nuevamente.'}`,
-        );
+        setPreserveCreateDraft(true);
+        showSubmissionWarning(err, true);
       } finally {
         setIsSaving(false);
       }
@@ -179,41 +262,16 @@ export default function EmpresasPage() {
       ownerEmail: String(formData.get('ownerEmail') ?? '').trim(),
       ownerPassword: String(formData.get('ownerPassword') ?? ''),
     };
-    const confirmation = String(formData.get('confirmOwnerPassword') ?? '');
-    const errors: string[] = [];
-    if (!payload.name) errors.push('Ingresa el nombre de la empresa.');
-    if (payload.name.length > 120)
-      errors.push(
-        'El nombre de la empresa no puede superar los 120 caracteres.',
-      );
+    const companyErrors = validateCompanyDetails(form);
+    const contextErrors = validateCreationContext(contextDraft);
     const nit = validateNit(payload.nit);
-    if (!nit.valid) errors.push(nit.message);
-    if (payload.ownerName.length < 2)
-      errors.push(
-        'Ingresa el nombre del propietario con al menos 2 caracteres.',
-      );
-    const emailInput = form.elements.namedItem(
-      'ownerEmail',
-    ) as HTMLInputElement | null;
-    if (!payload.ownerEmail || emailInput?.validity.typeMismatch)
-      errors.push('Ingresa un correo válido para el propietario.');
-    if (
-      !/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,128}$/.test(
-        payload.ownerPassword,
-      )
-    )
-      errors.push(
-        'La contraseña debe tener entre 8 y 128 caracteres, una minúscula, una mayúscula, un número y un carácter especial.',
-      );
-    if (!confirmation.trim())
-      errors.push('Confirma la contraseña del propietario.');
-    else if (payload.ownerPassword !== confirmation)
-      errors.push('Las contraseñas no coinciden.');
-    errors.push(...validateCreationContext(contextDraft));
-    if (errors.length) {
+    if (companyErrors.length || contextErrors.length) {
+      setActiveStep(companyErrors.length ? 1 : 2);
       feedback.guide(
-        errors.join('\n'),
-        'Revisa los datos de la empresa',
+        [...companyErrors, ...contextErrors].join('\n'),
+        companyErrors.length
+          ? 'Revisa los datos de la empresa'
+          : 'Completa el contexto operativo',
         'error',
       );
       return;
@@ -226,20 +284,18 @@ export default function EmpresasPage() {
       const tenant = await createTenant(payload);
       const context = creationContextPayload(contextDraft);
       const pending = { tenant, context };
+      setCreatedTenant(tenant);
       setPendingContext(pending);
+      setContextPendingNotice(true);
       try {
         await finishPending(pending);
       } catch (err) {
-        setError(
-          `La empresa ya fue creada, pero no se guardó el contexto: ${err instanceof Error ? err.message : 'Intenta nuevamente.'}`,
-        );
+        setPreserveCreateDraft(true);
+        showSubmissionWarning(err, true);
       }
     } catch (submitError) {
-      setError(
-        submitError instanceof Error
-          ? submitError.message
-          : 'No fue posible crear la empresa. Inténtalo de nuevo.',
-      );
+      setPreserveCreateDraft(true);
+      showSubmissionWarning(submitError, false);
     } finally {
       setIsSaving(false);
     }
@@ -248,6 +304,7 @@ export default function EmpresasPage() {
   return (
     <AppShell hideTitle title="Empresas">
       <div className="grid min-w-0 gap-6">
+        <FeedbackMessages feedback={feedback} />
         <PageHero
           title="Empresas"
           description={
@@ -293,42 +350,42 @@ export default function EmpresasPage() {
           <TenantContextPanel key={user.tenant?.id} />
         )}
 
-        {pendingContext &&
-          user?.scope === 'tenant' &&
-          user.tenant?.id === pendingContext.tenant.id && (
-            <Card>
-              <p role="alert" className="text-sm text-red-800">
-                La empresa fue creada, pero su contexto aún no se ha guardado.
-                Puedes reintentarlo desde aquí.
+        {pendingContext && (
+          <Card>
+            <p role="alert" className="text-sm text-red-800">
+              La empresa fue creada, pero su contexto operativo está pendiente.
+              Los datos ingresados se conservaron y puedes reintentar guardarlos
+              desde aquí.
+            </p>
+            <Button
+              className="mt-3"
+              disabled={isSaving}
+              onClick={async () => {
+                setIsSaving(true);
+                try {
+                  await finishPending(pendingContext);
+                  setError('');
+                } catch (err) {
+                  setError(
+                    err instanceof Error
+                      ? err.message
+                      : 'No se pudo guardar el contexto.',
+                  );
+                  showSubmissionWarning(err, true);
+                } finally {
+                  setIsSaving(false);
+                }
+              }}
+            >
+              Reintentar guardar contexto
+            </Button>
+            {error && (
+              <p role="alert" className="mt-3 text-sm text-red-800">
+                {error}
               </p>
-              <Button
-                className="mt-3"
-                disabled={isSaving}
-                onClick={async () => {
-                  setIsSaving(true);
-                  try {
-                    await finishPending(pendingContext);
-                    setError('');
-                  } catch (err) {
-                    setError(
-                      err instanceof Error
-                        ? err.message
-                        : 'No se pudo guardar el contexto.',
-                    );
-                  } finally {
-                    setIsSaving(false);
-                  }
-                }}
-              >
-                Reintentar guardar contexto
-              </Button>
-              {error && (
-                <p role="alert" className="mt-3 text-sm text-red-800">
-                  {error}
-                </p>
-              )}
-            </Card>
-          )}
+            )}
+          </Card>
+        )}
 
         {createdTenant ? (
           <Card>
@@ -366,7 +423,6 @@ export default function EmpresasPage() {
                 if (isSaving || pendingContext) event.preventDefault();
               }}
             >
-              <FeedbackMessages feedback={feedback} />
               <div
                 className={`flex items-start justify-between gap-4 border-b border-sky-blue p-6 ${panelHeadingStyles.heading}`}
               >
@@ -403,6 +459,43 @@ export default function EmpresasPage() {
                 onSubmit={handleSubmit}
                 ref={companyForm}
               >
+                <ol
+                  aria-label="Pasos para crear una empresa"
+                  className="grid grid-cols-3 gap-2 sm:col-span-2"
+                >
+                  {tenantCreationSteps.map(({ number, title }) => {
+                    const isCurrent = activeStep === number;
+                    const isComplete = activeStep > number;
+                    return (
+                      <li
+                        aria-current={isCurrent ? 'step' : undefined}
+                        className="min-w-0"
+                        key={number}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`grid size-8 shrink-0 place-items-center rounded-full text-sm font-bold ${
+                              isCurrent || isComplete
+                                ? 'bg-violet text-white'
+                                : 'bg-sky-blue/50 text-muted'
+                            }`}
+                          >
+                            {number}
+                          </span>
+                          <span
+                            className={`text-xs leading-tight sm:text-sm ${
+                              isCurrent
+                                ? 'font-bold text-navy'
+                                : 'font-medium text-muted'
+                            }`}
+                          >
+                            {title}
+                          </span>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ol>
                 {error ? (
                   <p
                     className="rounded-lg bg-red-50 p-3 text-sm text-red-800 sm:col-span-2"
@@ -415,124 +508,128 @@ export default function EmpresasPage() {
                   disabled={isSaving || !!pendingContext}
                   className="contents"
                 >
-                  <TenantFormStep number={1} title="Datos de la empresa" />
-                  <label className="grid gap-2 text-sm font-semibold">
-                    Nombre de la empresa
-                    <input
-                      autoComplete="organization"
-                      className={fieldClassName}
-                      minLength={1}
-                      name="name"
-                      onChange={(event) => {
-                        const input = event.currentTarget;
-                        if (input.value.length <= 120) return;
-                        input.value = input.value.slice(0, 120);
-                        feedback.guide(
-                          'El nombre de la empresa admite hasta 120 caracteres, de acuerdo con el límite del sistema.',
-                          'Límite de caracteres',
-                          'error',
-                        );
-                      }}
-                      placeholder="Ej. Eventos Andinos"
-                      required
-                    />
-                  </label>
-                  <label className="grid gap-2 text-sm font-semibold">
-                    NIT
-                    <input
-                      className={fieldClassName}
-                      maxLength={21}
-                      placeholder="Ej. 860324218-1"
-                      name="nit"
-                      required
-                    />
-                  </label>
-                  <label className="grid gap-2 text-sm font-semibold">
-                    Nombre del propietario
-                    <input
-                      autoComplete="name"
-                      className={fieldClassName}
-                      maxLength={120}
-                      minLength={2}
-                      name="ownerName"
-                      placeholder="Ej. Ana García"
-                      required
-                    />
-                  </label>
-                  <label className="grid gap-2 text-sm font-semibold">
-                    Correo del propietario
-                    <input
-                      autoComplete="email"
-                      className={fieldClassName}
-                      maxLength={150}
-                      name="ownerEmail"
-                      placeholder="Ej. ana@ejemplo.com"
-                      required
-                      type="email"
-                    />
-                  </label>
-                  <label className="grid gap-2 text-sm font-semibold">
-                    Contraseña inicial del propietario
-                    <span className="relative block">
+                  <section
+                    aria-label="Paso 1: Datos de la empresa"
+                    className="grid gap-4 sm:col-span-2 sm:grid-cols-2"
+                    style={{ display: activeStep === 1 ? 'grid' : 'none' }}
+                  >
+                    <label className="grid gap-2 text-sm font-semibold">
+                      Nombre de la empresa
                       <input
-                        autoComplete="new-password"
-                        className={`${fieldClassName} pr-12`}
-                        minLength={8}
-                        maxLength={128}
-                        name="ownerPassword"
-                        placeholder="8 a 128 caracteres, con mayúscula, número y símbolo"
+                        autoComplete="organization"
+                        className={fieldClassName}
+                        minLength={1}
+                        name="name"
+                        placeholder="Ej. Eventos Andinos"
                         required
-                        type={showPassword ? 'text' : 'password'}
                       />
-                      <PasswordVisibilityButton
-                        field="contraseña del propietario"
-                        onClick={() => setShowPassword(!showPassword)}
-                        visible={showPassword}
-                      />
-                    </span>
-                  </label>
-                  <label className="grid gap-2 text-sm font-semibold">
-                    Confirmar contraseña del propietario
-                    <span className="relative block">
+                    </label>
+                    <label className="grid gap-2 text-sm font-semibold">
+                      NIT
                       <input
-                        autoComplete="new-password"
-                        className={`${fieldClassName} pr-12`}
-                        minLength={8}
-                        maxLength={128}
-                        name="confirmOwnerPassword"
-                        placeholder="Repite la contraseña"
+                        className={fieldClassName}
+                        maxLength={21}
+                        placeholder="Ej. 860324218-1"
+                        name="nit"
                         required
-                        type={showConfirmation ? 'text' : 'password'}
                       />
-                      <PasswordVisibilityButton
-                        field="confirmación de contraseña"
-                        onClick={() => setShowConfirmation(!showConfirmation)}
-                        visible={showConfirmation}
+                    </label>
+                    <label className="grid gap-2 text-sm font-semibold">
+                      Nombre del propietario
+                      <input
+                        autoComplete="name"
+                        className={fieldClassName}
+                        maxLength={120}
+                        minLength={2}
+                        name="ownerName"
+                        placeholder="Ej. Ana García"
+                        required
                       />
-                    </span>
-                  </label>
-                  <TenantCreationContext
-                    value={contextDraft}
-                    onChange={setContextDraft}
-                  />
+                    </label>
+                    <label className="grid gap-2 text-sm font-semibold">
+                      Correo del propietario
+                      <input
+                        autoComplete="email"
+                        className={fieldClassName}
+                        maxLength={150}
+                        name="ownerEmail"
+                        placeholder="Ej. ana@ejemplo.com"
+                        required
+                        type="email"
+                      />
+                    </label>
+                    <label className="grid gap-2 text-sm font-semibold">
+                      Contraseña inicial del propietario
+                      <span className="relative block">
+                        <input
+                          autoComplete="new-password"
+                          className={`${fieldClassName} pr-12`}
+                          minLength={8}
+                          maxLength={128}
+                          name="ownerPassword"
+                          placeholder="8 a 128 caracteres, con mayúscula, número y símbolo"
+                          required
+                          type={showPassword ? 'text' : 'password'}
+                        />
+                        <PasswordVisibilityButton
+                          field="contraseña del propietario"
+                          onClick={() => setShowPassword(!showPassword)}
+                          visible={showPassword}
+                        />
+                      </span>
+                    </label>
+                    <label className="grid gap-2 text-sm font-semibold">
+                      Confirmar contraseña del propietario
+                      <span className="relative block">
+                        <input
+                          autoComplete="new-password"
+                          className={`${fieldClassName} pr-12`}
+                          minLength={8}
+                          maxLength={128}
+                          name="confirmOwnerPassword"
+                          placeholder="Repite la contraseña"
+                          required
+                          type={showConfirmation ? 'text' : 'password'}
+                        />
+                        <PasswordVisibilityButton
+                          field="confirmación de contraseña"
+                          onClick={() => setShowConfirmation(!showConfirmation)}
+                          visible={showConfirmation}
+                        />
+                      </span>
+                    </label>
+                  </section>
+                  <section
+                    aria-label="Paso 2: Contexto operativo"
+                    className="sm:col-span-2"
+                    style={{ display: activeStep === 2 ? 'block' : 'none' }}
+                  >
+                    <TenantCreationContext
+                      step={2}
+                      value={contextDraft}
+                      onChange={setContextDraft}
+                    />
+                  </section>
+                  <section
+                    aria-label="Paso 3: Información adicional"
+                    className="sm:col-span-2"
+                    style={{ display: activeStep === 3 ? 'block' : 'none' }}
+                  >
+                    <TenantCreationContext
+                      step={3}
+                      value={contextDraft}
+                      onChange={setContextDraft}
+                    />
+                  </section>
                 </fieldset>
-                <div className="flex flex-wrap gap-3 pt-5 sm:col-span-2">
-                  <Button disabled={isSaving} type="submit">
-                    {isSaving
-                      ? 'Guardando…'
-                      : pendingContext
-                        ? 'Reintentar guardar contexto'
-                        : 'Crear empresa'}
-                  </Button>
+                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-sky-blue pt-4 sm:col-span-2">
                   <Button
                     disabled={isSaving}
                     onClick={() => {
                       if (pendingContext) {
                         setCreatedTenant(pendingContext.tenant);
                         setContextPendingNotice(true);
-                        setPendingContext(null);
-                        setContextDraft(emptyCreationContext());
-                        setError('');
+                        setPreserveCreateDraft(true);
                       }
                       companyDialog.current?.close();
                     }}
@@ -541,6 +638,37 @@ export default function EmpresasPage() {
                   >
                     {pendingContext ? 'Completar contexto después' : 'Cancelar'}
                   </Button>
+                  <div className="flex flex-wrap justify-end gap-3">
+                    {activeStep > 1 ? (
+                      <Button
+                        disabled={isSaving || !!pendingContext}
+                        onClick={() =>
+                          setActiveStep((activeStep - 1) as TenantCreationStep)
+                        }
+                        type="button"
+                        variant="secondary"
+                      >
+                        Anterior
+                      </Button>
+                    ) : null}
+                    {activeStep < 3 ? (
+                      <Button
+                        disabled={isSaving || !!pendingContext}
+                        onClick={advanceStep}
+                        type="button"
+                      >
+                        Siguiente
+                      </Button>
+                    ) : (
+                      <Button disabled={isSaving} type="submit">
+                        {isSaving
+                          ? 'Creando empresa…'
+                          : pendingContext
+                            ? 'Reintentar guardar contexto'
+                            : 'Crear empresa'}
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </form>
             </dialog>

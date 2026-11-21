@@ -184,8 +184,8 @@ export const INITIAL_PERMISSION_MODULES = [
   },
   {
     key: 'dashboard',
-    name: 'Dashboard',
-    description: 'Consulta de métricas generales de la empresa.',
+    name: 'Panel principal',
+    description: 'Consulta de indicadores generales de la empresa.',
     scope: 'tenant',
     actions: [{ key: 'ver', name: 'Ver' }],
   },

@@ -527,6 +527,7 @@ export function EventResources({
                         className="mt-3"
                         type="button"
                         variant="secondary"
+                        data-tour="assignment-release-resource"
                         disabled={busy || updating || loading}
                         onClick={() => void release(item)}
                       >
@@ -577,6 +578,7 @@ export function EventResources({
                               <Button
                                 type="button"
                                 variant="secondary"
+                                data-tour="assignment-release-resource"
                                 disabled={busy || loading}
                                 onClick={() => void release(item)}
                               >

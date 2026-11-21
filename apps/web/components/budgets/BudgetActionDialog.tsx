@@ -161,7 +161,10 @@ export function BudgetActionDialog({
         )}
         <fieldset disabled={busy} className="grid gap-4">
           {action.kind === 'request' && (
-            <label className="grid gap-2 text-sm font-semibold">
+            <label
+              className="grid gap-2 text-sm font-semibold"
+              data-tour="budget-request-type"
+            >
               Tipo de solicitud
               <select
                 className={inputClass}
@@ -186,11 +189,15 @@ export function BudgetActionDialog({
               required
               inputMode="numeric"
               error={errors.amount}
+              data-tour="budget-request-amount"
               onChange={(event) => setAmount(event.target.value)}
             />
           )}
           {(action.kind === 'request' || action.kind === 'reject') && (
-            <div className="grid gap-2 text-sm font-semibold">
+            <div
+              className="grid gap-2 text-sm font-semibold"
+              data-tour="budget-request-reason"
+            >
               <label htmlFor={reasonId}>
                 {action.kind === 'reject' ? 'Motivo de rechazo' : 'Motivo'}
               </label>
@@ -222,7 +229,10 @@ export function BudgetActionDialog({
           </p>
         )}
         {action.kind === 'request' && (
-          <p className="text-sm text-muted">
+          <p
+            className="text-sm text-muted"
+            data-tour="budget-request-explanation"
+          >
             {type === 'ampliacion'
               ? 'Solicita dinero adicional para el evento. Al aprobarse, se suma al total asignado y al disponible; el presupuesto base conserva su valor.'
               : 'Registra un gasto que no corresponde a inventario ni a servicios ya asignados. Al aprobarse, consume saldo disponible; no añade dinero al presupuesto.'}{' '}
@@ -239,7 +249,7 @@ export function BudgetActionDialog({
           >
             Volver
           </Button>
-          <Button disabled={busy || blocked}>
+          <Button data-tour="budget-action-submit" disabled={busy || blocked}>
             {busy
               ? 'Guardando…'
               : action.kind === 'approve'

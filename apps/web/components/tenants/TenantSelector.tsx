@@ -11,6 +11,7 @@ import {
 } from '../../services/tenants.service';
 import { ConfirmProviderAction } from '../providers/ConfirmProviderAction';
 import { Button } from '../ui/Button';
+import { FeedbackMessages, useFeedback } from '../ui/Feedback';
 import panelHeadingStyles from '../ui/PanelHeading.module.css';
 import tenantCardStyles from './TenantCards.module.css';
 
@@ -22,6 +23,7 @@ export function TenantSelector({
   createdTenant?: CreatedTenant | null;
 }) {
   const { user, selectTenant } = useAuth();
+  const feedback = useFeedback();
   const [tenants, setTenants] = useState<TenantOption[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isChanging, setIsChanging] = useState(false);
@@ -73,11 +75,24 @@ export function TenantSelector({
       );
       if (!tenantId) setIsLoading(true);
     } catch (error) {
-      setActionError(
+      const message =
         error instanceof Error
           ? error.message
-          : 'No fue posible cambiar de empresa. Inténtalo de nuevo.',
-      );
+          : 'No fue posible cambiar de empresa. Inténtalo de nuevo.';
+      if (
+        /debes salir de la empresa actual antes de ingresar a otra/i.test(
+          message,
+        )
+      ) {
+        setActionError('');
+        feedback.guide(
+          'Tu sesión sigue vinculada a una empresa activa en otro navegador. Para unirte a otra, primero sal de la empresa actual desde ese navegador y luego vuelve a intentarlo. Esta sesión no cambió de empresa.',
+          'Ya tienes una empresa activa',
+          'warning',
+        );
+      } else {
+        setActionError(message);
+      }
     } finally {
       setIsChanging(false);
       setChangingTenantId(null);
@@ -96,6 +111,7 @@ export function TenantSelector({
     const created = createdTenant?.id === user.tenant.id ? createdTenant : null;
     return (
       <>
+        <FeedbackMessages feedback={feedback} />
         <section
           className={tenantCardStyles.activeCard}
           aria-label="Empresa activa"
@@ -136,7 +152,7 @@ export function TenantSelector({
           </div>
           <div className={tenantCardStyles.activeActions}>
             <Link href="/dashboard" className={tenantCardStyles.dashboardLink}>
-              Ir al dashboard <span aria-hidden="true">→</span>
+              Ir al Panel principal <span aria-hidden="true">→</span>
             </Link>
             {user.isDeveloper && (
               <Button
@@ -180,6 +196,7 @@ export function TenantSelector({
 
   return (
     <section className="module-panel" aria-label="Mi empresa">
+      <FeedbackMessages feedback={feedback} />
       <div className={`module-panel__heading ${panelHeadingStyles.heading}`}>
         <h2 className="text-xl font-bold">Mi empresa</h2>
         <p className="mt-1 text-sm text-muted">

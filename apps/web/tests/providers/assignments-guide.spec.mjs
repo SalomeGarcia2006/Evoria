@@ -70,13 +70,37 @@ test('la guía explica las asignaciones del evento sin modificar recursos ni ser
     'Actualizar eventos',
     'Elegir un evento',
     'Ver inventario',
-    'Ver detalles y asignar',
+    'Todo listo',
+  ]) {
+    await tour.getByRole('button', { name: 'Siguiente' }).click();
+    await expect(tour).toContainText(title, { timeout: 10000 });
+  }
+  await tour.getByRole('button', { name: 'Finalizar' }).click();
+  await expect(tour).toHaveCount(0);
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        localStorage.getItem(
+          'evoria-module-tour:assignments-guide-user:/recursos/asignaciones',
+        ),
+      ),
+    )
+    .toBe('done');
+
+  await page.goto('/recursos/asignaciones/tour-event');
+  await expect(tour).toContainText('Conoce Detalle de asignaciones');
+  for (const title of [
+    'Evento seleccionado',
+    'Reservas y servicios',
+    'Asignar recursos',
     'Detalle del evento',
     'Actualizar evento',
     'Reservas de inventario',
     'Seleccionar recurso',
     'Cantidad',
     'Asignar recurso',
+    'Cerrar evento',
+    'Todo listo',
   ]) {
     await tour.getByRole('button', { name: 'Siguiente' }).click();
     await expect(tour).toContainText(title, { timeout: 10000 });
@@ -88,10 +112,22 @@ test('la guía explica las asignaciones del evento sin modificar recursos ni ser
   }
   await expect(page.locator('dialog[open]')).toHaveCount(1);
   await tour.getByRole('button', { name: 'Anterior' }).click();
-  await expect(tour).toContainText('Cantidad');
+  await expect(tour).toContainText('Cerrar evento');
   await tour.getByRole('button', { name: 'Omitir tutorial' }).click();
   await expect(tour).toHaveCount(0);
   await expect(page.locator('dialog[open]')).toHaveCount(0);
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        localStorage.getItem(
+          'evoria-module-tour:assignments-guide-user:/recursos/asignaciones/[eventId]',
+        ),
+      ),
+    )
+    .toBe('done');
+  await page.goto('/recursos/asignaciones');
+  await page.waitForTimeout(1200);
+  await expect(tour).toHaveCount(0);
   expect(writes).toBe(0);
 });
 
@@ -141,11 +177,17 @@ test('la guía omite las acciones que el perfil no puede utilizar', async ({
   for (const title of [
     'Actualizar eventos',
     'Elegir un evento',
-    'Ver detalles y asignar',
-    'Detalle del evento',
-    'Actualizar evento',
-    'Reservas de inventario',
-    'Cerrar evento',
+    'Todo listo',
+  ]) {
+    await tour.getByRole('button', { name: 'Siguiente' }).click();
+    await expect(tour).toContainText(title, { timeout: 10000 });
+  }
+  await tour.getByRole('button', { name: 'Finalizar' }).click();
+  await page.goto('/recursos/asignaciones/readonly-event');
+  await expect(tour).toContainText('Conoce Detalle de asignaciones');
+  for (const title of [
+    'Evento seleccionado',
+    'Reservas y servicios',
     'Todo listo',
   ]) {
     await tour.getByRole('button', { name: 'Siguiente' }).click();

@@ -54,7 +54,6 @@ export function BudgetPanel({
   const { notify } = feedback;
   const [preparing, setPreparing] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  const history = useRef<HTMLElement>(null);
   const [historyDetail, setHistoryDetail] =
     useState<BudgetHistorySection | null>(null);
   useEffect(() => {
@@ -170,13 +169,12 @@ export function BudgetPanel({
     budget && budget.allocatedCop > 0
       ? Math.round((budget.spentCop / budget.allocatedCop) * 100)
       : 0;
-  function openHistory() {
-    setShowHistory(true);
-    history.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
   if (!allowed) return null;
   return (
-    <div className="grid min-w-0 gap-5">
+    <div
+      className="grid min-w-0 gap-5"
+      data-tour={budget ? 'budget-ready' : undefined}
+    >
       <FeedbackMessages feedback={feedback} />
       {loading && !budget && <LoadingState label="Actualizando presupuesto…" />}
       {current?.error && (
@@ -253,7 +251,7 @@ export function BudgetPanel({
           </Card>
         ) : (
           <>
-            <Card className="min-w-0">
+            <Card className="min-w-0" data-tour="budget-summary">
               <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_17rem]">
                 <div className="min-w-0">
                   <BudgetAmountsView budget={budget} compact />
@@ -297,7 +295,7 @@ export function BudgetPanel({
                   aria-label="Operaciones del presupuesto"
                   className="grid content-start gap-3 border-t border-sky-blue pt-5 xl:border-l xl:border-t-0 xl:pl-6 xl:pt-0"
                 >
-                  <h3 className="font-bold">Solicitar un cambio</h3>
+                  <h3 className="text-lg font-bold">Solicitar un cambio</h3>
                   {budget.eventStatus === 'cancelado' ? (
                     <p className="rounded-lg bg-amber-50 p-3 text-sm">
                       Evento cancelado: se conserva el historial y no se admiten
@@ -306,28 +304,18 @@ export function BudgetPanel({
                   ) : can('presupuestos.editar') ? (
                     <>
                       <Button
+                        data-tour="budget-request-open"
+                        style={{ fontSize: '1rem' }}
                         disabled={unavailable}
-                        onClick={() =>
-                          setAction({ kind: 'request', type: 'ampliacion' })
-                        }
+                        onClick={() => setAction({ kind: 'request' })}
                       >
-                        Añadir presupuesto
+                        Solicitar cambio
                       </Button>
-                      <Button
-                        variant="secondary"
-                        disabled={unavailable}
-                        onClick={() =>
-                          setAction({
-                            kind: 'request',
-                            type: 'costo_adicional',
-                          })
-                        }
-                      >
-                        Registrar costo adicional
-                      </Button>
-                      <p className="text-xs leading-5 text-muted">
-                        Ambas solicitudes requieren la aprobación del líder. Una
-                        solicitud pendiente todavía no modifica el saldo.
+                      <p className="text-base leading-6 text-muted">
+                        Puedes solicitar una ampliación de presupuesto o
+                        registrar un costo adicional. El líder responsable debe
+                        aprobar la solicitud; mientras esté pendiente, no cambia
+                        los totales ni el saldo.
                       </p>
                     </>
                   ) : (
@@ -336,18 +324,11 @@ export function BudgetPanel({
                       cambio.
                     </p>
                   )}
-                  <button
-                    type="button"
-                    className="text-left text-sm font-semibold text-muted underline"
-                    onClick={openHistory}
-                  >
-                    Ver historial completo →
-                  </button>
                 </aside>
               </div>
             </Card>
             <div className="grid min-w-0 gap-5 xl:grid-cols-2">
-              <Card className="min-w-0">
+              <Card className="min-w-0" data-tour="budget-spending-section">
                 <h3 className="text-xl font-bold">¿En qué se ha usado?</h3>
                 <p className="mt-2 text-sm text-muted">
                   Gastos registrados en el presupuesto del evento.
@@ -377,6 +358,7 @@ export function BudgetPanel({
                   ).map(([label, amount, icon, section]) => (
                     <button
                       type="button"
+                      data-tour={`budget-spending-${section}`}
                       aria-haspopup="dialog"
                       onClick={() => setHistoryDetail(section)}
                       className="group grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-xl px-3 py-4 text-left transition-colors duration-200 hover:bg-sky-blue/30 focus-visible:bg-sky-blue/30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal"
@@ -426,9 +408,9 @@ export function BudgetPanel({
                 </p>
               </Card>
               <section
-                ref={history}
-                className="min-w-0 scroll-mt-6"
+                className="min-w-0"
                 aria-label="Solicitudes y decisiones"
+                data-tour="budget-requests-section"
               >
                 <Card className="min-w-0">
                   <div className="flex flex-wrap items-start justify-between gap-3">

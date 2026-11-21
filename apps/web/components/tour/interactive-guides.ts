@@ -4,12 +4,30 @@ export type InteractiveStep = {
   selector?: string;
   text?: string;
   permission?: string;
+  advanceWizardOnNext?: boolean;
+  returnWizardOnPrevious?: boolean;
+  openDialogOnNext?: DialogTourAction;
+  openDialogOnPrevious?: DialogTourAction;
+  closeDialogOnNext?: boolean;
+  closeDialogOnPrevious?: boolean;
+  continueTourOnNext?: { targetPathPrefix: string };
+  continueTourOnPrevious?: { targetPath: string };
+  dialogTarget?: boolean;
+  scrollIntoView?: boolean;
+  dialogSteps?: InteractiveStep[];
+};
+
+export type DialogTourAction = {
+  triggerSelector: string;
+  preserveDialogDuringTour?: boolean;
 };
 
 export type FormGuide = {
   permission: string;
+  anyPermissions?: string[];
   button: string;
   triggerSelector?: string;
+  readySelector?: string;
   skipMissingFields?: boolean;
   preserveDialogDuringTour?: boolean;
   fields: InteractiveStep[];
@@ -52,7 +70,7 @@ export const pageSteps: Record<string, InteractiveStep[]> = {
       title: 'Empresa activa',
       selector: '[aria-label="Empresa activa"]',
       description:
-        'Aquí ves la empresa en la que trabajas y las opciones para entrar al dashboard o salir.',
+        'Aquí ves la empresa en la que trabajas y las opciones para entrar al panel principal o salir.',
     },
     {
       title: 'Información del propietario',
@@ -99,9 +117,43 @@ export const pageSteps: Record<string, InteractiveStep[]> = {
     },
     {
       title: 'Ver detalles del evento',
-      text: 'Ver detalles',
+      selector: '[data-tour="event-view-details"]',
       description:
         'Abre una consulta del evento sin modificarlo. Allí puedes revisar su descripción, fechas, estado, presupuesto, responsable y ubicación en el mapa.',
+      openDialogOnNext: {
+        triggerSelector: '[data-tour="event-view-details"]',
+        preserveDialogDuringTour: true,
+      },
+      dialogSteps: [
+        {
+          title: 'Detalle del evento',
+          selector: '[data-tour="event-view-tour-target"]',
+          description:
+            'Desde esta ventana puedes revisar la información del evento, editar el evento, modificar su estado y desactivarlo.',
+          closeDialogOnPrevious: true,
+        },
+        {
+          title: 'Editar evento',
+          selector: '[data-tour="event-view-edit"]',
+          permission: 'eventos.editar',
+          description:
+            'Abre el formulario para editar la información del evento. El recorrido no guardará cambios.',
+        },
+        {
+          title: 'Modificar estado',
+          selector: '[data-tour="event-view-status"]',
+          permission: 'eventos.editar',
+          description:
+            'Permite cambiar el estado del evento. El recorrido no modificará ni guardará el estado.',
+        },
+        {
+          title: 'Cancelar evento',
+          selector: '[data-tour="event-view-cancel"]',
+          permission: 'eventos.eliminar',
+          description:
+            'Esta acción cancela el evento y solicita confirmación. El recorrido no la ejecutará.',
+        },
+      ],
     },
     {
       title: 'Próximo en tu agenda',
@@ -127,10 +179,49 @@ export const pageSteps: Record<string, InteractiveStep[]> = {
       description: 'Selecciona una categoría para reducir los resultados.',
     },
     {
+      title: 'Asignar a eventos',
+      selector: '[data-tour="inventory-assign-events"]',
+      permission: 'asignaciones.ver',
+      description:
+        'Abre el módulo de asignaciones, donde eliges un evento para consultar y gestionar los recursos reservados.',
+    },
+    {
       title: 'Recursos del inventario',
       selector: '[aria-label="Recursos del inventario"]',
       description:
         'Cada tarjeta muestra sus datos y cantidades, incluidas las reservas disponibles para consulta.',
+    },
+    {
+      title: 'Ver detalle del recurso',
+      selector: '[data-tour="resource-view-details"]',
+      description:
+        'Abre la ventana de detalle para revisar la disponibilidad, el costo y las acciones de este recurso.',
+      openDialogOnNext: {
+        triggerSelector: '[data-tour="resource-view-details"]',
+        preserveDialogDuringTour: true,
+      },
+      dialogSteps: [
+        {
+          title: 'Detalle del recurso',
+          selector: '[data-tour="resource-dialog-tour-target"]',
+          description:
+            'Desde esta ventana puedes revisar la información completa del recurso y las acciones disponibles.',
+        },
+        {
+          title: 'Editar recurso',
+          selector: '[data-tour="resource-edit"]',
+          permission: 'inventario.ajustar',
+          description:
+            'Abre el formulario para actualizar el recurso. El recorrido no guardará cambios.',
+        },
+        {
+          title: 'Desactivar recurso',
+          selector: '[data-tour="resource-deactivate"]',
+          permission: 'inventario.ajustar',
+          description:
+            'Solicita confirmación para retirar el recurso de nuevas asignaciones. El recorrido no lo desactivará.',
+        },
+      ],
     },
   ],
   '/recursos/asignaciones': [
@@ -146,10 +237,41 @@ export const pageSteps: Record<string, InteractiveStep[]> = {
         'Abre un evento activo para consultar sus reservas y servicios. Los eventos cancelados o finalizados no aparecen aquí.',
     },
     {
+      title: 'Ver detalles y asignar',
+      selector: '[data-tour="assignment-open-event"]',
+      description:
+        'Al avanzar abriremos este evento y la guía continuará en el detalle de sus asignaciones.',
+      continueTourOnNext: {
+        targetPathPrefix: '/recursos/asignaciones/',
+      },
+    },
+    {
       title: 'Ver inventario',
       text: 'Ver inventario',
       permission: 'inventario.ver',
       description: 'Abre inventario para consultar los recursos de la empresa.',
+    },
+  ],
+  '/recursos/asignaciones/[eventId]': [
+    {
+      title: 'Evento seleccionado',
+      selector: '[data-tour="assignment-event-summary"]',
+      description:
+        'Revisa el estado, las fechas y la información del evento antes de gestionar sus asignaciones.',
+      continueTourOnPrevious: { targetPath: '/recursos/asignaciones' },
+    },
+    {
+      title: 'Reservas y servicios',
+      selector: '[aria-label="Asignaciones actuales"]',
+      description:
+        'Consulta las reservas de inventario y los servicios asociados que están disponibles para tu perfil.',
+    },
+    {
+      title: 'Liberar recurso',
+      selector: '[data-tour="assignment-release-resource"]',
+      permission: 'asignaciones.eliminar',
+      description:
+        'Este botón devuelve las unidades reservadas al inventario. La guía solo explica esta opción y no liberará recursos.',
     },
   ],
   '/proveedores': [
@@ -314,49 +436,163 @@ export const pageSteps: Record<string, InteractiveStep[]> = {
 
 export const formGuides: Record<string, FormGuide> = {
   '/inventario': {
-    permission: 'inventario.ver',
-    button: 'Ver detalle',
+    permission: 'inventario.ajustar',
+    button: 'Nuevo recurso',
+    triggerSelector: '[data-tour="resource-create"]',
     skipMissingFields: true,
     preserveDialogDuringTour: true,
     fields: [
       {
-        title: 'Detalle del recurso',
-        selector: 'h2',
+        title: 'Nuevo recurso',
+        selector: '[data-tour="resource-dialog-tour-target"]',
         description:
-          'Esta vista consulta el recurso seleccionado sin modificarlo. En el título identificas el recurso que estás revisando.',
+          'Desde esta ventana puedes registrar los datos del recurso. El recorrido no guardará información.',
       },
       {
-        title: 'Disponibilidad y costo',
-        selector: 'dl',
+        title: 'Nombre del recurso',
+        text: 'Nombre del recurso',
         description:
-          'Estas tarjetas muestran la cantidad total, las unidades disponibles, las reservadas para eventos y el costo unitario registrado.',
+          'Escribe un nombre que permita identificar el equipo o material en el inventario.',
       },
       {
-        title: 'Editar recurso',
-        text: 'Editar recurso',
-        permission: 'inventario.ajustar',
-        description:
-          'Abre el formulario para actualizar el recurso. Solo aparece para perfiles que pueden gestionar inventario.',
+        title: 'Tipo',
+        text: 'Tipo',
+        description: 'Indica la categoría o tipo al que pertenece el recurso.',
       },
       {
-        title: 'Desactivar recurso',
-        text: 'Desactivar recurso',
-        permission: 'inventario.ajustar',
+        title: 'Estado',
+        text: 'Estado',
         description:
-          'Solicita confirmación antes de sacar el recurso de la disponibilidad para nuevas asignaciones. La guía no ejecuta esta acción.',
+          'Selecciona si el recurso está disponible, en mantenimiento o inactivo.',
       },
       {
-        title: 'Cerrar detalle',
-        text: 'Cerrar',
+        title: 'Cantidad total',
+        text: 'Cantidad total',
         description:
-          'Cierra esta consulta y regresa al listado. El recorrido lo hará automáticamente al finalizar u omitir, sin hacer cambios.',
+          'Registra cuántas unidades hay en total. Las reservas se descuentan de las unidades disponibles.',
+      },
+      {
+        title: 'Costo unitario',
+        text: 'Costo unitario',
+        description: 'Indica el costo de una unidad en pesos colombianos.',
+      },
+      {
+        title: 'Descripción',
+        text: 'Descripción',
+        description:
+          'Describe el recurso y cualquier dato útil para reconocerlo.',
+      },
+      {
+        title: 'Guardar recurso',
+        text: 'Guardar recurso',
+        description:
+          'Este botón guardaría el recurso. La guía solo muestra el formulario y no guardará datos.',
       },
     ],
   },
-  '/recursos/asignaciones': {
-    permission: 'eventos.ver',
-    button: 'Ver detalles y asignar',
-    triggerSelector: '[aria-label^="Ver asignaciones de "]',
+  '/presupuestos': {
+    permission: 'presupuestos.ver',
+    button: 'Ver presupuesto',
+    triggerSelector: '[aria-label^="Ver presupuesto de "]',
+    readySelector: '[data-tour="budget-ready"]',
+    skipMissingFields: true,
+    fields: [
+      {
+        title: 'Detalle del presupuesto',
+        selector: '[aria-label="Detalle del presupuesto"]',
+        description:
+          'Desde esta ventana puedes revisar el saldo, los gastos y las solicitudes.',
+        scrollIntoView: false,
+      },
+      {
+        title: 'Resumen y saldo',
+        selector: '[data-tour="budget-summary"]',
+        description:
+          'Consulta el presupuesto asignado, los gastos registrados y el saldo disponible del evento.',
+      },
+      {
+        title: 'En qué se ha usado',
+        selector: '[data-tour="budget-spending-section"]',
+        description:
+          'Esta sección separa el gasto de inventario, los servicios confirmados y los costos adicionales aprobados.',
+      },
+      {
+        title: 'Ver detalle de inventario',
+        selector: '[data-tour="budget-spending-inventory"]',
+        description:
+          'Al seleccionar un concepto se abre un diálogo con el detalle de su uso. Vamos a mostrar el de inventario.',
+        openDialogOnNext: {
+          triggerSelector: '[data-tour="budget-spending-inventory"]',
+        },
+      },
+      {
+        title: 'Detalle del uso',
+        selector: '[data-tour="budget-history-content"]',
+        dialogTarget: true,
+        description:
+          'Aquí puedes revisar los registros que componen ese gasto. Cierra el diálogo para continuar.',
+        closeDialogOnNext: true,
+        closeDialogOnPrevious: true,
+      },
+      {
+        title: 'Solicitudes y decisiones',
+        selector: '[data-tour="budget-requests-section"]',
+        description:
+          'Aquí puedes consultar las solicitudes de ampliación y de costos adicionales, junto con su estado. Si aún no hay solicitudes, verás ese mensaje en esta sección.',
+        openDialogOnPrevious: {
+          triggerSelector: '[data-tour="budget-spending-inventory"]',
+        },
+      },
+      {
+        title: 'Solicitar cambio',
+        selector: '[data-tour="budget-request-open"]',
+        permission: 'presupuestos.editar',
+        description:
+          'Desde este botón puedes pedir una ampliación de presupuesto o registrar un costo adicional.',
+        openDialogOnNext: {
+          triggerSelector: '[data-tour="budget-request-open"]',
+        },
+      },
+      {
+        title: 'Tipo de solicitud',
+        selector: '[data-tour="budget-request-type"]',
+        dialogTarget: true,
+        permission: 'presupuestos.editar',
+        description:
+          'Elige si solicitas una ampliación del presupuesto o registras un costo adicional.',
+        closeDialogOnPrevious: true,
+      },
+      {
+        title: 'Monto solicitado',
+        selector: '[data-tour="budget-request-amount"]',
+        dialogTarget: true,
+        permission: 'presupuestos.editar',
+        description: 'Indica el monto en pesos colombianos.',
+      },
+      {
+        title: 'Motivo',
+        selector: '[data-tour="budget-request-reason"]',
+        dialogTarget: true,
+        permission: 'presupuestos.editar',
+        description:
+          'Explica por qué se necesita el cambio. La solicitud requiere un motivo antes de enviarse.',
+      },
+      {
+        title: 'Envío de la solicitud',
+        selector: '[data-tour="budget-action-submit"]',
+        dialogTarget: true,
+        permission: 'presupuestos.editar',
+        description:
+          'Este botón enviaría la solicitud. El recorrido solo muestra el formulario y no enviará ningún dato.',
+      },
+    ],
+  },
+  '/recursos/asignaciones/[eventId]': {
+    permission: 'asignaciones.crear',
+    anyPermissions: ['servicios_proveedor.crear'],
+    button: 'Asignar recursos',
+    triggerSelector: '[data-tour="assignment-open"]',
+    readySelector: '[data-tour="assignment-guide-ready"][data-ready="true"]',
     skipMissingFields: true,
     fields: [
       {
@@ -373,7 +609,7 @@ export const formGuides: Record<string, FormGuide> = {
       },
       {
         title: 'Reservas de inventario',
-        selector: '[aria-label="Reservas de inventario"] h3',
+        selector: '[aria-label="Reservas de inventario"]',
         permission: 'asignaciones.ver',
         description:
           'Consulta los recursos reservados para el evento y sus cantidades. Las unidades reservadas dejan de estar disponibles para otras asignaciones.',
@@ -401,37 +637,56 @@ export const formGuides: Record<string, FormGuide> = {
       },
       {
         title: 'Liberar recurso',
-        text: 'Liberar recurso',
+        selector: '[data-tour="assignment-release-resource"]',
         permission: 'asignaciones.eliminar',
         description:
-          'Devuelve las unidades reservadas de ese recurso al inventario. La acción solicita confirmación y la guía no la ejecutará.',
-      },
-      {
-        title: 'Servicios de proveedores',
-        selector: '[aria-label="Servicios de proveedores"] h3',
-        permission: 'servicios_proveedor.ver',
-        description:
-          'Consulta los servicios contratados para el evento y sus valores. Los acuerdos confirmados cuentan como gasto del presupuesto.',
+          'Este botón devuelve las unidades reservadas al inventario. La guía no liberará recursos.',
       },
       {
         title: 'Asignar servicio',
-        text: 'Asignar servicio',
+        selector: '[data-tour="assignment-service-open"]',
         permission: 'servicios_proveedor.crear',
         description:
           'Abre el formulario para registrar un servicio de proveedor. Requiere acceso a proveedores y cumplir los requisitos de presupuesto.',
+        openDialogOnNext: {
+          triggerSelector: '[data-tour="assignment-service-open"]',
+          preserveDialogDuringTour: true,
+        },
+      },
+      {
+        title: 'Formulario para asignar un servicio',
+        selector: '[data-tour="provider-service-dialog-tour-target"]',
+        permission: 'servicios_proveedor.crear',
+        dialogTarget: true,
+        description:
+          'Desde esta ventana puedes elegir el proveedor y registrar el servicio, las fechas y el valor acordado. El recorrido no guardará información.',
+        closeDialogOnNext: true,
+        closeDialogOnPrevious: true,
       },
       {
         title: 'Cerrar evento',
         text: 'Cerrar evento',
         description:
-          'Vuelve a la lista de eventos. El recorrido cierra el detalle al finalizar u omitir sin hacer cambios.',
+          'Cierra esta ventana para volver al detalle del evento. Al finalizar la guía regresarás a la lista principal de asignaciones.',
+        closeDialogOnNext: true,
+        openDialogOnPrevious: {
+          triggerSelector: '[data-tour="assignment-service-open"]',
+          preserveDialogDuringTour: true,
+        },
       },
     ],
   },
   '/eventos': {
     permission: 'eventos.crear',
     button: 'Nuevo evento',
+    skipMissingFields: true,
     fields: [
+      {
+        title: 'Nuevo evento',
+        selector: '[data-tour="event-create-tour-target"]',
+        description:
+          'Desde esta ventana se crea un evento de acuerdo a la información solicitada en cada paso.',
+      },
       {
         title: 'Nombre del evento',
         text: 'Nombre',
@@ -441,19 +696,6 @@ export const formGuides: Record<string, FormGuide> = {
         title: 'Descripción',
         text: 'Descripción',
         description: 'Explica el propósito y los detalles del evento.',
-      },
-      {
-        title: 'Fechas y horas',
-        selector: '[aria-label="Seleccionar rango de fechas"]',
-        description:
-          'Define el periodo del evento; las horas de inicio y finalización se completan en los campos siguientes.',
-      },
-      {
-        title: 'Ubicación exacta',
-        selector:
-          '[aria-label="Mapa para seleccionar la ubicación exacta del evento"]',
-        description:
-          'Busca el lugar por nombre o dirección y selecciónalo en los resultados; también puedes hacer clic directamente en el punto del mapa. La dirección seleccionada se guarda como la ubicación obligatoria del evento.',
       },
       {
         title: 'Tipo de evento',
@@ -469,12 +711,35 @@ export const formGuides: Record<string, FormGuide> = {
         title: 'Persona responsable',
         text: 'Persona responsable',
         description: 'Selecciona a la persona que estará a cargo del evento.',
+        advanceWizardOnNext: true,
+      },
+      {
+        title: 'Fechas y horas',
+        selector: '[data-tour="event-date-time"]',
+        description:
+          'Define las fechas del evento y completa aquí mismo las horas de inicio y finalización.',
+        returnWizardOnPrevious: true,
+      },
+      {
+        title: 'Ubicación exacta',
+        selector:
+          '[aria-label="Mapa para seleccionar la ubicación exacta del evento"]',
+        description:
+          'Busca el lugar por nombre o dirección y selecciónalo en los resultados; también puedes hacer clic directamente en el punto del mapa. La dirección seleccionada se guarda como la ubicación obligatoria del evento.',
+        advanceWizardOnNext: true,
+      },
+      {
+        title: 'Información del cliente',
+        selector: 'section[aria-labelledby="event-client-title"]',
+        description:
+          'Registra los datos obligatorios de quien solicita el evento: nombre, identificación, teléfono, correo y dirección.',
+        returnWizardOnPrevious: true,
       },
       {
         title: 'Guardar evento',
-        text: 'Guardar evento',
+        text: 'Crear evento',
         description:
-          'Después de completar los datos puedes guardarlo. El tutorial no creará ningún evento.',
+          'Después de revisar la información del cliente, crea el evento. El tutorial no guardará ningún dato.',
       },
     ],
   },

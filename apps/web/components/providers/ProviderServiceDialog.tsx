@@ -205,6 +205,7 @@ export function ProviderServiceDialog({
       }
       busy={busy}
       onClose={onClose}
+      tourTarget="provider-service-dialog-tour-target"
     >
       <form onSubmit={submit} noValidate className="grid gap-5">
         <FeedbackMessages feedback={feedback} />

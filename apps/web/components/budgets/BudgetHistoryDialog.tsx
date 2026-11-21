@@ -44,7 +44,7 @@ export function BudgetHistoryDialog({
         </div>
       }
     >
-      <div className="grid min-w-0 gap-5">
+      <div className="grid min-w-0 gap-5" data-tour="budget-history-content">
         <div className="rounded-xl bg-sky-blue/25 p-4">
           <p className="text-sm text-muted">Historial del evento</p>
           <h3 className="mt-1 break-words text-xl font-bold">

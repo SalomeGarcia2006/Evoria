@@ -672,7 +672,7 @@ export function EventForm({
 
   const scheduleFields = (
     <div className="grid min-w-0 items-start gap-6 xl:grid-cols-[minmax(20rem,0.9fr)_minmax(0,1.1fr)]">
-      <div className="grid min-w-0 gap-4">
+      <div className="grid min-w-0 gap-4" data-tour="event-date-time">
         <DateRangePicker
           endDate={form.endDate}
           label="Fechas del evento"
