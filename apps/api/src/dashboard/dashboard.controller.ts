@@ -13,7 +13,7 @@ export class DashboardController {
   async summary(@CurrentUser() user: AuthenticatedUser) {
     return {
       data: await this.dashboardService.summary(user),
-      message: 'Resumen del dashboard obtenido correctamente.',
+      message: 'Resumen del panel principal obtenido correctamente.',
     };
   }
 }

@@ -6,7 +6,11 @@ export type NavigationItem = {
 };
 
 export const navigationItems: NavigationItem[] = [
-  { label: 'Dashboard', href: '/dashboard', permission: 'dashboard.ver' },
+  {
+    label: 'Panel principal',
+    href: '/dashboard',
+    permission: 'dashboard.ver',
+  },
   { label: 'Eventos', href: '/eventos', permission: 'eventos.ver' },
   {
     label: 'Recursos',

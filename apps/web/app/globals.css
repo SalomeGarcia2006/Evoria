@@ -1034,6 +1034,22 @@ textarea:focus {
   font-family: var(--font-display);
 }
 
+.status-donut-segment-link circle {
+  cursor: pointer;
+  transition:
+    opacity 160ms ease,
+    stroke-width 160ms ease;
+}
+
+.status-donut-segment-link:hover circle,
+.status-donut-segment-link:focus-visible circle {
+  opacity: 0.84;
+}
+
+.status-donut-segment-link:focus-visible circle {
+  stroke-width: 22px;
+}
+
 .events-banner {
   display: flex;
   align-items: center;

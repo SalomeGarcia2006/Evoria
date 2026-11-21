@@ -152,7 +152,7 @@ export function TenantSelector({
           </div>
           <div className={tenantCardStyles.activeActions}>
             <Link href="/dashboard" className={tenantCardStyles.dashboardLink}>
-              Ir al dashboard <span aria-hidden="true">→</span>
+              Ir al Panel principal <span aria-hidden="true">→</span>
             </Link>
             {user.isDeveloper && (
               <Button

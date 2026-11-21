@@ -29,7 +29,7 @@ const STATUS_LABELS: Record<EventStatus, string> = {
 };
 
 const STATUS_CLASSES: Record<EventStatus, string> = {
-  borrador: 'bg-sky-blue text-navy',
+  borrador: 'bg-sky-blue text-muted',
   planificado: 'bg-blue-100 text-blue-800',
   en_progreso: 'bg-amber-100 text-amber-800',
   finalizado: 'bg-emerald-100 text-emerald-800',
@@ -41,7 +41,7 @@ const EDITABLE_STATUSES = EVENT_STATUSES.filter(
 );
 const EVENTS_PER_PAGE = 10;
 
-type EventFilter = 'all' | 'en_progreso' | 'finalizado';
+type EventFilter = 'all' | EventStatus;
 
 function formatDate(value: string): string {
   return new Intl.DateTimeFormat('es-CO', {
@@ -111,6 +111,7 @@ export function EventList({
   const [selectedStatus, setSelectedStatus] = useState<EventStatus>('borrador');
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<EventFilter>('all');
+  const [filterInitialized, setFilterInitialized] = useState(false);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({
@@ -122,6 +123,21 @@ export function EventList({
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      const requestedStatus = new URLSearchParams(window.location.search).get(
+        'status',
+      );
+      const initialFilter = EVENT_STATUSES.find(
+        (status) => status === requestedStatus,
+      );
+      setSelectedFilter(initialFilter ?? 'all');
+      setFilterInitialized(true);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
+
+  useEffect(() => {
+    if (!filterInitialized) return;
     let isMounted = true;
     const status = selectedFilter === 'all' ? undefined : selectedFilter;
 
@@ -154,7 +170,7 @@ export function EventList({
     return () => {
       isMounted = false;
     };
-  }, [page, reloadKey, revision, selectedFilter]);
+  }, [filterInitialized, page, reloadKey, revision, selectedFilter]);
 
   useEffect(() => {
     let isMounted = true;
@@ -232,6 +248,15 @@ export function EventList({
     setStatusEvent(null);
   }
 
+  function selectFilter(filter: EventFilter) {
+    setSelectedFilter(filter);
+    setPage(1);
+    const url = new URL(window.location.href);
+    if (filter === 'all') url.searchParams.delete('status');
+    else url.searchParams.set('status', filter);
+    window.history.replaceState(window.history.state, '', url);
+  }
+
   async function handleStatusUpdate(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!statusEvent) return;
@@ -303,38 +328,25 @@ export function EventList({
             <div className="events-list-panel__toolbar">
               <div
                 className="events-list-panel__filters"
-                aria-label="Resumen de eventos"
+                aria-label="Filtrar eventos por estado"
               >
                 <button
                   className={`events-list-panel__filter ${selectedFilter === 'all' ? 'is-active' : ''}`}
-                  onClick={() => {
-                    setSelectedFilter('all');
-                    setPage(1);
-                  }}
+                  onClick={() => selectFilter('all')}
                   type="button"
                 >
                   Todos
                 </button>
-                <button
-                  className={`events-list-panel__filter ${selectedFilter === 'en_progreso' ? 'is-active' : ''}`}
-                  onClick={() => {
-                    setSelectedFilter('en_progreso');
-                    setPage(1);
-                  }}
-                  type="button"
-                >
-                  En ejecución
-                </button>
-                <button
-                  className={`events-list-panel__filter ${selectedFilter === 'finalizado' ? 'is-active' : ''}`}
-                  onClick={() => {
-                    setSelectedFilter('finalizado');
-                    setPage(1);
-                  }}
-                  type="button"
-                >
-                  Finalizados
-                </button>
+                {EVENT_STATUSES.map((status) => (
+                  <button
+                    key={status}
+                    className={`events-list-panel__filter ${selectedFilter === status ? 'is-active' : ''}`}
+                    onClick={() => selectFilter(status)}
+                    type="button"
+                  >
+                    {STATUS_LABELS[status]}
+                  </button>
+                ))}
               </div>
               <div className="flex w-full max-w-md items-center justify-end gap-3">
                 <label className="sr-only" htmlFor="event-search">
@@ -433,7 +445,7 @@ export function EventList({
                         className="py-8 text-center text-sm text-muted"
                         colSpan={5}
                       >
-                        No hay eventos que coincidan con la búsqueda.
+                        No hay eventos que coincidan con los filtros aplicados.
                       </td>
                     </tr>
                   ) : null}
