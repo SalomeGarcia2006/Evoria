@@ -260,3 +260,121 @@ test('HTTP: el contexto operativo se administra de forma aislada por empresa', a
     await api.close();
   }
 });
+
+test('HTTP: conserva el propietario y permite identificar empresas antiguas sin cruzar empresas', async () => {
+  const api = await createHttpTestApi('tenant_owner_test');
+  try {
+    const { ownerSession, developerSession, tenantId } =
+      await createTenantTestContext(api);
+    const initial = await api.request('tenants/context', {
+      session: ownerSession,
+    });
+    assert.equal(initial.status, 200);
+    const context = (await initial.json()) as {
+      data: { nit: string; owner: { id: string; name: string; email: string } };
+    };
+    assert.equal(context.data.nit, '900123456-7');
+    assert.equal(context.data.owner.name, 'Administrador de prueba');
+    assert.equal(context.data.owner.email, 'owner@example.test');
+    const ownerId = context.data.owner.id;
+    const otherTenant = await api.request('tenants', {
+      method: 'POST',
+      session: developerSession,
+      body: {
+        name: 'Otra empresa',
+        nit: '800123456-7',
+        ownerName: 'Otra persona',
+        ownerEmail: 'otra@example.test',
+        ownerPassword: 'Prueba-segura1',
+      },
+    });
+    assert.equal(otherTenant.status, 201);
+    const otherOwnerId = (await otherTenant.json()).data.administrator
+      .id as string;
+    await api.connection
+      .collection('tenants')
+      .updateOne(
+        { _id: new Types.ObjectId(tenantId) },
+        { $unset: { ownerId: '' } },
+      );
+    const legacy = await api.request('tenants/context', {
+      session: ownerSession,
+    });
+    assert.equal((await legacy.json()).data.owner, null);
+    assert.equal(
+      (
+        await api.request('tenants/context/owner', {
+          method: 'PATCH',
+          session: ownerSession,
+          body: { userId: ownerId },
+        })
+      ).status,
+      403,
+    );
+    assert.equal(
+      (
+        await api.request(`tenants/${tenantId}/join`, {
+          method: 'POST',
+          session: developerSession,
+        })
+      ).status,
+      200,
+    );
+    assert.equal(
+      (
+        await api.request('tenants/context/owner', {
+          method: 'PATCH',
+          session: developerSession,
+          body: { userId: otherOwnerId },
+        })
+      ).status,
+      400,
+    );
+    assert.equal(
+      (
+        await api.request('tenants/context/owner', {
+          method: 'PATCH',
+          session: developerSession,
+          body: { userId: new Types.ObjectId().toString() },
+        })
+      ).status,
+      400,
+    );
+    assert.equal(
+      (
+        await api.request('tenants/context/owner', {
+          method: 'PATCH',
+          session: developerSession,
+          body: { userId: 'invalido' },
+        })
+      ).status,
+      400,
+    );
+    const assigned = await api.request('tenants/context/owner', {
+      method: 'PATCH',
+      session: developerSession,
+      body: { userId: ownerId },
+    });
+    assert.equal(assigned.status, 200);
+    assert.equal((await assigned.json()).data.owner.id, ownerId);
+    const reloaded = await api.request('tenants/context', {
+      session: ownerSession,
+    });
+    assert.equal(
+      (await reloaded.json()).data.owner.email,
+      'owner@example.test',
+    );
+    assert.equal(
+      (
+        await api.request('tenants/context/owner', {
+          method: 'PATCH',
+          session: developerSession,
+          body: { userId: ownerId },
+        })
+      ).status,
+      409,
+    );
+  } finally {
+    await api.close();
+  }
+});

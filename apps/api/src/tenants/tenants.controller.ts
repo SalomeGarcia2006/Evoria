@@ -14,6 +14,7 @@ import { RequirePermissions } from '../auth/decorators/require-permissions.decor
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { CreateTenantDto } from './dto/create-tenant.dto';
 import { UpdateTenantContextDto } from './dto/update-tenant-context.dto';
+import { AssignTenantOwnerDto } from './dto/assign-tenant-owner.dto';
 import { TenantsService } from './tenants.service';
 
 @Controller('tenants')
@@ -63,6 +64,19 @@ export class TenantsController {
     return {
       data: await this.tenantsService.updateContext(dto, user),
       message: 'Contexto operativo actualizado correctamente.',
+    };
+  }
+
+  @Patch('context/owner')
+  @DeveloperOnly()
+  @RequirePermissions('empresa_contexto.editar')
+  async assignOwner(
+    @Body() dto: AssignTenantOwnerDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return {
+      data: await this.tenantsService.assignOwner(dto.userId, user),
+      message: 'Propietario asignado correctamente.',
     };
   }
 
