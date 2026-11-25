@@ -244,6 +244,7 @@ function ProvidersContent() {
                               {can('proveedores.editar') && (
                                 <Button
                                   variant="ghost"
+                                  data-tour="provider-edit-action"
                                   onClick={() => setPanel(item)}
                                 >
                                   Editar
@@ -252,6 +253,7 @@ function ProvidersContent() {
                               {can('proveedores.desactivar') && (
                                 <Button
                                   variant="ghost"
+                                  data-tour="provider-deactivate-action"
                                   onClick={() => setDeactivating(item)}
                                 >
                                   Desactivar

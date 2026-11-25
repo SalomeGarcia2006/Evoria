@@ -236,12 +236,21 @@ export function ReportsExplorer() {
   };
 
   return (
-    <section aria-label="Explorar reportes" className={styles.panel}>
+    <section
+      aria-label="Explorar reportes"
+      className={styles.panel}
+      data-tour="reports-explorer"
+    >
       <div className={styles.heading}>
         <h2>Explorar reportes</h2>
         <p>Elige una categoría, filtra y exporta lo que ves.</p>
       </div>
-      <div className={styles.tabs} role="tablist" aria-label="Tipo de reporte">
+      <div
+        aria-label="Tipo de reporte"
+        className={styles.tabs}
+        data-tour="report-types"
+        role="tablist"
+      >
         {(Object.keys(reportNames) as ReportKind[]).map((value) => (
           <button
             key={value}
@@ -255,7 +264,7 @@ export function ReportsExplorer() {
           </button>
         ))}
       </div>
-      <div className={styles.filters}>
+      <div className={styles.filters} data-tour="report-filters">
         <label>
           Desde
           <input
@@ -311,6 +320,7 @@ export function ReportsExplorer() {
         </Button>
         <Button
           className={styles.export}
+          data-tour="report-export-current"
           onClick={() => exportFile(kind)}
           disabled={loading || Boolean(exporting)}
         >
@@ -318,19 +328,19 @@ export function ReportsExplorer() {
         </Button>
       </div>
       {error ? (
-        <p role="alert" className={styles.error}>
+        <p data-tour="report-results" role="alert" className={styles.error}>
           {error}
         </p>
       ) : loading ? (
-        <p className={styles.empty}>
+        <p className={styles.empty} data-tour="report-results">
           Consultando {reportNames[kind].toLowerCase()}…
         </p>
       ) : !visibleItems.length ? (
-        <p className={styles.empty}>
+        <p className={styles.empty} data-tour="report-results">
           No hay resultados para los filtros seleccionados.
         </p>
       ) : (
-        <div className={styles.tableWrap}>
+        <div className={styles.tableWrap} data-tour="report-results">
           <table>
             <thead>
               <tr>
@@ -369,7 +379,11 @@ export function ReportsExplorer() {
         </div>
       )}
       {data?.pagination && data.pagination.totalPages > 1 && (
-        <nav className={styles.pagination} aria-label="Paginación">
+        <nav
+          aria-label="Paginación"
+          className={styles.pagination}
+          data-tour="report-pagination"
+        >
           <p>
             Página {data.pagination.page} de {data.pagination.totalPages} ·{' '}
             {data.pagination.total} resultados
@@ -394,7 +408,11 @@ export function ReportsExplorer() {
           </div>
         </nav>
       )}
-      <section className={styles.documents} aria-label="Documentos PDF">
+      <section
+        aria-label="Documentos PDF"
+        className={styles.documents}
+        data-tour="report-documents"
+      >
         <div className={styles.documentsHeading}>
           <h2>Documentos PDF</h2>
           <p>
@@ -430,6 +448,7 @@ export function ReportsExplorer() {
               Evento
             </label>
             <select
+              data-tour="report-event-selector"
               id="report-event-pdf"
               value={eventPdfId}
               onChange={(event) => setEventPdfId(event.target.value)}

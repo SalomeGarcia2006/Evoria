@@ -45,7 +45,11 @@ export default function ReportesPage() {
           title="Reportes"
           description="Consulta eventos, presupuestos, inventario y más, según los permisos de tu perfil."
           actions={
-            <Button onClick={refresh} disabled={loading}>
+            <Button
+              data-tour="reports-refresh"
+              onClick={refresh}
+              disabled={loading}
+            >
               ↻ Actualizar
             </Button>
           }
@@ -69,7 +73,11 @@ export default function ReportesPage() {
           </Card>
         ) : data ? (
           <>
-            <section className={styles.metrics} aria-label="Resumen general">
+            <section
+              aria-label="Resumen general"
+              className={styles.metrics}
+              data-tour="reports-summary"
+            >
               {events && (
                 <article className={styles.metricCard}>
                   <h2>Eventos</h2>

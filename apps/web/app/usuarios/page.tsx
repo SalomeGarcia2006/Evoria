@@ -558,7 +558,10 @@ export default function UsuariosPage() {
           </form>
         </dialog>
 
-        <Card className="min-w-0 overflow-hidden p-0">
+        <Card
+          className="min-w-0 overflow-hidden p-0"
+          data-tour="users-list-card"
+        >
           <div className="flex flex-col gap-2 border-b border-sky-blue bg-[var(--evoria-surface)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
             <div>
               <div className="flex flex-wrap items-center gap-2.5">
@@ -644,6 +647,7 @@ export default function UsuariosPage() {
                     <div className="flex flex-wrap gap-2">
                       {can('usuarios.editar') ? (
                         <Button
+                          data-tour="user-edit-action"
                           onClick={() => openEditForm(user)}
                           type="button"
                           variant="secondary"
@@ -654,6 +658,7 @@ export default function UsuariosPage() {
                       {can('usuarios.desactivar') &&
                       user.status === 'activo' ? (
                         <Button
+                          data-tour="user-deactivate-action"
                           onClick={() => void deactivate(user)}
                           type="button"
                           variant="ghost"

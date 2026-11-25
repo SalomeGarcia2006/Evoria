@@ -345,7 +345,10 @@ export default function PerfilesPage() {
               noValidate
               onSubmit={saveProfile}
             >
-              <label className="grid max-w-md shrink-0 gap-2 text-sm font-semibold">
+              <label
+                className="grid max-w-md shrink-0 gap-2 text-sm font-semibold"
+                data-tour="profile-name-field"
+              >
                 Nombre del perfil
                 <input
                   aria-label="Nombre del perfil"
@@ -356,7 +359,10 @@ export default function PerfilesPage() {
                   value={newProfileName}
                 />
               </label>
-              <section className="mt-5 flex min-h-0 flex-1 flex-col overflow-hidden rounded-[1.25rem] border border-sky-blue bg-beige/45">
+              <section
+                className="mt-5 flex min-h-0 flex-1 flex-col overflow-hidden rounded-[1.25rem] border border-sky-blue bg-beige/45"
+                data-tour="profile-permissions-panel"
+              >
                 <div className="flex flex-col gap-4 border-b border-sky-blue px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <h3 className="font-bold">Módulos del sistema</h3>
@@ -467,7 +473,11 @@ export default function PerfilesPage() {
                 </div>
               </section>
               <div className="mt-5 flex shrink-0 gap-3 border-t border-sky-blue pt-5">
-                <Button disabled={isSaving} type="submit">
+                <Button
+                  data-tour="profile-save-button"
+                  disabled={isSaving}
+                  type="submit"
+                >
                   {isSaving
                     ? 'Guardando…'
                     : editingProfile
@@ -486,7 +496,10 @@ export default function PerfilesPage() {
           </dialog>
         ) : null}
 
-        <section className="events-list-panel p-5 sm:p-6">
+        <section
+          className="events-list-panel p-5 sm:p-6"
+          data-tour="profiles-list"
+        >
           <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-2xl font-bold">Perfiles registrados</h2>
