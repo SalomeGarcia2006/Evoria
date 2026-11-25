@@ -59,6 +59,13 @@ export type TenantArea = {
 };
 export type TenantContext = {
   id: string;
+  nit: string;
+  owner: {
+    id: string;
+    name: string;
+    lastName: string | null;
+    email: string;
+  } | null;
   emailDomain: string | null;
   sector: string | null;
   operationalDescription: string | null;
@@ -67,7 +74,24 @@ export type TenantContext = {
   operationalAreas: TenantArea[];
   operationalNotes: string | null;
 };
-export type TenantContextUpdate = Partial<Omit<TenantContext, 'id'>>;
+export type TenantContextUpdate = Partial<
+  Omit<TenantContext, 'id' | 'nit' | 'owner'>
+>;
+
+export async function assignTenantOwner(
+  userId: string,
+): Promise<TenantContext> {
+  const response = await apiRequest<{ data: TenantContext }>(
+    '/tenants/context/owner',
+    {
+      method: 'PATCH',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId }),
+    },
+  );
+  return response.data;
+}
 
 export async function getTenantContext(): Promise<TenantContext> {
   const response = await apiRequest<{ data: TenantContext }>(

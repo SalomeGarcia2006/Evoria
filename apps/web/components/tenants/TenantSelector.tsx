@@ -4,11 +4,15 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import {
+  assignTenantOwner,
   deactivateTenant,
+  getTenantContext,
   getTenants,
   type CreatedTenant,
+  type TenantContext,
   type TenantOption,
 } from '../../services/tenants.service';
+import { getUsers, type CompanyUser } from '../../services/users.service';
 import { ConfirmProviderAction } from '../providers/ConfirmProviderAction';
 import { Button } from '../ui/Button';
 import { FeedbackMessages, useFeedback } from '../ui/Feedback';
@@ -33,7 +37,93 @@ export function TenantSelector({
   const [notice, setNotice] = useState('');
   const [attempt, setAttempt] = useState(0);
   const [deactivating, setDeactivating] = useState<TenantOption | null>(null);
+  const [companyContext, setCompanyContext] = useState<TenantContext>();
+  const [ownerCandidates, setOwnerCandidates] = useState<CompanyUser[]>();
+  const [selectedOwner, setSelectedOwner] = useState('');
+  const [ownerBusy, setOwnerBusy] = useState(false);
+  const [ownerError, setOwnerError] = useState('');
   const isPlatform = user?.scope === 'platform';
+
+  useEffect(() => {
+    if (
+      user?.scope !== 'tenant' ||
+      !user.tenant?.id ||
+      !user.permissions.includes('empresa_contexto.ver')
+    )
+      return;
+    let active = true;
+    getTenantContext()
+      .then((context) => {
+        if (active) {
+          setCompanyContext(context);
+          setOwnerCandidates(undefined);
+          setSelectedOwner('');
+          setOwnerError('');
+        }
+      })
+      .catch((error: unknown) => {
+        if (active)
+          setOwnerError(
+            error instanceof Error
+              ? error.message
+              : 'No fue posible cargar el propietario.',
+          );
+      });
+    return () => {
+      active = false;
+    };
+  }, [user?.scope, user?.tenant?.id, user?.permissions]);
+
+  async function chooseOwner() {
+    setOwnerBusy(true);
+    setOwnerError('');
+    try {
+      setOwnerCandidates(
+        (await getUsers()).filter(
+          (member) => member.status === 'activo' && member.id !== user?.id,
+        ),
+      );
+    } catch (error) {
+      setOwnerError(
+        error instanceof Error
+          ? error.message
+          : 'No fue posible cargar los usuarios.',
+      );
+    } finally {
+      setOwnerBusy(false);
+    }
+  }
+
+  async function saveOwner() {
+    if (!selectedOwner || ownerBusy) return;
+    const candidate = ownerCandidates?.find(
+      (member) => member.id === selectedOwner,
+    );
+    if (!candidate) return;
+    const confirmed = await feedback.confirm(
+      'Confirmar propietario',
+      `¿Confirmas que ${candidate.name} (${candidate.email}) es el propietario de esta empresa? Esta asignación no se puede cambiar desde aquí.`,
+      'Asignar propietario',
+      'warning',
+    );
+    if (!confirmed) return;
+    setOwnerBusy(true);
+    setOwnerError('');
+    try {
+      const updated = await assignTenantOwner(selectedOwner);
+      setCompanyContext(updated);
+      setOwnerCandidates(undefined);
+      feedback.notify('Propietario asignado correctamente.');
+    } catch (error) {
+      setOwnerError(
+        error instanceof Error
+          ? error.message
+          : 'No fue posible asignar el propietario.',
+      );
+    } finally {
+      setOwnerBusy(false);
+    }
+  }
 
   useEffect(() => {
     if (!isPlatform || !user?.isDeveloper) return;
@@ -109,6 +199,9 @@ export function TenantSelector({
   ) {
     const company = tenants.find((tenant) => tenant.id === user.tenant?.id);
     const created = createdTenant?.id === user.tenant.id ? createdTenant : null;
+    const context =
+      companyContext?.id === user.tenant.id ? companyContext : undefined;
+    const owner = context?.owner ?? created?.administrator;
     return (
       <>
         <FeedbackMessages feedback={feedback} />
@@ -176,17 +269,69 @@ export function TenantSelector({
           <dl className={tenantCardStyles.ownerDetails}>
             <div>
               <dt>Nombre del propietario</dt>
-              <dd>{created?.administrator.name ?? 'No disponible'}</dd>
+              <dd>
+                {owner
+                  ? [owner.name, 'lastName' in owner ? owner.lastName : null]
+                      .filter(Boolean)
+                      .join(' ')
+                  : 'No disponible'}
+              </dd>
             </div>
             <div>
               <dt>Correo del propietario</dt>
-              <dd>{created?.administrator.email ?? 'No disponible'}</dd>
+              <dd>{owner?.email ?? 'No disponible'}</dd>
             </div>
             <div>
               <dt>NIT de la empresa</dt>
-              <dd>{created?.nit ?? company?.nit ?? 'No disponible'}</dd>
+              <dd>
+                {context?.nit ??
+                  created?.nit ??
+                  company?.nit ??
+                  'No disponible'}
+              </dd>
             </div>
           </dl>
+          {ownerError && <p role="alert">{ownerError}</p>}
+          {user.isDeveloper && context && !context.owner && !created && (
+            <div className="mt-4 grid gap-3">
+              <p>
+                Esta empresa aún no tiene un propietario identificado.
+                Selecciona la cuenta correspondiente.
+              </p>
+              {ownerCandidates ? (
+                <>
+                  <label htmlFor="company-owner">Propietario</label>
+                  <select
+                    id="company-owner"
+                    value={selectedOwner}
+                    onChange={(event) => setSelectedOwner(event.target.value)}
+                  >
+                    <option value="">Selecciona un usuario</option>
+                    {ownerCandidates.map((member) => (
+                      <option key={member.id} value={member.id}>
+                        {member.name} ({member.email})
+                      </option>
+                    ))}
+                  </select>
+                  <Button
+                    type="button"
+                    onClick={() => void saveOwner()}
+                    disabled={!selectedOwner || ownerBusy}
+                  >
+                    {ownerBusy ? 'Guardando…' : 'Asignar propietario'}
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  type="button"
+                  onClick={() => void chooseOwner()}
+                  disabled={ownerBusy}
+                >
+                  {ownerBusy ? 'Cargando…' : 'Identificar propietario'}
+                </Button>
+              )}
+            </div>
+          )}
         </section>
       </>
     );
