@@ -33,6 +33,19 @@ function formatLabel(value: string) {
   return value.replaceAll('_', ' ');
 }
 
+function todayInBogota() {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    day: '2-digit',
+    month: '2-digit',
+    timeZone: 'America/Bogota',
+    year: 'numeric',
+  }).formatToParts(new Date());
+  const year = parts.find((part) => part.type === 'year')?.value;
+  const month = parts.find((part) => part.type === 'month')?.value;
+  const day = parts.find((part) => part.type === 'day')?.value;
+  return `${year}-${month}-${day}`;
+}
+
 function formatDate(value: string) {
   return new Intl.DateTimeFormat('es-CO', {
     dateStyle: 'medium',
@@ -52,6 +65,7 @@ export default function AuditoriaPage() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
   const [revision, setRevision] = useState(0);
+  const maxAuditDate = todayInBogota();
 
   useEffect(() => {
     let isMounted = true;
@@ -159,8 +173,8 @@ export default function AuditoriaPage() {
           title="Trazabilidad de tu operación"
         />
 
-        <Card className="p-0">
-          <div className="border-b border-sky-blue bg-beige/45 px-6 py-5">
+        <Card className="p-0" data-tour="audit-filters-card">
+          <div className="border-b border-sky-blue bg-[var(--evoria-surface)] px-6 py-5">
             <p className="text-xs font-semibold uppercase tracking-[.16em] text-muted">
               Consulta del historial
             </p>
@@ -242,6 +256,7 @@ export default function AuditoriaPage() {
               collapsible
               endDate={filters.endDate}
               label="Periodo consultado"
+              max={maxAuditDate}
               onChange={(startDate, endDate) =>
                 setFilters((current) => ({
                   ...current,
@@ -261,8 +276,8 @@ export default function AuditoriaPage() {
         </Card>
 
         {error ? <ErrorMessage message={error} /> : null}
-        <Card className="p-0">
-          <div className="flex flex-col gap-3 border-b border-sky-blue bg-beige/45 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+        <Card className="p-0" data-tour="audit-history-card">
+          <div className="flex flex-col gap-3 border-b border-sky-blue bg-[var(--evoria-surface)] px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[.16em] text-muted">
                 Registro de actividad

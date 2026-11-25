@@ -8,12 +8,15 @@ export type InteractiveStep = {
   returnWizardOnPrevious?: boolean;
   openDialogOnNext?: DialogTourAction;
   openDialogOnPrevious?: DialogTourAction;
+  clickOnNext?: { triggerSelector: string; readySelector: string };
+  clickOnPrevious?: { triggerSelector: string; readySelector: string };
   closeDialogOnNext?: boolean;
   closeDialogOnPrevious?: boolean;
   continueTourOnNext?: { targetPathPrefix: string };
   continueTourOnPrevious?: { targetPath: string };
   dialogTarget?: boolean;
   scrollIntoView?: boolean;
+  popoverSide?: 'top' | 'bottom' | 'left' | 'right';
   dialogSteps?: InteractiveStep[];
 };
 
@@ -84,11 +87,58 @@ export const pageSteps: Record<string, InteractiveStep[]> = {
         'Describe el sector, la modalidad y los tipos de eventos de la empresa; no asigna permisos.',
     },
     {
-      title: 'Editar contexto',
-      text: 'Editar contexto',
+      title: 'Registro de usuarios por empresa',
+      selector: '[data-tour="tenant-registration-card"]',
+      permission: 'empresa_contexto.ver',
+      description:
+        'Esta tarjeta explica quién puede registrarse en la empresa y muestra las acciones para compartir o renovar el enlace.',
+    },
+    {
+      title: 'Copiar enlace de registro',
+      selector: '[data-tour="tenant-registration-copy"]',
       permission: 'empresa_contexto.editar',
       description:
-        'Actualiza la información operativa cuando cambie la forma de trabajar de la empresa.',
+        'Copia el enlace vigente para compartirlo con las personas que quieres invitar a registrarse en esta empresa.',
+    },
+    {
+      title: 'Renovar enlace de registro',
+      selector: '[data-tour="tenant-registration-renew"]',
+      permission: 'empresa_contexto.editar',
+      description:
+        'Genera un enlace nuevo e invalida el anterior de inmediato, incluso para registros que aún no se hayan confirmado.',
+    },
+    {
+      title: 'Editar contexto',
+      selector: '[data-tour="tenant-context-edit"]',
+      permission: 'empresa_contexto.editar',
+      description:
+        'Abre el formulario para actualizar la información operativa de la empresa. Al avanzar mostraremos el formulario; el recorrido no guardará cambios.',
+      clickOnNext: {
+        triggerSelector: '[data-tour="tenant-context-edit"]',
+        readySelector: '[data-tour="tenant-context-edit-form"]',
+      },
+      dialogSteps: [
+        {
+          title: 'Formulario de edición del contexto',
+          selector: '[data-tour="tenant-context-edit-form"]',
+          description:
+            'Desde este formulario puedes actualizar el sector, la modalidad, los tipos de eventos, el dominio de registro y las notas operativas. El recorrido no guardará información.',
+          clickOnPrevious: {
+            triggerSelector: '[data-tour="tenant-context-edit-cancel"]',
+            readySelector: '[data-tour="tenant-context-edit"]',
+          },
+        },
+        {
+          title: 'Actualizar o cancelar',
+          selector: '[data-tour="tenant-context-edit-actions"]',
+          description:
+            'Actualizar información guardaría los cambios y Cancelar los descartaría. Al avanzar, la guía cerrará la edición con Cancelar sin guardar información.',
+          clickOnNext: {
+            triggerSelector: '[data-tour="tenant-context-edit-cancel"]',
+            readySelector: '[data-tour="tenant-context-edit"]',
+          },
+        },
+      ],
     },
     {
       title: 'Elegir empresa',
@@ -291,6 +341,20 @@ export const pageSteps: Record<string, InteractiveStep[]> = {
       description:
         'Consulta el estado y los datos de cada proveedor y las acciones disponibles para tu perfil.',
     },
+    {
+      title: 'Editar proveedor',
+      selector: '[data-tour="provider-edit-action"]',
+      permission: 'proveedores.editar',
+      description:
+        'Abre el formulario para actualizar los datos del proveedor, incluida su ubicación en el mapa. Los cambios solo se guardan al confirmar la actualización.',
+    },
+    {
+      title: 'Desactivar proveedor',
+      selector: '[data-tour="provider-deactivate-action"]',
+      permission: 'proveedores.desactivar',
+      description:
+        'Solicita confirmación escribiendo DESACTIVAR. El proveedor dejará de estar disponible para nuevos servicios; sus acuerdos existentes se conservan y no se puede reactivar desde la aplicación.',
+    },
   ],
   '/presupuestos': [
     {
@@ -323,34 +387,63 @@ export const pageSteps: Record<string, InteractiveStep[]> = {
       description:
         'Consulta fecha, responsable, estado y acciones disponibles de cada actividad.',
     },
+    {
+      title: 'Ver detalles de la actividad',
+      selector: '[data-tour="schedule-view-action"]',
+      description:
+        'Abre el detalle para consultar la descripción, las fechas y horas, el responsable, el equipo asignado y el estado de la actividad.',
+    },
+    {
+      title: 'Asignar o retirar equipo',
+      selector: '[data-tour="schedule-team-action"]',
+      description:
+        'Si la actividad no tiene equipo, este botón permite asignar uno disponible. Cuando ya tiene un equipo y sigue activa, el botón cambia a «Retirar equipo» para quitar esa asignación.',
+    },
+    {
+      title: 'Editar actividad',
+      selector: '[data-tour="schedule-edit-action"]',
+      permission: 'cronogramas.editar',
+      description:
+        'Abre el formulario para actualizar el nombre, la descripción, las fechas y horas o el responsable. Solo aparece si la actividad no está cancelada y no tiene equipo asignado.',
+    },
   ],
   '/equipos': [
     {
+      title: 'Resumen de equipos',
+      selector: '[aria-label="Resumen de equipos"]',
+      description:
+        'Estas tarjetas resumen cuántos equipos hay, cuántos están activos o inactivos y cuántas personas únicas pertenecen a equipos activos.',
+    },
+    {
+      title: 'Buscar equipos',
+      selector: '[aria-label="Buscar equipos"]',
+      description: 'Busca por nombre, especialidad, líder o integrante.',
+    },
+    {
+      title: 'Filtrar por estado',
+      selector: '[data-tour="team-status-filter"]',
+      description:
+        'Muestra todos los equipos o limita la lista a equipos activos o inactivos.',
+    },
+    {
       title: 'Equipos registrados',
-      text: 'Equipos registrados',
+      selector: '[data-tour="team-directory"]',
       description:
-        'Consulta los equipos de la empresa, su especialidad, integrantes y estado actual.',
+        'Cada fila muestra el nombre, especialidad, cantidad de integrantes, líder y estado. La tabla presenta cinco equipos por página.',
     },
     {
-      title: 'Crear equipo',
-      text: 'Crear equipo',
-      permission: 'equipos.crear',
+      title: 'Editar equipo',
+      selector: '[data-tour="team-edit-action"]',
+      permission: 'equipos.editar',
       description:
-        'Completa el nombre y la especialidad para identificar el equipo de trabajo.',
-    },
-    {
-      title: 'Integrantes y líder',
-      text: 'Integrantes',
-      permission: 'equipos.crear',
-      description:
-        'Selecciona usuarios activos y luego escoge un líder entre las personas que agregaste al equipo.',
+        'Abre el formulario para cambiar los datos de un equipo activo. La guía continuará con el siguiente tema sin abrir ni guardar el formulario.',
     },
     {
       title: 'Desactivar equipo',
-      text: 'Desactivar',
+      selector: '[data-tour="team-deactivate-action"]',
       permission: 'equipos.desactivar',
       description:
-        'Esta acción solicita una confirmación y deja el equipo inactivo. La guía no lo desactiva.',
+        'Solicita escribir DESACTIVAR para confirmar. El equipo no se podrá reactivar desde la plataforma y no podrá desactivarse mientras tenga actividades no canceladas cuyo fin aún esté en el futuro. La guía no ejecutará esta acción.',
     },
   ],
   '/alertas': [
@@ -369,26 +462,64 @@ export const pageSteps: Record<string, InteractiveStep[]> = {
   '/reportes': [
     {
       title: 'Resumen operativo',
-      selector: '[aria-label="Resumen operativo"]',
+      selector: '[data-tour="reports-summary"]',
+      popoverSide: 'top',
       description:
-        'Las tarjetas muestran los datos disponibles de eventos y recursos.',
+        'Las tarjetas resumen los datos disponibles de eventos, presupuesto, inventario y cronogramas. Cada sección depende de los permisos de tu perfil.',
     },
     {
-      title: 'Presupuesto por evento',
-      selector: '[aria-label="Reporte de presupuesto por evento"]',
-      description:
-        'Compara los importes y la ejecución de los presupuestos disponibles.',
+      title: 'Actualizar resumen',
+      selector: '[data-tour="reports-refresh"]',
+      description: 'Vuelve a consultar los indicadores generales del módulo.',
     },
     {
-      title: 'Eventos registrados',
-      selector: '[aria-label="Reporte de eventos"]',
-      description: 'Consulta el detalle de eventos registrado por la empresa.',
+      title: 'Tipos de reporte',
+      selector: '[data-tour="report-types"]',
+      description:
+        'Cambia entre Eventos, Presupuestos, Inventario, Asignaciones, Proveedores y Cronogramas. Los datos disponibles dependen de los permisos asociados a cada módulo.',
+    },
+    {
+      title: 'Filtros del reporte',
+      selector: '[data-tour="report-filters"]',
+      popoverSide: 'top',
+      description:
+        'Filtra por fechas y estado cuando el tipo de reporte lo permite, o busca dentro de las filas cargadas. Inventario muestra el estado actual y por eso desactiva fechas y estado; Limpiar restablece los filtros.',
+    },
+    {
+      title: 'Resultados y páginas',
+      selector: '[data-tour="report-results"]',
+      popoverSide: 'top',
+      description:
+        'Las columnas cambian según el reporte. Se muestran 10 filas por página; si hay más resultados, usa Anterior y Siguiente. La búsqueda de texto se aplica a las filas de la página cargada.',
+    },
+    {
+      title: 'Exportar el reporte',
+      selector: '[data-tour="report-export-current"]',
+      popoverSide: 'top',
+      description:
+        'Descarga en PDF el reporte seleccionado con los filtros de fecha y estado aplicados. La búsqueda de texto solo filtra la tabla y no modifica el archivo descargado.',
+    },
+    {
+      title: 'Documentos PDF',
+      selector: '[data-tour="report-documents"]',
+      popoverSide: 'top',
+      description:
+        'Genera una ficha de la empresa, el listado de equipos o el detalle de un evento. Los documentos se descargan y no modifican la información.',
+    },
+    {
+      title: 'Elegir evento para el PDF',
+      selector: '[data-tour="report-event-selector"]',
+      permission: 'eventos.ver',
+      popoverSide: 'top',
+      description:
+        'Selecciona un evento en esta lista y luego pulsa Generar PDF en la tarjeta Detalle de un evento.',
     },
   ],
   '/auditoria': [
     {
       title: 'Filtros del historial',
-      text: 'Filtra los registros',
+      selector: '[data-tour="audit-filters-card"]',
+      popoverSide: 'top',
       description:
         'Selecciona los criterios para localizar acciones de la empresa.',
     },
@@ -399,7 +530,8 @@ export const pageSteps: Record<string, InteractiveStep[]> = {
     },
     {
       title: 'Historial de acciones',
-      text: 'Historial de acciones',
+      selector: '[data-tour="audit-history-card"]',
+      popoverSide: 'top',
       description:
         'Consulta los registros y sus detalles; el límite controla la cantidad solicitada.',
     },
@@ -407,21 +539,31 @@ export const pageSteps: Record<string, InteractiveStep[]> = {
   '/usuarios': [
     {
       title: 'Usuarios registrados',
-      text: 'Usuarios registrados',
-      description: 'Consulta las cuentas, su estado y perfil en la empresa.',
+      selector: '[data-tour="users-list-card"]',
+      description:
+        'El listado reúne las membresías de la empresa activa y muestra el nombre, correo, perfil asignado y estado de acceso de cada usuario.',
+    },
+    {
+      title: 'Editar usuario',
+      selector: '[data-tour="user-edit-action"]',
+      permission: 'usuarios.editar',
+      description:
+        'Permite cambiar el perfil asignado o el estado de esta membresía. El perfil debe estar activo y pertenecer a la empresa actual; esta acción no modifica el nombre, el correo ni la contraseña.',
+    },
+    {
+      title: 'Desactivar usuario',
+      selector: '[data-tour="user-deactivate-action"]',
+      permission: 'usuarios.desactivar',
+      description:
+        'Desactiva la membresía de esta empresa sin borrar la cuenta. No puedes desactivarte a ti mismo. Antes, retira a la persona de sus equipos activos (y reemplaza al líder si corresponde) y reasigna sus eventos con actividades futuras asignadas.',
     },
   ],
   '/perfiles': [
     {
       title: 'Resumen de perfiles',
-      text: 'Perfiles registrados',
-      description: 'Consulta las cantidades de perfiles y permisos asignados.',
-    },
-    {
-      title: 'Perfiles de la empresa',
-      text: 'Perfiles registrados',
+      selector: '[data-tour="profiles-list"]',
       description:
-        'Revisa los perfiles y las acciones disponibles según tu acceso.',
+        'Consulta las tarjetas de los perfiles registrados: cada una muestra su estado, si es del sistema o personalizada y cuántos permisos tiene configurados.',
     },
   ],
   '/mi-perfil': [
@@ -435,6 +577,54 @@ export const pageSteps: Record<string, InteractiveStep[]> = {
 };
 
 export const formGuides: Record<string, FormGuide> = {
+  '/equipos': {
+    permission: 'equipos.crear',
+    button: 'Nuevo equipo',
+    triggerSelector: '[data-tour="team-create"]',
+    readySelector: '[data-tour="team-form"]',
+    skipMissingFields: true,
+    preserveDialogDuringTour: true,
+    fields: [
+      {
+        title: 'Crear equipo',
+        selector: '[data-tour="team-form"]',
+        description:
+          'Desde esta ventana registras el nombre, la especialidad, los integrantes y el líder. El recorrido no creará ni guardará un equipo.',
+      },
+      {
+        title: 'Nombre del equipo',
+        selector: '#team-name',
+        description:
+          'Escribe un nombre de entre 2 y 120 caracteres para identificar al equipo.',
+      },
+      {
+        title: 'Especialidad',
+        selector: '#team-specialty',
+        description:
+          'Selecciona una especialidad disponible en el catálogo de la empresa.',
+      },
+      {
+        title: 'Integrantes',
+        selector: '[data-tour="team-members-field"]',
+        permission: 'usuarios.ver',
+        description:
+          'Selecciona entre 1 y 200 usuarios activos. Cada persona solo puede pertenecer a un equipo activo; necesitas permiso para consultar usuarios.',
+      },
+      {
+        title: 'Líder del equipo',
+        selector: '[data-tour="team-leader-field"]',
+        permission: 'usuarios.ver',
+        description:
+          'Elige como líder a una persona incluida entre los integrantes seleccionados.',
+      },
+      {
+        title: 'Crear equipo',
+        selector: '[data-tour="team-save"]',
+        description:
+          'Al guardar se validan los integrantes y el líder. También necesitas permiso para consultar usuarios; el recorrido no pulsará este botón.',
+      },
+    ],
+  },
   '/inventario': {
     permission: 'inventario.ajustar',
     button: 'Nuevo recurso',
@@ -499,7 +689,7 @@ export const formGuides: Record<string, FormGuide> = {
     fields: [
       {
         title: 'Detalle del presupuesto',
-        selector: '[aria-label="Detalle del presupuesto"]',
+        selector: '[data-tour="budget-event-dialog-tour-target"]',
         description:
           'Desde esta ventana puedes revisar el saldo, los gastos y las solicitudes.',
         scrollIntoView: false,
@@ -548,10 +738,19 @@ export const formGuides: Record<string, FormGuide> = {
         selector: '[data-tour="budget-request-open"]',
         permission: 'presupuestos.editar',
         description:
-          'Desde este botón puedes pedir una ampliación de presupuesto o registrar un costo adicional.',
+          'Este botón abre el formulario para solicitar una ampliación o registrar un costo adicional. Al pulsar Siguiente lo mostraremos sin enviar la solicitud.',
         openDialogOnNext: {
           triggerSelector: '[data-tour="budget-request-open"]',
         },
+      },
+      {
+        title: 'Formulario de solicitud',
+        selector: '[data-tour="budget-action-dialog-tour-target"]',
+        dialogTarget: true,
+        permission: 'presupuestos.editar',
+        description:
+          'En esta ventana puedes elegir el tipo de solicitud, indicar el monto y explicar el motivo. El recorrido no enviará la solicitud.',
+        closeDialogOnPrevious: true,
       },
       {
         title: 'Tipo de solicitud',
@@ -559,7 +758,7 @@ export const formGuides: Record<string, FormGuide> = {
         dialogTarget: true,
         permission: 'presupuestos.editar',
         description:
-          'Elige si solicitas una ampliación del presupuesto o registras un costo adicional.',
+          'Elige si solicitas una ampliación del presupuesto o registras un costo adicional. La explicación del formulario cambia según tu elección.',
         closeDialogOnPrevious: true,
       },
       {
@@ -772,10 +971,10 @@ export const formGuides: Record<string, FormGuide> = {
           'Registra un correo electrónico obligatorio. Evoria lo valida antes de crear el proveedor.',
       },
       {
-        title: 'Ubicación',
+        title: 'Ubicación exacta',
         selector: '[data-tour-field="location"]',
         description:
-          'Indica la dirección o ciudad desde la que opera. Este dato es obligatorio al crear el proveedor.',
+          'Busca una dirección o lugar y selecciona un resultado, o haz clic en el mapa para marcar el punto. La ubicación es obligatoria para crear el proveedor.',
       },
       {
         title: 'Categorías',
@@ -787,7 +986,7 @@ export const formGuides: Record<string, FormGuide> = {
         title: 'Notas del proveedor',
         selector: '[data-tour-field="notes"]',
         description:
-          'Agrega información útil para el equipo, como condiciones, horarios o acuerdos. Es obligatoria al crear el proveedor.',
+          'Agrega información útil para el equipo, como condiciones, horarios o acuerdos. Este campo es opcional.',
       },
       {
         title: 'Guardar proveedor',
@@ -836,26 +1035,25 @@ export const formGuides: Record<string, FormGuide> = {
     fields: [
       {
         title: 'Nombre del perfil',
-        selector: '[aria-label="Nombre del perfil"]',
+        selector: '[data-tour="profile-name-field"]',
         description:
           'Escribe un nombre que identifique las responsabilidades del perfil.',
       },
       {
-        title: 'Permisos por módulo',
-        text: 'Módulos del sistema',
+        title: 'Permisos del perfil',
+        selector: '[data-tour="profile-permissions-panel"]',
+        scrollIntoView: false,
+        popoverSide: 'top',
         description:
-          'Revisa los módulos y activa las acciones que necesita el perfil.',
-      },
-      {
-        title: 'Buscar módulo',
-        selector: '[placeholder="Buscar módulo..."]',
-        description: 'Localiza rápidamente los permisos de un módulo.',
+          'En este formulario defines el nombre y los permisos del perfil. Cada módulo agrupa acciones que puedes activar o desactivar; usa Buscar módulo o Todos los permisos para configurar la lista. Revisa los cambios y guárdalos cuando estés listo. La guía no seleccionará permisos ni creará el perfil.',
       },
       {
         title: 'Guardar perfil',
-        selector: 'button[type="submit"]',
+        selector: '[data-tour="profile-save-button"]',
+        scrollIntoView: false,
+        popoverSide: 'top',
         description:
-          'Guarda solo después de revisar los permisos. El tutorial no creará ningún perfil.',
+          'Cuando termines de revisar el nombre y los permisos, este botón guarda el nuevo perfil. La guía solo lo señala: no lo pulsará ni creará ningún perfil.',
       },
     ],
   },

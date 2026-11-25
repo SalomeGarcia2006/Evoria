@@ -213,6 +213,7 @@ export function TenantContextPanel() {
           <Button
             type="button"
             variant="secondary"
+            data-tour="tenant-context-edit"
             onClick={() => {
               setDraft(toDraft(context));
               setEditing(true);
@@ -265,7 +266,10 @@ export function TenantContextPanel() {
                 </p>
               </div>
             </div>
-            <div className={styles.registration}>
+            <div
+              className={styles.registration}
+              data-tour="tenant-registration-card"
+            >
               <div className={styles.registrationIntro}>
                 <h3>Registro de usuarios por empresa</h3>
                 <p>
@@ -279,6 +283,7 @@ export function TenantContextPanel() {
                   <Button
                     className={styles.copyButton}
                     type="button"
+                    data-tour="tenant-registration-copy"
                     disabled={registrationBusy}
                     onClick={copyRegistrationLink}
                   >
@@ -288,6 +293,7 @@ export function TenantContextPanel() {
                     className={styles.renewButton}
                     type="button"
                     variant="ghost"
+                    data-tour="tenant-registration-renew"
                     disabled={registrationBusy}
                     onClick={renewRegistrationLink}
                   >
@@ -324,7 +330,11 @@ export function TenantContextPanel() {
             </div>
           </div>
         ) : (
-          <form onSubmit={save} className="grid gap-5">
+          <form
+            onSubmit={save}
+            className="grid gap-5"
+            data-tour={editing ? 'tenant-context-edit-form' : undefined}
+          >
             <fieldset className="grid min-w-0 gap-5 sm:grid-cols-2">
               <label className="grid gap-2 text-sm font-semibold">
                 Sector
@@ -418,13 +428,17 @@ export function TenantContextPanel() {
             </fieldset>
             {editable &&
               (editing ? (
-                <div className="flex flex-wrap gap-3">
+                <div
+                  className="flex flex-wrap gap-3"
+                  data-tour="tenant-context-edit-actions"
+                >
                   <Button type="submit" disabled={busy}>
                     {busy ? 'Actualizando…' : 'Actualizar información'}
                   </Button>
                   <Button
                     type="button"
                     variant="secondary"
+                    data-tour="tenant-context-edit-cancel"
                     disabled={busy}
                     onClick={() => {
                       setDraft(toDraft(context));
@@ -438,6 +452,7 @@ export function TenantContextPanel() {
                 <Button
                   type="button"
                   className="justify-self-start"
+                  data-tour="tenant-context-edit"
                   onClick={() => {
                     setDraft(toDraft(context));
                     setEditing(true);

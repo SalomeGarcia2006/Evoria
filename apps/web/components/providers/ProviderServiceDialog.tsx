@@ -282,7 +282,7 @@ export function ProviderServiceDialog({
                         );
                       }}
                     >
-                      <option value="">Selecciona un proveedor activo</option>
+                      <option value="">Seleccionar proveedor</option>
                       {selectedProvider &&
                         !providerData.items.some(
                           (item) => item.id === selectedProvider.id,

@@ -702,6 +702,7 @@ export default function CronogramaPage() {
                             <div className="flex flex-wrap justify-end gap-2">
                               <Button
                                 className="px-3 py-1.5 text-xs"
+                                data-tour="schedule-view-action"
                                 onClick={() => openDetails(item)}
                                 type="button"
                                 variant="secondary"
@@ -713,6 +714,7 @@ export default function CronogramaPage() {
                                 item.teamId ? (
                                   <Button
                                     className="px-3 py-1.5 text-xs"
+                                    data-tour="schedule-team-action"
                                     onClick={() => void removeTeam(item)}
                                     type="button"
                                     variant="secondary"
@@ -722,6 +724,7 @@ export default function CronogramaPage() {
                                 ) : (
                                   <Button
                                     className="px-3 py-1.5 text-xs"
+                                    data-tour="schedule-team-action"
                                     onClick={() => void openTeamDialog(item)}
                                     type="button"
                                     variant="secondary"
@@ -746,6 +749,7 @@ export default function CronogramaPage() {
                               !item.teamId ? (
                                 <Button
                                   className="px-3 py-1.5 text-xs"
+                                  data-tour="schedule-edit-action"
                                   onClick={() => openEditForm(item)}
                                   type="button"
                                   variant="secondary"

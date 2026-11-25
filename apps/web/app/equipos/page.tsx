@@ -473,6 +473,7 @@ export default function EquiposPage() {
           <PermissionGate permission="equipos.crear">
             <Button
               className="shrink-0"
+              data-tour="team-create"
               onClick={openCreateModal}
               type="button"
             >
@@ -514,8 +515,15 @@ export default function EquiposPage() {
         {loading ? (
           <LoadingState label="Cargando equipos…" />
         ) : (
-          <section className="events-list-panel min-w-0">
-            <div className="events-list-panel__toolbar flex-wrap">
+          <section
+            aria-label="Equipos registrados"
+            className="events-list-panel min-w-0"
+            data-tour="team-directory"
+          >
+            <div
+              className="events-list-panel__toolbar flex-wrap"
+              data-tour="team-controls"
+            >
               <div className="flex min-w-0 items-center gap-3">
                 <h2 className="text-xl font-bold sm:text-2xl">
                   Equipos registrados
@@ -533,6 +541,7 @@ export default function EquiposPage() {
                     className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted"
                   />
                   <input
+                    aria-label="Buscar equipos"
                     className={`${field} py-2 pl-9 pr-3 text-sm`}
                     onChange={(event) => {
                       setSearch(event.target.value);
@@ -544,7 +553,10 @@ export default function EquiposPage() {
                   />
                 </label>
                 <details className="group relative">
-                  <summary className="evoria-button-secondary flex h-10 cursor-pointer list-none items-center gap-2 rounded-xl border border-sky-blue px-3 text-sm font-semibold text-navy hover:border-teal">
+                  <summary
+                    className="evoria-button-secondary flex h-10 cursor-pointer list-none items-center gap-2 rounded-xl border border-sky-blue px-3 text-sm font-semibold text-navy hover:border-teal"
+                    data-tour="team-status-filter"
+                  >
                     <Icon name="filter" className="size-4" /> Filtrar
                   </summary>
                   <div className="absolute right-0 z-20 mt-2 w-48 rounded-xl border border-sky-blue bg-[var(--evoria-surface)] p-3 shadow-xl">
@@ -635,6 +647,7 @@ export default function EquiposPage() {
                               <Button
                                 aria-label={`Editar ${team.name}`}
                                 className="grid size-9 place-items-center p-0"
+                                data-tour="team-edit-action"
                                 onClick={() => openEditModal(team)}
                                 title="Editar equipo"
                                 type="button"
@@ -648,6 +661,7 @@ export default function EquiposPage() {
                               <Button
                                 aria-label={`Desactivar ${team.name}`}
                                 className="grid size-9 place-items-center p-0"
+                                data-tour="team-deactivate-action"
                                 onClick={() => void deactivate(team)}
                                 title="Desactivar equipo"
                                 type="button"
@@ -715,7 +729,12 @@ export default function EquiposPage() {
         <dialog
           aria-labelledby="team-dialog-title"
           className="m-auto max-h-[calc(100dvh-2rem)] w-[min(48rem,calc(100vw-2rem))] overflow-y-auto rounded-[1.5rem] border border-violet/45 bg-[var(--evoria-surface)] p-0 text-[var(--evoria-ink)] shadow-[0_24px_80px_rgba(0,0,0,.45),0_0_30px_rgba(106,76,255,.14)] backdrop:bg-navy/60"
-          onClose={resetForm}
+          onClose={(event) => {
+            // Driver.js closes the modal briefly to expose it without the
+            // browser's modal layer. Keep the form state during that transition.
+            if (event.currentTarget.dataset.tourNonModal === 'true') return;
+            resetForm();
+          }}
           ref={teamDialog}
         >
           <div className="flex items-start justify-between gap-4 border-b border-violet/15 p-5 sm:p-6">
@@ -747,6 +766,7 @@ export default function EquiposPage() {
           </div>
           <form
             className="grid gap-x-5 gap-y-4 p-5 sm:grid-cols-2 sm:p-6"
+            data-tour="team-form"
             noValidate
             onSubmit={submit}
           >
@@ -838,7 +858,10 @@ export default function EquiposPage() {
                 </span>
               ) : null}
             </label>
-            <fieldset className="grid min-w-0 gap-2.5 sm:col-span-2">
+            <fieldset
+              className="grid min-w-0 gap-2.5 sm:col-span-2"
+              data-tour="team-members-field"
+            >
               <legend className="mb-1 text-sm font-semibold">
                 Integrantes <span className="text-coral">*</span>
               </legend>
@@ -955,7 +978,10 @@ export default function EquiposPage() {
                 </p>
               ) : null}
             </fieldset>
-            <label className="grid gap-2 text-sm font-semibold sm:col-span-2">
+            <label
+              className="grid gap-2 text-sm font-semibold sm:col-span-2"
+              data-tour="team-leader-field"
+            >
               <span>
                 Líder del equipo <span className="text-coral">*</span>
               </span>
@@ -1019,6 +1045,7 @@ export default function EquiposPage() {
               </Button>
               <Button
                 className="min-w-36"
+                data-tour="team-save"
                 disabled={saving || !can('usuarios.ver')}
                 type="submit"
               >

@@ -70,7 +70,9 @@ function manualTopicIcon(pathname: string, title: string): string {
       'Equipos registrados': '/icons/usuarios.svg',
       'Crear equipo': '/icons/crear.svg',
       'Integrantes y liderazgo': '/icons/usuarios.svg',
+      'Editar equipo': '/icons/editar.svg',
       'Desactivar equipo': '/icons/alerta.svg',
+      'Equipos en cronogramas': '/icons/cronograma.svg',
     };
     return teamTopicIcons[title] ?? '/icons/usuarios.svg';
   }
@@ -376,23 +378,31 @@ const guides: Record<string, ModuleGuide> = {
   '/reportes': {
     title: 'Reportes',
     description:
-      'Consulta un resumen de eventos, recursos y presupuestos de tu empresa.',
+      'Consulta indicadores, revisa reportes de eventos, presupuestos, inventario, asignaciones, proveedores y cronogramas, y genera documentos PDF según los permisos de tu perfil.',
     steps: [
       {
         title: 'Resumen operativo',
         description:
           'Las métricas se muestran según los permisos de consulta de tu perfil.',
-        selector: '[aria-label="Resumen operativo"]',
+        selector: '[data-tour="reports-summary"]',
       },
       {
-        title: 'Detalle por evento',
+        title: 'Tipos de reporte',
         description:
-          'Desplázate para consultar la información de eventos y presupuestos disponible.',
+          'Elige entre eventos, presupuestos, inventario, asignaciones, proveedores y cronogramas.',
+        selector: '[data-tour="report-types"]',
       },
       {
-        title: 'Cómo leer los resultados',
+        title: 'Filtros y resultados',
         description:
-          'Los datos resumen la información registrada en tu empresa. Los permisos de consulta determinan qué secciones puedes ver.',
+          'Acota los datos, consulta las filas disponibles y cambia de página cuando hay más resultados.',
+        selector: '[data-tour="report-filters"]',
+      },
+      {
+        title: 'Documentos PDF',
+        description:
+          'Descarga fichas de empresa, equipos y eventos; los archivos no modifican los datos.',
+        selector: '[data-tour="report-documents"]',
       },
     ],
   },
@@ -419,17 +429,28 @@ const guides: Record<string, ModuleGuide> = {
   },
   '/usuarios': {
     title: 'Usuarios',
-    description: 'Consulta las cuentas de tu empresa y sus perfiles.',
+    description:
+      'Consulta las membresías de la empresa activa, actualiza perfiles y estados, y revisa qué condiciones aplican para desactivar un usuario.',
     steps: [
       {
         title: 'Usuarios registrados',
         description:
-          'Consulta los usuarios y las opciones disponibles según tus permisos.',
+          'El listado muestra los usuarios vinculados a la empresa activa, con su perfil asignado y su estado de acceso.',
+        selector: '[data-tour="users-list-card"]',
       },
       {
-        title: 'Perfil del usuario',
+        title: 'Editar usuario',
         description:
-          'El perfil asignado determina las acciones que la persona puede realizar en la empresa. Los cambios de permisos se gestionan desde Perfiles.',
+          'Editar permite cambiar el perfil y el estado de la membresía. El perfil debe estar activo y pertenecer a la empresa actual; no se modifican datos personales ni credenciales.',
+        selector: '[data-tour="user-edit-action"]',
+        permission: 'usuarios.editar',
+      },
+      {
+        title: 'Desactivar usuario',
+        description:
+          'La baja afecta la membresía de esta empresa, no elimina la cuenta. No puedes desactivarte a ti mismo. Si la persona está en un equipo activo o tiene eventos con actividades futuras asignadas, primero hay que retirarla del equipo o reasignar esos eventos.',
+        selector: '[data-tour="user-deactivate-action"]',
+        permission: 'usuarios.desactivar',
       },
     ],
   },
@@ -442,16 +463,12 @@ const guides: Record<string, ModuleGuide> = {
         title: 'Perfiles registrados',
         description:
           'Revisa el nombre, estado y permisos de cada perfil. Los perfiles del sistema aparecen identificados y no se editan desde esta vista.',
+        selector: '[data-tour="profiles-list"]',
       },
       {
         title: 'Administrar permisos',
         description:
           'Si tu perfil lo permite, crea un rol o ajusta uno existente seleccionando las acciones concretas que necesitará el equipo.',
-      },
-      {
-        title: 'Permisos y responsabilidades',
-        description:
-          'Configura los permisos según las tareas de cada perfil. Las personas con ese perfil comparten las acciones que se le hayan concedido.',
       },
     ],
   },
@@ -569,6 +586,8 @@ export function FirstVisitTour() {
     const assignmentsListStorageKey = `evoria-module-tour:${userId}:/recursos/asignaciones`;
     const assignmentsDetailStorageKey = `evoria-module-tour:${userId}:/recursos/asignaciones/[eventId]`;
     const continuationStorageKey = `evoria-tour-continuation:${userId}:assignments`;
+    const automationScope = isAssignmentsRoute ? 'assignments' : guidePathname;
+    const automationStorageKey = `evoria-tour-automation:${userId}:${automationScope}`;
     let continuation: TourContinuation | null = null;
     if (
       pathname === '/recursos/asignaciones' ||
@@ -607,10 +626,22 @@ export function FirstVisitTour() {
             continuation = parsed as TourContinuation;
           } else {
             sessionStorage.removeItem(continuationStorageKey);
+            sessionStorage.removeItem(automationStorageKey);
           }
         }
       } catch {
         continuation = null;
+      }
+    }
+    let automatic = false;
+    let automaticModeChosen = false;
+    if (continuation) {
+      try {
+        automatic =
+          sessionStorage.getItem(automationStorageKey) === 'automatic';
+        automaticModeChosen = automatic;
+      } catch {
+        automatic = false;
       }
     }
     const requested =
@@ -648,12 +679,24 @@ export function FirstVisitTour() {
       const isLoadingInventory =
         pathname === '/inventario' &&
         main.textContent?.includes('Cargando recursos');
+      const isLoadingTenantContext =
+        pathname === '/empresas' &&
+        main.textContent?.includes('Cargando contexto operativo');
+      const isLoadingReports =
+        pathname === '/reportes' &&
+        main.textContent?.includes('Cargando reportes');
+      const isLoadingReportResults =
+        pathname === '/reportes' &&
+        main.textContent?.includes('Consultando eventos');
       if (
         (isLoadingAssignmentList ||
           isLoadingAssignmentDetails ||
           isLoadingBudgetList ||
           isLoadingEventList ||
-          isLoadingInventory) &&
+          isLoadingInventory ||
+          isLoadingTenantContext ||
+          isLoadingReports ||
+          isLoadingReportResults) &&
         Date.now() - waitStarted < 10000
       )
         return;
@@ -661,14 +704,16 @@ export function FirstVisitTour() {
       if (requested && request) handledRequest.current = request.id;
 
       const steps: DriveStep[] = [];
-      if (!continuation || continuation.direction === 'back') {
+      const hasWelcomeStep = !continuation || continuation.direction === 'back';
+      if (hasWelcomeStep) {
         steps.push({
           popover: {
             title: `Conoce ${guide.title}`,
-            description: `${guide.description} Puedes avanzar u omitir esta guía.`,
+            description: `${guide.description} Elige cómo quieres recorrer esta guía.`,
+            showButtons: [],
           },
         });
-      } else if (continuation.direction === 'forward') {
+      } else if (continuation?.direction === 'forward') {
         // Reserva un índice anterior para habilitar «Anterior» en el primer
         // paso del detalle. Su acción lleva de vuelta al paso de apertura.
         steps.push({
@@ -781,6 +826,39 @@ export function FirstVisitTour() {
         };
         window.requestAnimationFrame(waitForDialog);
       };
+      const clickRelatedControl = (
+        action: NonNullable<InteractiveStep['clickOnNext']>,
+        direction: 'next' | 'previous',
+      ) => {
+        const trigger =
+          activeTourDialog()?.querySelector<HTMLElement>(
+            action.triggerSelector,
+          ) ?? main.querySelector<HTMLElement>(action.triggerSelector);
+        if (
+          !trigger ||
+          (trigger instanceof HTMLButtonElement && trigger.disabled)
+        ) {
+          moveTour(direction);
+          return;
+        }
+        trigger.click();
+        const started = Date.now();
+        const waitForReadyElement = () => {
+          if (cancelled || !tour?.isActive()) return;
+          if (
+            main
+              .querySelector<HTMLElement>(action.readySelector)
+              ?.getClientRects().length
+          ) {
+            moveTour(direction);
+            return;
+          }
+          if (Date.now() - started < 3000)
+            window.requestAnimationFrame(waitForReadyElement);
+          else moveTour(direction);
+        };
+        window.requestAnimationFrame(waitForReadyElement);
+      };
 
       const currentPageSteps = pageSteps[guidePathname] ?? [];
       const visiblePageSteps =
@@ -811,11 +889,13 @@ export function FirstVisitTour() {
 
         const currentStepNumber = nextStepNumber();
         steps.push({
-          element,
+          element: item.clickOnNext
+            ? () => findTarget(main, item) ?? main
+            : element,
           popover: {
             title: item.title,
             description: item.description,
-            side: 'bottom',
+            side: item.popoverSide ?? 'bottom',
             ...(item.continueTourOnPrevious
               ? {
                   onPrevClick: () => {
@@ -848,6 +928,12 @@ export function FirstVisitTour() {
                     openRelatedDialog(item.openDialogOnNext!, 'next'),
                 }
               : {}),
+            ...(item.clickOnNext
+              ? {
+                  onNextClick: () =>
+                    clickRelatedControl(item.clickOnNext!, 'next'),
+                }
+              : {}),
             ...(item.closeDialogOnNext
               ? {
                   onNextClick: () => {
@@ -868,6 +954,12 @@ export function FirstVisitTour() {
                     closeCurrentTourDialog();
                     moveTour('previous');
                   },
+                }
+              : {}),
+            ...(item.clickOnPrevious
+              ? {
+                  onPrevClick: () =>
+                    clickRelatedControl(item.clickOnPrevious!, 'previous'),
                 }
               : {}),
             ...(item.continueTourOnNext
@@ -917,7 +1009,9 @@ export function FirstVisitTour() {
         dialogSteps.forEach((dialogStep, index) => {
           const closeAfterNext =
             dialogStep.closeDialogOnNext ||
-            (index === dialogSteps.length - 1 && !dialogStep.openDialogOnNext);
+            (index === dialogSteps.length - 1 &&
+              !dialogStep.openDialogOnNext &&
+              !dialogStep.clickOnNext);
           steps.push({
             element: dialogStep.selector ?? (() => activeTourDialog() ?? main),
             ...(index > 0 && dialogStep.selector
@@ -944,6 +1038,12 @@ export function FirstVisitTour() {
                       openRelatedDialog(dialogStep.openDialogOnNext!, 'next'),
                   }
                 : {}),
+              ...(dialogStep.clickOnNext
+                ? {
+                    onNextClick: () =>
+                      clickRelatedControl(dialogStep.clickOnNext!, 'next'),
+                  }
+                : {}),
               ...(closeAfterNext
                 ? {
                     onNextClick: () => {
@@ -967,6 +1067,15 @@ export function FirstVisitTour() {
                       closeCurrentTourDialog();
                       moveTour('previous');
                     },
+                  }
+                : {}),
+              ...(dialogStep.clickOnPrevious
+                ? {
+                    onPrevClick: () =>
+                      clickRelatedControl(
+                        dialogStep.clickOnPrevious!,
+                        'previous',
+                      ),
                   }
                 : {}),
             },
@@ -1129,7 +1238,7 @@ export function FirstVisitTour() {
               popover: {
                 title: item.title,
                 description: item.description,
-                side: 'bottom',
+                side: item.popoverSide ?? 'bottom',
                 ...(index === 0
                   ? {
                       onPrevClick: () => {
@@ -1229,6 +1338,33 @@ export function FirstVisitTour() {
           continuation.totalSteps ?? continuation.progressOffset + steps.length
         );
       };
+      let autoAdvanceTimer: number | null = null;
+      const clearAutoAdvanceTimer = () => {
+        if (autoAdvanceTimer === null) return;
+        window.clearTimeout(autoAdvanceTimer);
+        autoAdvanceTimer = null;
+      };
+      const scheduleAutoAdvance = (nextButton: HTMLButtonElement) => {
+        clearAutoAdvanceTimer();
+        if (!automatic) return;
+        autoAdvanceTimer = window.setTimeout(() => {
+          autoAdvanceTimer = null;
+          if (!cancelled && automatic && tour?.isActive()) nextButton.click();
+        }, 7000);
+      };
+      const chooseTourMode = (mode: 'manual' | 'automatic') => {
+        automatic = mode === 'automatic';
+        automaticModeChosen = automatic;
+        clearAutoAdvanceTimer();
+        try {
+          if (automatic)
+            sessionStorage.setItem(automationStorageKey, 'automatic');
+          else sessionStorage.removeItem(automationStorageKey);
+        } catch {
+          // La guía funciona aunque el navegador bloquee el almacenamiento.
+        }
+        tour?.moveNext();
+      };
       if (pathname === '/recursos/asignaciones') {
         // El paso de apertura debe conservar «Siguiente» y navegar al detalle;
         // este destino vacío nunca se visita mientras el enlace sea válido.
@@ -1270,6 +1406,8 @@ export function FirstVisitTour() {
 
       tour = driver({
         animate: true,
+        stagePadding: guidePathname === '/presupuestos' ? 0 : 10,
+        stageRadius: guidePathname === '/presupuestos' ? 14 : 5,
         allowClose: true,
         allowKeyboardControl: true,
         disableActiveInteraction: true,
@@ -1283,6 +1421,85 @@ export function FirstVisitTour() {
         popoverClass: 'evoria-tour',
         onPopoverRender: (popover, { index }) => {
           popover.closeButton.textContent = 'Omitir';
+          popover.nextButton.addEventListener('click', clearAutoAdvanceTimer, {
+            capture: true,
+            once: true,
+          });
+          popover.previousButton.addEventListener(
+            'click',
+            clearAutoAdvanceTimer,
+            { capture: true, once: true },
+          );
+          if (hasWelcomeStep && index === 0) {
+            if (
+              !popover.description.querySelector('.evoria-tour-mode-choice')
+            ) {
+              const choices = document.createElement('div');
+              choices.className = 'evoria-tour-mode-choice';
+
+              const modeLabel = document.createElement('p');
+              modeLabel.className = 'evoria-tour-mode-label';
+              modeLabel.textContent = 'Selecciona una modalidad:';
+              choices.append(modeLabel);
+
+              const createChoiceButton = (
+                mode: 'manual' | 'automatic',
+                label: string,
+                explanation: string,
+              ) => {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className =
+                  mode === 'automatic'
+                    ? 'evoria-tour-mode-button evoria-tour-mode-button-primary'
+                    : 'evoria-tour-mode-button';
+                const title = document.createElement('strong');
+                title.textContent = label;
+                const detail = document.createElement('span');
+                detail.textContent = explanation;
+                button.append(title, detail);
+                button.addEventListener('click', () => chooseTourMode(mode));
+                return button;
+              };
+
+              choices.append(
+                createChoiceButton(
+                  'manual',
+                  'Manual',
+                  'Avanza a tu propio ritmo.',
+                ),
+                createChoiceButton(
+                  'automatic',
+                  'Automática',
+                  'Avanza sola cada pocos segundos.',
+                ),
+              );
+              popover.description.append(choices);
+            }
+          } else if (
+            automaticModeChosen &&
+            !popover.description.querySelector('.evoria-tour-automatic-toggle')
+          ) {
+            const toggle = document.createElement('button');
+            toggle.type = 'button';
+            toggle.className = 'evoria-tour-automatic-toggle';
+            toggle.setAttribute('aria-pressed', String(automatic));
+            toggle.textContent = automatic
+              ? 'Pausar avance automático'
+              : 'Reanudar avance automático';
+            toggle.addEventListener('click', () => {
+              automatic = !automatic;
+              toggle.setAttribute('aria-pressed', String(automatic));
+              toggle.textContent = automatic
+                ? 'Pausar avance automático'
+                : 'Reanudar avance automático';
+              if (automatic) scheduleAutoAdvance(popover.nextButton);
+              else clearAutoAdvanceTimer();
+            });
+            popover.description.append(toggle);
+          }
+          if (automatic && !(hasWelcomeStep && index === 0))
+            scheduleAutoAdvance(popover.nextButton);
           if (
             (pathname === '/recursos/asignaciones' || continuation) &&
             typeof index === 'number'
@@ -1295,9 +1512,23 @@ export function FirstVisitTour() {
           }
         },
         onDestroyed: (_element, _step, { reason }) => {
+          clearAutoAdvanceTimer();
           cancelled = true;
           closeTourDialog();
-          if (reason === 'api' || reason === 'replaced') return;
+          if (reason === 'api' || reason === 'replaced') {
+            try {
+              if (!sessionStorage.getItem(continuationStorageKey))
+                sessionStorage.removeItem(automationStorageKey);
+            } catch {
+              // La guía permanece disponible aunque no se pueda limpiar la sesión.
+            }
+            return;
+          }
+          try {
+            sessionStorage.removeItem(automationStorageKey);
+          } catch {
+            // La guía termina aunque no se pueda limpiar la sesión.
+          }
           const completedAssignmentFlow =
             !!continuation ||
             guidePathname === '/recursos/asignaciones/[eventId]';
