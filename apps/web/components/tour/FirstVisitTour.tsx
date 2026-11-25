@@ -70,7 +70,9 @@ function manualTopicIcon(pathname: string, title: string): string {
       'Equipos registrados': '/icons/usuarios.svg',
       'Crear equipo': '/icons/crear.svg',
       'Integrantes y liderazgo': '/icons/usuarios.svg',
+      'Editar equipo': '/icons/editar.svg',
       'Desactivar equipo': '/icons/alerta.svg',
+      'Equipos en cronogramas': '/icons/cronograma.svg',
     };
     return teamTopicIcons[title] ?? '/icons/usuarios.svg';
   }

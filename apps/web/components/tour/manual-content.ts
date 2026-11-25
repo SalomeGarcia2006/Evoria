@@ -248,25 +248,36 @@ export const manualContent: Record<string, ManualTopic[]> = {
     {
       title: 'Equipos registrados',
       description:
-        'Consulta el nombre, la especialidad, la cantidad de integrantes y el estado de cada equipo activo de la empresa.',
+        'Busca por nombre, especialidad, líder o integrante y filtra por estado. La tabla muestra cinco equipos por página; las tarjetas resumen los equipos y las personas únicas de equipos activos.',
     },
     {
       title: 'Crear equipo',
       description:
-        'Registra un equipo con un nombre y una especialidad. Para guardarlo debes seleccionar integrantes y definir a una de esas personas como líder.',
+        'Registra un nombre de 2 a 120 caracteres y selecciona una especialidad del catálogo. Para guardarlo debes elegir de 1 a 200 usuarios activos y definir a uno de ellos como líder.',
       permission: 'equipos.crear',
     },
     {
       title: 'Integrantes y liderazgo',
       description:
-        'Solo se muestran usuarios activos. El líder debe estar incluido entre los integrantes seleccionados; necesitas permiso para consultar usuarios y poder elegirlos.',
+        'Solo puedes elegir usuarios activos y una persona no puede pertenecer a dos equipos activos. El líder debe estar incluido entre los integrantes. Necesitas permiso para consultar usuarios.',
       permission: 'usuarios.ver',
+    },
+    {
+      title: 'Editar equipo',
+      description:
+        'Puedes actualizar los datos de un equipo activo. Al cambiar sus integrantes se vuelven a validar el estado activo, la pertenencia a otro equipo y el líder.',
+      permission: 'equipos.editar',
     },
     {
       title: 'Desactivar equipo',
       description:
-        'Solicita una confirmación escrita antes de desactivar el equipo. Esta acción no se puede revertir desde la plataforma.',
+        'Debes escribir DESACTIVAR para confirmar. No se puede desactivar un equipo ligado a actividades no canceladas cuyo fin aún esté en el futuro, ni reactivarlo desde la plataforma.',
       permission: 'equipos.desactivar',
+    },
+    {
+      title: 'Equipos en cronogramas',
+      description:
+        'Solo los equipos activos pueden asignarse a actividades. El sistema comprueba la disponibilidad del equipo y evita conflictos de horario.',
     },
   ],
   '/alertas': [

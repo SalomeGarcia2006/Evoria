@@ -409,31 +409,41 @@ export const pageSteps: Record<string, InteractiveStep[]> = {
   ],
   '/equipos': [
     {
+      title: 'Resumen de equipos',
+      selector: '[aria-label="Resumen de equipos"]',
+      description:
+        'Estas tarjetas resumen cuántos equipos hay, cuántos están activos o inactivos y cuántas personas únicas pertenecen a equipos activos.',
+    },
+    {
+      title: 'Buscar equipos',
+      selector: '[aria-label="Buscar equipos"]',
+      description: 'Busca por nombre, especialidad, líder o integrante.',
+    },
+    {
+      title: 'Filtrar por estado',
+      selector: '[data-tour="team-status-filter"]',
+      description:
+        'Muestra todos los equipos o limita la lista a equipos activos o inactivos.',
+    },
+    {
       title: 'Equipos registrados',
-      text: 'Equipos registrados',
+      selector: '[data-tour="team-directory"]',
       description:
-        'Consulta los equipos de la empresa, su especialidad, integrantes y estado actual.',
+        'Cada fila muestra el nombre, especialidad, cantidad de integrantes, líder y estado. La tabla presenta cinco equipos por página.',
     },
     {
-      title: 'Crear equipo',
-      text: 'Crear equipo',
-      permission: 'equipos.crear',
+      title: 'Editar equipo',
+      selector: '[data-tour="team-edit-action"]',
+      permission: 'equipos.editar',
       description:
-        'Completa el nombre y la especialidad para identificar el equipo de trabajo.',
-    },
-    {
-      title: 'Integrantes y líder',
-      text: 'Integrantes',
-      permission: 'equipos.crear',
-      description:
-        'Selecciona usuarios activos y luego escoge un líder entre las personas que agregaste al equipo.',
+        'Abre el formulario para cambiar los datos de un equipo activo. La guía continuará con el siguiente tema sin abrir ni guardar el formulario.',
     },
     {
       title: 'Desactivar equipo',
-      text: 'Desactivar',
+      selector: '[data-tour="team-deactivate-action"]',
       permission: 'equipos.desactivar',
       description:
-        'Esta acción solicita una confirmación y deja el equipo inactivo. La guía no lo desactiva.',
+        'Solicita escribir DESACTIVAR para confirmar. El equipo no se podrá reactivar desde la plataforma y no podrá desactivarse mientras tenga actividades no canceladas cuyo fin aún esté en el futuro. La guía no ejecutará esta acción.',
     },
   ],
   '/alertas': [
@@ -567,6 +577,54 @@ export const pageSteps: Record<string, InteractiveStep[]> = {
 };
 
 export const formGuides: Record<string, FormGuide> = {
+  '/equipos': {
+    permission: 'equipos.crear',
+    button: 'Nuevo equipo',
+    triggerSelector: '[data-tour="team-create"]',
+    readySelector: '[data-tour="team-form"]',
+    skipMissingFields: true,
+    preserveDialogDuringTour: true,
+    fields: [
+      {
+        title: 'Crear equipo',
+        selector: '[data-tour="team-form"]',
+        description:
+          'Desde esta ventana registras el nombre, la especialidad, los integrantes y el líder. El recorrido no creará ni guardará un equipo.',
+      },
+      {
+        title: 'Nombre del equipo',
+        selector: '#team-name',
+        description:
+          'Escribe un nombre de entre 2 y 120 caracteres para identificar al equipo.',
+      },
+      {
+        title: 'Especialidad',
+        selector: '#team-specialty',
+        description:
+          'Selecciona una especialidad disponible en el catálogo de la empresa.',
+      },
+      {
+        title: 'Integrantes',
+        selector: '[data-tour="team-members-field"]',
+        permission: 'usuarios.ver',
+        description:
+          'Selecciona entre 1 y 200 usuarios activos. Cada persona solo puede pertenecer a un equipo activo; necesitas permiso para consultar usuarios.',
+      },
+      {
+        title: 'Líder del equipo',
+        selector: '[data-tour="team-leader-field"]',
+        permission: 'usuarios.ver',
+        description:
+          'Elige como líder a una persona incluida entre los integrantes seleccionados.',
+      },
+      {
+        title: 'Crear equipo',
+        selector: '[data-tour="team-save"]',
+        description:
+          'Al guardar se validan los integrantes y el líder. También necesitas permiso para consultar usuarios; el recorrido no pulsará este botón.',
+      },
+    ],
+  },
   '/inventario': {
     permission: 'inventario.ajustar',
     button: 'Nuevo recurso',
