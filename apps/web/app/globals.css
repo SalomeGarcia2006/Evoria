@@ -1887,6 +1887,68 @@ textarea:disabled:not(:root:not([data-theme='dark']) [data-inventory-scope] *),
   color: #fff;
 }
 
+.driver-popover.evoria-tour .evoria-tour-mode-choice {
+  display: grid;
+  gap: 0.55rem;
+  margin-top: 1rem;
+}
+
+.driver-popover.evoria-tour .evoria-tour-mode-label {
+  margin: 0 0 0.1rem;
+  color: var(--evoria-muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.driver-popover.evoria-tour .evoria-tour-mode-button {
+  display: grid;
+  gap: 0.2rem;
+  width: 100%;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--evoria-border);
+  border-radius: 0.7rem;
+  background: var(--evoria-surface);
+  color: var(--evoria-ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.driver-popover.evoria-tour .evoria-tour-mode-button span {
+  color: var(--evoria-muted);
+  font-size: 0.78rem;
+  font-weight: 400;
+}
+
+.driver-popover.evoria-tour .evoria-tour-mode-button-primary {
+  border-color: transparent;
+  background: var(--evoria-action);
+  color: #fff;
+}
+
+.driver-popover.evoria-tour .evoria-tour-mode-button-primary span {
+  color: rgb(255 255 255 / 88%);
+}
+
+.driver-popover.evoria-tour .evoria-tour-mode-button:focus-visible,
+.driver-popover.evoria-tour .evoria-tour-automatic-toggle:focus-visible {
+  outline: 2px solid var(--evoria-focus);
+  outline-offset: 2px;
+}
+
+.driver-popover.evoria-tour .evoria-tour-automatic-toggle {
+  margin-top: 0.9rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--evoria-focus);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 /* Registro empresarial: comparte el flujo existente, con una composición propia. */
 .registration-page {
   display: grid;

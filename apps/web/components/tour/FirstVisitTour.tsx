@@ -586,6 +586,8 @@ export function FirstVisitTour() {
     const assignmentsListStorageKey = `evoria-module-tour:${userId}:/recursos/asignaciones`;
     const assignmentsDetailStorageKey = `evoria-module-tour:${userId}:/recursos/asignaciones/[eventId]`;
     const continuationStorageKey = `evoria-tour-continuation:${userId}:assignments`;
+    const automationScope = isAssignmentsRoute ? 'assignments' : guidePathname;
+    const automationStorageKey = `evoria-tour-automation:${userId}:${automationScope}`;
     let continuation: TourContinuation | null = null;
     if (
       pathname === '/recursos/asignaciones' ||
@@ -624,10 +626,22 @@ export function FirstVisitTour() {
             continuation = parsed as TourContinuation;
           } else {
             sessionStorage.removeItem(continuationStorageKey);
+            sessionStorage.removeItem(automationStorageKey);
           }
         }
       } catch {
         continuation = null;
+      }
+    }
+    let automatic = false;
+    let automaticModeChosen = false;
+    if (continuation) {
+      try {
+        automatic =
+          sessionStorage.getItem(automationStorageKey) === 'automatic';
+        automaticModeChosen = automatic;
+      } catch {
+        automatic = false;
       }
     }
     const requested =
@@ -690,14 +704,16 @@ export function FirstVisitTour() {
       if (requested && request) handledRequest.current = request.id;
 
       const steps: DriveStep[] = [];
-      if (!continuation || continuation.direction === 'back') {
+      const hasWelcomeStep = !continuation || continuation.direction === 'back';
+      if (hasWelcomeStep) {
         steps.push({
           popover: {
             title: `Conoce ${guide.title}`,
-            description: `${guide.description} Puedes avanzar u omitir esta guía.`,
+            description: `${guide.description} Elige cómo quieres recorrer esta guía.`,
+            showButtons: [],
           },
         });
-      } else if (continuation.direction === 'forward') {
+      } else if (continuation?.direction === 'forward') {
         // Reserva un índice anterior para habilitar «Anterior» en el primer
         // paso del detalle. Su acción lleva de vuelta al paso de apertura.
         steps.push({
@@ -1322,6 +1338,33 @@ export function FirstVisitTour() {
           continuation.totalSteps ?? continuation.progressOffset + steps.length
         );
       };
+      let autoAdvanceTimer: number | null = null;
+      const clearAutoAdvanceTimer = () => {
+        if (autoAdvanceTimer === null) return;
+        window.clearTimeout(autoAdvanceTimer);
+        autoAdvanceTimer = null;
+      };
+      const scheduleAutoAdvance = (nextButton: HTMLButtonElement) => {
+        clearAutoAdvanceTimer();
+        if (!automatic) return;
+        autoAdvanceTimer = window.setTimeout(() => {
+          autoAdvanceTimer = null;
+          if (!cancelled && automatic && tour?.isActive()) nextButton.click();
+        }, 7000);
+      };
+      const chooseTourMode = (mode: 'manual' | 'automatic') => {
+        automatic = mode === 'automatic';
+        automaticModeChosen = automatic;
+        clearAutoAdvanceTimer();
+        try {
+          if (automatic)
+            sessionStorage.setItem(automationStorageKey, 'automatic');
+          else sessionStorage.removeItem(automationStorageKey);
+        } catch {
+          // La guía funciona aunque el navegador bloquee el almacenamiento.
+        }
+        tour?.moveNext();
+      };
       if (pathname === '/recursos/asignaciones') {
         // El paso de apertura debe conservar «Siguiente» y navegar al detalle;
         // este destino vacío nunca se visita mientras el enlace sea válido.
@@ -1378,6 +1421,85 @@ export function FirstVisitTour() {
         popoverClass: 'evoria-tour',
         onPopoverRender: (popover, { index }) => {
           popover.closeButton.textContent = 'Omitir';
+          popover.nextButton.addEventListener('click', clearAutoAdvanceTimer, {
+            capture: true,
+            once: true,
+          });
+          popover.previousButton.addEventListener(
+            'click',
+            clearAutoAdvanceTimer,
+            { capture: true, once: true },
+          );
+          if (hasWelcomeStep && index === 0) {
+            if (
+              !popover.description.querySelector('.evoria-tour-mode-choice')
+            ) {
+              const choices = document.createElement('div');
+              choices.className = 'evoria-tour-mode-choice';
+
+              const modeLabel = document.createElement('p');
+              modeLabel.className = 'evoria-tour-mode-label';
+              modeLabel.textContent = 'Selecciona una modalidad:';
+              choices.append(modeLabel);
+
+              const createChoiceButton = (
+                mode: 'manual' | 'automatic',
+                label: string,
+                explanation: string,
+              ) => {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className =
+                  mode === 'automatic'
+                    ? 'evoria-tour-mode-button evoria-tour-mode-button-primary'
+                    : 'evoria-tour-mode-button';
+                const title = document.createElement('strong');
+                title.textContent = label;
+                const detail = document.createElement('span');
+                detail.textContent = explanation;
+                button.append(title, detail);
+                button.addEventListener('click', () => chooseTourMode(mode));
+                return button;
+              };
+
+              choices.append(
+                createChoiceButton(
+                  'manual',
+                  'Manual',
+                  'Avanza a tu propio ritmo.',
+                ),
+                createChoiceButton(
+                  'automatic',
+                  'Automática',
+                  'Avanza sola cada pocos segundos.',
+                ),
+              );
+              popover.description.append(choices);
+            }
+          } else if (
+            automaticModeChosen &&
+            !popover.description.querySelector('.evoria-tour-automatic-toggle')
+          ) {
+            const toggle = document.createElement('button');
+            toggle.type = 'button';
+            toggle.className = 'evoria-tour-automatic-toggle';
+            toggle.setAttribute('aria-pressed', String(automatic));
+            toggle.textContent = automatic
+              ? 'Pausar avance automático'
+              : 'Reanudar avance automático';
+            toggle.addEventListener('click', () => {
+              automatic = !automatic;
+              toggle.setAttribute('aria-pressed', String(automatic));
+              toggle.textContent = automatic
+                ? 'Pausar avance automático'
+                : 'Reanudar avance automático';
+              if (automatic) scheduleAutoAdvance(popover.nextButton);
+              else clearAutoAdvanceTimer();
+            });
+            popover.description.append(toggle);
+          }
+          if (automatic && !(hasWelcomeStep && index === 0))
+            scheduleAutoAdvance(popover.nextButton);
           if (
             (pathname === '/recursos/asignaciones' || continuation) &&
             typeof index === 'number'
@@ -1390,9 +1512,23 @@ export function FirstVisitTour() {
           }
         },
         onDestroyed: (_element, _step, { reason }) => {
+          clearAutoAdvanceTimer();
           cancelled = true;
           closeTourDialog();
-          if (reason === 'api' || reason === 'replaced') return;
+          if (reason === 'api' || reason === 'replaced') {
+            try {
+              if (!sessionStorage.getItem(continuationStorageKey))
+                sessionStorage.removeItem(automationStorageKey);
+            } catch {
+              // La guía permanece disponible aunque no se pueda limpiar la sesión.
+            }
+            return;
+          }
+          try {
+            sessionStorage.removeItem(automationStorageKey);
+          } catch {
+            // La guía termina aunque no se pueda limpiar la sesión.
+          }
           const completedAssignmentFlow =
             !!continuation ||
             guidePathname === '/recursos/asignaciones/[eventId]';
