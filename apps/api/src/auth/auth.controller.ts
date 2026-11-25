@@ -34,6 +34,7 @@ import {
 } from './dto/registration.dto';
 
 const GOOGLE_STATE_COOKIE = 'evoria_google_state';
+const EVORIA_WEB_ORIGIN = 'https://evoria-lime.vercel.app';
 
 @Controller('auth')
 export class AuthController {
@@ -234,7 +235,7 @@ export class AuthController {
           ? `/mi-perfil?google=${result.status}`
           : `/login?google=${result.status}`;
       return response.redirect(
-        new URL(path, result.webOrigin ?? this.webOrigin()).toString(),
+        new URL(path, this.webOrigin(result.webOrigin)).toString(),
       );
     } catch {
       return response.redirect(
@@ -326,8 +327,26 @@ export class AuthController {
     }
   }
 
-  private webOrigin(): string {
-    return process.env.WEB_ORIGIN?.trim() || 'http://localhost:3000';
+  private webOrigin(savedOrigin?: string | null): string {
+    const configured = process.env.WEB_ORIGIN?.trim();
+    if (
+      process.env.VERCEL !== '1' ||
+      process.env.VERCEL_ENV === 'preview' ||
+      process.env.VERCEL_ENV === 'development'
+    ) {
+      return savedOrigin || configured || 'http://localhost:3000';
+    }
+
+    const url = configured ? URL.parse(configured) : null;
+    if (
+      url?.protocol === 'https:' &&
+      !url.username &&
+      !url.password &&
+      !/^(localhost\.?$|127\.|\[::1\]$)/.test(url.hostname)
+    ) {
+      return url.origin;
+    }
+    return EVORIA_WEB_ORIGIN;
   }
 
   private setGoogleStateCookie(response: Response, state: string): void {

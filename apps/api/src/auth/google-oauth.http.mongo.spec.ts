@@ -13,6 +13,32 @@ function stateFrom(response: { data: { url: string } }): string {
   return state;
 }
 
+test('HTTP: un callback sin cookie vuelve al login público en producción', async () => {
+  const api = await createHttpTestApi('google_redirect_test');
+  const originalEnv = process.env;
+  try {
+    process.env = { ...originalEnv, VERCEL: '1', VERCEL_ENV: 'production' };
+    for (const [origin, expected] of [
+      ['', 'https://evoria-lime.vercel.app'],
+      ['http://localhost:3000', 'https://evoria-lime.vercel.app'],
+      ['https://eventos.example', 'https://eventos.example'],
+    ]) {
+      process.env.WEB_ORIGIN = origin;
+      const response = await api.request('auth/google/callback', {
+        redirect: 'manual',
+      });
+      assert.equal(response.status, 302);
+      assert.equal(
+        response.headers.get('location'),
+        expected + '/login?google=error',
+      );
+    }
+  } finally {
+    process.env = originalEnv;
+    await api.close();
+  }
+});
+
 test('HTTP: Google solo inicia sesión después de vincularse y respeta la empresa', async () => {
   const api = await createHttpTestApi('google_oauth_test', {
     async authorization(state, nonce) {
