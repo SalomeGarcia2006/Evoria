@@ -427,13 +427,6 @@ const guides: Record<string, ModuleGuide> = {
           'Consulta los usuarios y las opciones disponibles según tus permisos.',
       },
       {
-        title: 'Crear usuario',
-        description:
-          'Desde aquí puedes registrar una cuenta y asignarle un perfil.',
-        selector: 'main section button',
-        permission: 'usuarios.crear',
-      },
-      {
         title: 'Perfil del usuario',
         description:
           'El perfil asignado determina las acciones que la persona puede realizar en la empresa. Los cambios de permisos se gestionan desde Perfiles.',

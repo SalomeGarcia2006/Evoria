@@ -830,30 +830,6 @@ export const formGuides: Record<string, FormGuide> = {
       },
     ],
   },
-  '/usuarios': {
-    permission: 'usuarios.crear',
-    button: 'Nuevo usuario',
-    fields: [
-      {
-        title: 'Datos de la cuenta',
-        selector: 'form',
-        description:
-          'Completa los datos que identifican al usuario de la empresa.',
-      },
-      {
-        title: 'Contraseña y perfil',
-        selector: 'input[type="password"]',
-        description:
-          'Configura las credenciales y selecciona el perfil que define sus permisos.',
-      },
-      {
-        title: 'Guardar',
-        selector: 'button[type="submit"]',
-        description:
-          'Confirma la creación cuando los datos estén completos. El tutorial no creará una cuenta.',
-      },
-    ],
-  },
   '/perfiles': {
     permission: 'perfiles.crear',
     button: 'Nuevo perfil',

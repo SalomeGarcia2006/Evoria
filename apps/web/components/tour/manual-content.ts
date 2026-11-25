@@ -337,15 +337,9 @@ export const manualContent: Record<string, ManualTopic[]> = {
         'Consulta los usuarios de la empresa, su estado y perfil; las acciones visibles dependen de tus permisos.',
     },
     {
-      title: 'Crear usuario',
-      description:
-        'Completa los datos de la cuenta, el perfil y las credenciales solicitadas. El ojo permite mostrar u ocultar la contraseña.',
-      permission: 'usuarios.crear',
-    },
-    {
       title: 'Estado de la cuenta',
       description:
-        'El estado activo o inactivo determina la situación de la cuenta. Revisa las opciones del formulario antes de guardar.',
+        'El estado activo o inactivo determina la situación de la cuenta. Revisa las opciones de edición antes de guardar.',
     },
     {
       title: 'Perfil y permisos',
