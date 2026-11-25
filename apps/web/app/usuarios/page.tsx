@@ -6,60 +6,15 @@ import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { DataTable } from '../../components/ui/DataTable';
 import { FeedbackMessages, useFeedback } from '../../components/ui/Feedback';
-import { PermissionGate } from '../../components/auth/PermissionGate';
 import { useAuth } from '../../hooks/useAuth';
 import {
   deactivateUser,
-  createUser,
   getUserProfiles,
   getUsers,
   updateUser,
   type CompanyUser,
   type UserProfileOption,
 } from '../../services/users.service';
-
-function PasswordVisibilityButton({
-  visible,
-  onClick,
-}: {
-  visible: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      aria-label={visible ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-      className="absolute inset-y-0 right-0 grid w-11 place-items-center text-teal transition hover:text-violet"
-      onClick={onClick}
-      type="button"
-    >
-      <svg
-        aria-hidden="true"
-        fill="none"
-        height="20"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="2"
-        viewBox="0 0 24 24"
-        width="20"
-      >
-        {visible ? (
-          <>
-            <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z" />
-            <circle cx="12" cy="12" r="2.5" />
-          </>
-        ) : (
-          <>
-            <path d="m3 3 18 18" />
-            <path d="M10.6 6.2A10.8 10.8 0 0 1 12 6c6.5 0 10 6 10 6a18 18 0 0 1-3 3.8" />
-            <path d="M6.2 6.2C3.6 8 2 12 2 12s3.5 6 10 6c1.3 0 2.5-.2 3.5-.6" />
-            <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" />
-          </>
-        )}
-      </svg>
-    </button>
-  );
-}
 
 function userInitials(name: string) {
   return name
@@ -128,19 +83,13 @@ export default function UsuariosPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [editing, setEditing] = useState<CompanyUser | null>(null);
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const userDialog = useRef<HTMLDialogElement>(null);
   const [form, setForm] = useState({
     name: '',
     email: '',
-    password: '',
     profileId: '',
     status: 'activo' as 'activo' | 'inactivo',
   });
-  const passwordsDoNotMatch =
-    !editing && confirmPassword.length > 0 && form.password !== confirmPassword;
   const userMetrics = [
     {
       label: 'Usuarios registrados',
@@ -194,30 +143,11 @@ export default function UsuariosPage() {
     void loadData();
   }, [loadData]);
 
-  function openCreateForm() {
-    setEditing(null);
-    setConfirmPassword('');
-    setShowPassword(false);
-    setShowConfirmPassword(false);
-    setForm({
-      name: '',
-      email: '',
-      password: '',
-      profileId: profiles[0]?.id ?? '',
-      status: 'activo',
-    });
-    userDialog.current?.showModal();
-  }
-
   function openEditForm(user: CompanyUser) {
     setEditing(user);
-    setConfirmPassword('');
-    setShowPassword(false);
-    setShowConfirmPassword(false);
     setForm({
       name: user.name,
       email: user.email,
-      password: '',
       profileId: user.profile?.id ?? '',
       status: user.status,
     });
@@ -254,35 +184,19 @@ export default function UsuariosPage() {
       return;
     }
 
-    if (!editing && form.password !== confirmPassword) {
-      feedback.notify('Las contraseñas no coinciden.', 'error');
-      return;
-    }
+    if (!editing) return;
 
     setIsSaving(true);
     try {
-      const saved = editing
-        ? await updateUser(editing.id, {
-            profileId: form.profileId,
-            status: form.status,
-          })
-        : await createUser({
-            name: form.name.trim(),
-            email: form.email.trim(),
-            password: form.password,
-            profileId: form.profileId,
-          });
+      const saved = await updateUser(editing.id, {
+        profileId: form.profileId,
+        status: form.status,
+      });
       setUsers((current) =>
-        editing
-          ? current.map((item) => (item.id === saved.id ? saved : item))
-          : [saved, ...current],
+        current.map((item) => (item.id === saved.id ? saved : item)),
       );
       closeForm();
-      feedback.notify(
-        editing
-          ? 'Usuario actualizado correctamente.'
-          : 'Usuario creado correctamente.',
-      );
+      feedback.notify('Usuario actualizado correctamente.');
     } catch (saveError) {
       feedback.notify(
         saveError instanceof Error
@@ -340,18 +254,6 @@ export default function UsuariosPage() {
                 </p>
               </div>
             </div>
-            <PermissionGate permission="usuarios.crear">
-              <Button
-                className="shrink-0 self-start sm:self-auto"
-                onClick={openCreateForm}
-                type="button"
-              >
-                <span aria-hidden="true" className="mr-1 text-lg leading-none">
-                  ＋
-                </span>
-                Nuevo usuario
-              </Button>
-            </PermissionGate>
           </div>
         </Card>
         <section
@@ -390,7 +292,7 @@ export default function UsuariosPage() {
                 Usuarios
               </p>
               <h2 className="mt-1 text-2xl font-bold" id="user-dialog-title">
-                {editing ? 'Editar usuario' : 'Crear usuario'}
+                Editar usuario
               </h2>
             </div>
             <Button
@@ -462,95 +364,26 @@ export default function UsuariosPage() {
                 ))}
               </select>
             </label>
-            {editing ? (
-              <label className="grid gap-2 text-sm font-semibold">
-                Estado
-                <select
-                  className="rounded-lg border border-sky-blue bg-white px-3 py-2 font-normal"
-                  onChange={(event) =>
-                    setForm({
-                      ...form,
-                      status: event.target.value as 'activo' | 'inactivo',
-                    })
-                  }
-                  value={form.status}
-                >
-                  <option value="activo">Activo</option>
-                  <option value="inactivo">Inactivo</option>
-                </select>
-              </label>
-            ) : (
-              <>
-                <label className="grid gap-2 text-sm font-semibold">
-                  Contraseña inicial
-                  <span className="relative block">
-                    <input
-                      aria-invalid={passwordsDoNotMatch}
-                      className={`w-full rounded-lg border px-3 py-2 pr-11 font-normal outline-none focus:ring-2 ${passwordsDoNotMatch ? 'border-red-700 focus:border-red-700 focus:ring-red-100' : 'border-sky-blue focus:border-teal focus:ring-sky-blue'}`}
-                      minLength={8}
-                      onChange={(event) =>
-                        setForm({ ...form, password: event.target.value })
-                      }
-                      required
-                      type={showPassword ? 'text' : 'password'}
-                      value={form.password}
-                    />
-                    <PasswordVisibilityButton
-                      onClick={() => setShowPassword((current) => !current)}
-                      visible={showPassword}
-                    />
-                  </span>
-                </label>
-                <label className="grid gap-2 text-sm font-semibold">
-                  Repite la contraseña
-                  <span className="relative block">
-                    <input
-                      aria-describedby={
-                        passwordsDoNotMatch
-                          ? 'password-confirmation-error'
-                          : undefined
-                      }
-                      aria-invalid={passwordsDoNotMatch}
-                      className={`w-full rounded-lg border px-3 py-2 pr-11 font-normal outline-none focus:ring-2 ${passwordsDoNotMatch ? 'border-red-700 focus:border-red-700 focus:ring-red-100' : 'border-sky-blue focus:border-teal focus:ring-sky-blue'}`}
-                      minLength={8}
-                      onChange={(event) =>
-                        setConfirmPassword(event.target.value)
-                      }
-                      required
-                      type={showConfirmPassword ? 'text' : 'password'}
-                      value={confirmPassword}
-                    />
-                    <PasswordVisibilityButton
-                      onClick={() =>
-                        setShowConfirmPassword((current) => !current)
-                      }
-                      visible={showConfirmPassword}
-                    />
-                  </span>
-                  {passwordsDoNotMatch ? (
-                    <span
-                      className="text-xs font-medium text-red-800"
-                      id="password-confirmation-error"
-                      role="alert"
-                    >
-                      Las contraseñas no coinciden.
-                    </span>
-                  ) : null}
-                </label>
-              </>
-            )}
-            <div className="flex gap-3 border-t border-sky-blue pt-5 md:col-span-3">
-              <PermissionGate
-                permission={editing ? 'usuarios.editar' : 'usuarios.crear'}
+            <label className="grid gap-2 text-sm font-semibold">
+              Estado
+              <select
+                className="rounded-lg border border-sky-blue bg-white px-3 py-2 font-normal"
+                onChange={(event) =>
+                  setForm({
+                    ...form,
+                    status: event.target.value as 'activo' | 'inactivo',
+                  })
+                }
+                value={form.status}
               >
-                <Button disabled={isSaving} type="submit">
-                  {isSaving
-                    ? 'Guardando…'
-                    : editing
-                      ? 'Guardar cambios'
-                      : 'Crear usuario'}
-                </Button>
-              </PermissionGate>
+                <option value="activo">Activo</option>
+                <option value="inactivo">Inactivo</option>
+              </select>
+            </label>
+            <div className="flex gap-3 border-t border-sky-blue pt-5 md:col-span-3">
+              <Button disabled={isSaving} type="submit">
+                {isSaving ? 'Guardando…' : 'Guardar cambios'}
+              </Button>
               <Button onClick={closeForm} type="button" variant="secondary">
                 Cancelar
               </Button>
