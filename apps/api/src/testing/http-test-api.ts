@@ -20,6 +20,7 @@ export interface HttpSession<T = unknown> {
 interface RequestOptions {
   body?: unknown;
   method?: string;
+  origin?: string;
   redirect?: RequestRedirect;
   session?: HttpSession;
 }
@@ -115,10 +116,11 @@ export async function createHttpTestApi(
 
   async function request(
     path: string,
-    { body, method = 'GET', redirect, session }: RequestOptions = {},
+    { body, method = 'GET', origin, redirect, session }: RequestOptions = {},
   ): Promise<Response> {
     const headers = new Headers();
     if (session?.cookies) headers.set('Cookie', session.cookies);
+    if (origin) headers.set('Origin', origin);
     if (body !== undefined) headers.set('Content-Type', 'application/json');
 
     const response = await fetch(`${baseUrl}/${path}`, {

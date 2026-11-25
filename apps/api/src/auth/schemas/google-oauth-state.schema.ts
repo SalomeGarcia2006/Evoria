@@ -32,6 +32,9 @@ export class GoogleOAuthState {
   @Prop({ type: String, default: null })
   previousSubject!: string | null;
 
+  @Prop({ type: String, default: null })
+  webOrigin!: string | null;
+
   @Prop({ required: true })
   expiresAt!: Date;
 }

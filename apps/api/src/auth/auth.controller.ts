@@ -148,6 +148,7 @@ export class AuthController {
     const result = await this.googleOAuthService.startLink(
       user,
       request.cookies?.[this.authConfigService.accessTokenCookieName],
+      this.requestWebOrigin(request),
     );
     this.setGoogleStateCookie(response, result.state);
     return { data: { url: result.url }, message: 'Vinculación iniciada.' };
@@ -177,6 +178,7 @@ export class AuthController {
       user,
       request.cookies?.[this.authConfigService.accessTokenCookieName],
       body.code,
+      this.requestWebOrigin(request),
     );
     this.setGoogleStateCookie(response, result.state);
     return { data: { url: result.url }, message: 'Código confirmado.' };
@@ -188,9 +190,13 @@ export class AuthController {
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   async startGoogleLogin(
     @Body() body: CaptchaDto,
+    @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ) {
-    const result = await this.googleOAuthService.startLogin(body.captchaToken);
+    const result = await this.googleOAuthService.startLogin(
+      body.captchaToken,
+      this.requestWebOrigin(request),
+    );
     this.setGoogleStateCookie(response, result.state);
     return {
       data: { url: result.url },
@@ -212,7 +218,6 @@ export class AuthController {
       GOOGLE_STATE_COOKIE,
       this.authConfigService.createClearCookieOptions(),
     );
-    const webOrigin = process.env.WEB_ORIGIN?.trim() || 'http://localhost:3000';
     try {
       const result = await this.googleOAuthService.complete(
         state,
@@ -228,10 +233,12 @@ export class AuthController {
         result.mode !== 'login'
           ? `/mi-perfil?google=${result.status}`
           : `/login?google=${result.status}`;
-      return response.redirect(new URL(path, webOrigin).toString());
+      return response.redirect(
+        new URL(path, result.webOrigin ?? this.webOrigin()).toString(),
+      );
     } catch {
       return response.redirect(
-        new URL('/login?google=error', webOrigin).toString(),
+        new URL('/login?google=error', this.webOrigin()).toString(),
       );
     }
   }
@@ -302,6 +309,25 @@ export class AuthController {
       tokens.refreshToken,
       this.authConfigService.createCookieOptions(tokens.refreshTokenMaxAge),
     );
+  }
+
+  private requestWebOrigin(request: Request): string | undefined {
+    const origin = request.get('origin');
+    if (!origin) return undefined;
+    try {
+      const url = new URL(origin);
+      const local = ['localhost', '127.0.0.1'].includes(url.hostname);
+      if (url.protocol !== 'https:' && !(url.protocol === 'http:' && local)) {
+        return undefined;
+      }
+      return url.origin;
+    } catch {
+      return undefined;
+    }
+  }
+
+  private webOrigin(): string {
+    return process.env.WEB_ORIGIN?.trim() || 'http://localhost:3000';
   }
 
   private setGoogleStateCookie(response: Response, state: string): void {

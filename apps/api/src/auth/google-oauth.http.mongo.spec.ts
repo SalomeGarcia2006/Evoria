@@ -22,6 +22,7 @@ test('HTTP: Google solo inicia sesión después de vincularse y respeta la empre
       };
     },
     async exchange(code) {
+      if (code === 'failure') throw new Error('Google no disponible');
       return {
         subject: code === 'otra' ? 'google-otra' : 'google-owner',
         email: code === 'otra' ? 'otra@google.test' : 'owner@google.test',
@@ -46,6 +47,7 @@ test('HTTP: Google solo inicia sesión después de vincularse y respeta la empre
     const unknownStart = await api.request('auth/google/login', {
       method: 'POST',
       body: {},
+      origin: 'https://evoria.test',
     });
     assert.equal(unknownStart.status, 200);
     const unknownState = stateFrom(await unknownStart.json());
@@ -62,9 +64,33 @@ test('HTTP: Google solo inicia sesión después de vincularse y respeta la empre
       unknownCallback.headers.get('location') ?? '',
       /google=unlinked/,
     );
+    assert.match(
+      unknownCallback.headers.get('location') ?? '',
+      /^https:\/\/evoria\.test\/login\?google=unlinked$/,
+    );
     assert.equal(
       (await api.request('auth/me', { session: unknownSession })).status,
       401,
+    );
+
+    const failureStart = await api.request('auth/google/login', {
+      method: 'POST',
+      body: {},
+      origin: 'https://evoria.test',
+    });
+    const failureState = stateFrom(await failureStart.json());
+    const failureSession: HttpSession = {
+      cookies: failureStart.headers.getSetCookie()[0].split(';', 1)[0],
+      data: null,
+    };
+    const failureCallback = await api.request(
+      `auth/google/callback?state=${failureState}&code=failure`,
+      { session: failureSession, redirect: 'manual' },
+    );
+    assert.equal(failureCallback.status, 302);
+    assert.equal(
+      failureCallback.headers.get('location'),
+      'https://evoria.test/login?google=error',
     );
 
     const linkStart = await api.request('auth/google/link', {

@@ -35,6 +35,7 @@ type GoogleResult = {
     | 'already-used'
     | 'changed';
   loginResult?: LoginResult;
+  webOrigin?: string | null;
 };
 
 @Injectable()
@@ -58,12 +59,24 @@ export class GoogleOAuthService {
       : { linked: false, email: null, linkedAt: null };
   }
 
-  async startLogin(captchaToken?: string) {
+  async startLogin(captchaToken?: string, webOrigin?: string) {
     await this.captchaService.verify(captchaToken);
-    return this.start('login');
+    return this.start(
+      'login',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      webOrigin,
+    );
   }
 
-  async startLink(user: AuthenticatedUser, accessToken?: string) {
+  async startLink(
+    user: AuthenticatedUser,
+    accessToken?: string,
+    webOrigin?: string,
+  ) {
     if (!accessToken)
       throw new UnauthorizedException('La sesión no es válida.');
     return this.start(
@@ -72,6 +85,8 @@ export class GoogleOAuthService {
       this.hash(accessToken),
       user.scope,
       user.membershipId,
+      undefined,
+      webOrigin,
     );
   }
 
@@ -134,6 +149,7 @@ export class GoogleOAuthService {
     user: AuthenticatedUser,
     accessToken: string | undefined,
     code: string,
+    webOrigin?: string,
   ) {
     if (!accessToken)
       throw new UnauthorizedException('La sesión no es válida.');
@@ -181,6 +197,7 @@ export class GoogleOAuthService {
       user.scope,
       user.membershipId,
       account.subject,
+      webOrigin,
     );
   }
 
@@ -203,7 +220,12 @@ export class GoogleOAuthService {
     if (!pending) {
       throw new UnauthorizedException('La solicitud de Google expiró.');
     }
-    if (error || !code) return { mode: pending.mode, status: 'cancelled' };
+    const withWebOrigin = (result: GoogleResult): GoogleResult => ({
+      ...result,
+      webOrigin: pending.webOrigin,
+    });
+    if (error || !code)
+      return withWebOrigin({ mode: pending.mode, status: 'cancelled' });
     if (
       pending.mode !== 'login' &&
       (!accessToken ||
@@ -223,7 +245,7 @@ export class GoogleOAuthService {
         pending.nonce,
       );
     } catch {
-      return { mode: pending.mode, status: 'error' };
+      return withWebOrigin({ mode: pending.mode, status: 'error' });
     }
 
     if (pending.mode === 'link' || pending.mode === 'change') {
@@ -235,33 +257,34 @@ export class GoogleOAuthService {
           pending.membershipId ?? undefined,
         );
       } catch {
-        return { mode: pending.mode, status: 'error' };
+        return withWebOrigin({ mode: pending.mode, status: 'error' });
       }
       if (pending.mode === 'change') {
         if (!pending.previousSubject)
-          return { mode: 'change', status: 'error' };
+          return withWebOrigin({ mode: 'change', status: 'error' });
         try {
           const changed = await this.accounts.findOneAndUpdate(
             { userId: pending.userId, subject: pending.previousSubject },
             { $set: { subject: identity.subject, email: identity.email } },
             { returnDocument: 'after' },
           );
-          return {
+          return withWebOrigin({
             mode: 'change',
             status: changed ? 'changed' : 'error',
-          };
+          });
         } catch (cause) {
           if (this.isDuplicate(cause)) {
-            return { mode: 'change', status: 'already-used' };
+            return withWebOrigin({ mode: 'change', status: 'already-used' });
           }
           throw cause;
         }
       }
       const existing = await this.accounts.findOne({ userId: pending.userId });
       if (existing?.subject === identity.subject) {
-        return { mode: 'link', status: 'linked' };
+        return withWebOrigin({ mode: 'link', status: 'linked' });
       }
-      if (existing) return { mode: 'link', status: 'already-used' };
+      if (existing)
+        return withWebOrigin({ mode: 'link', status: 'already-used' });
       try {
         await this.accounts.create({
           userId: pending.userId,
@@ -270,15 +293,15 @@ export class GoogleOAuthService {
         });
       } catch (cause) {
         if (this.isDuplicate(cause)) {
-          return { mode: 'link', status: 'already-used' };
+          return withWebOrigin({ mode: 'link', status: 'already-used' });
         }
         throw cause;
       }
-      return { mode: 'link', status: 'linked' };
+      return withWebOrigin({ mode: 'link', status: 'linked' });
     }
 
     const account = await this.accounts.findOne({ subject: identity.subject });
-    if (!account) return { mode: 'login', status: 'unlinked' };
+    if (!account) return withWebOrigin({ mode: 'login', status: 'unlinked' });
     try {
       const loginResult = await this.authService.loginWithUserId(
         account.userId.toString(),
@@ -287,9 +310,13 @@ export class GoogleOAuthService {
         { _id: account._id },
         { $set: { email: identity.email, lastUsedAt: new Date() } },
       );
-      return { mode: 'login', status: 'signed-in', loginResult };
+      return withWebOrigin({
+        mode: 'login',
+        status: 'signed-in',
+        loginResult,
+      });
     } catch {
-      return { mode: 'login', status: 'error' };
+      return withWebOrigin({ mode: 'login', status: 'error' });
     }
   }
 
@@ -300,6 +327,7 @@ export class GoogleOAuthService {
     scope?: 'platform' | 'tenant',
     membershipId?: string,
     previousSubject?: string,
+    webOrigin?: string,
   ) {
     const state = randomBytes(32).toString('base64url');
     const nonce = randomBytes(32).toString('base64url');
@@ -314,6 +342,7 @@ export class GoogleOAuthService {
       scope: scope ?? null,
       membershipId: membershipId ?? null,
       previousSubject: previousSubject ?? null,
+      webOrigin: webOrigin ?? null,
       expiresAt: new Date(Date.now() + 5 * 60_000),
     });
     return { url: authorization.url, state };
