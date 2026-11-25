@@ -49,6 +49,9 @@ export class Tenant {
   @Prop({ type: 'ObjectId', ref: 'User', default: null })
   createdBy!: Types.ObjectId | null;
 
+  @Prop({ type: 'ObjectId', ref: 'User', default: null })
+  ownerId!: Types.ObjectId | null;
+
   @Prop({
     required: true,
     enum: TENANT_STATUSES,

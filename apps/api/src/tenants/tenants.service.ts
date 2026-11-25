@@ -84,6 +84,8 @@ export class TenantsService {
         tenantId: tenant._id,
         profileId: profile,
       });
+      tenant.ownerId = owner._id;
+      await tenant.save();
     } catch (error) {
       await this.rollback(tenant, profileId, owner, membership);
 
@@ -160,6 +162,48 @@ export class TenantsService {
   async context(user: AuthenticatedUser) {
     const tenant = await this.findActiveTenant(user);
     return this.toContext(tenant);
+  }
+
+  async assignOwner(userId: string, developer: AuthenticatedUser) {
+    if (!isValidObjectId(userId))
+      throw new BadRequestException(
+        'El identificador del usuario no es válido.',
+      );
+    const tenant = await this.findActiveTenant(developer);
+    const [member, owner] = await Promise.all([
+      this.membershipModel.exists({
+        tenantId: tenant._id,
+        userId,
+        status: 'activo',
+      }),
+      this.userModel
+        .findOne({ _id: userId, status: 'activo', platformProfileId: null })
+        .select('name lastName email')
+        .lean(),
+    ]);
+    if (!member || !owner)
+      throw new BadRequestException(
+        'Selecciona un usuario activo de esta empresa.',
+      );
+    const updated = await this.tenantModel.findOneAndUpdate(
+      { _id: tenant._id, status: 'activo', ownerId: null },
+      { $set: { ownerId: owner._id } },
+      { returnDocument: 'after' },
+    );
+    if (!updated)
+      throw new ConflictException(
+        'La empresa ya tiene un propietario asignado.',
+      );
+    await this.auditsService.record({
+      tenantId: tenant._id.toString(),
+      actor: developer,
+      module: 'empresas',
+      action: 'editar',
+      entity: 'empresa',
+      entityId: tenant._id,
+      description: 'Asignó el propietario de la empresa.',
+    });
+    return this.toContext(updated);
   }
 
   async updateContext(dto: UpdateTenantContextDto, user: AuthenticatedUser) {
@@ -271,9 +315,24 @@ export class TenantsService {
     return tenant;
   }
 
-  private toContext(tenant: TenantDocument) {
+  private async toContext(tenant: TenantDocument) {
+    const owner = tenant.ownerId
+      ? await this.userModel
+          .findById(tenant.ownerId)
+          .select('name lastName email')
+          .lean()
+      : null;
     return {
       id: tenant._id.toString(),
+      nit: tenant.nit,
+      owner: owner
+        ? {
+            id: owner._id.toString(),
+            name: owner.name,
+            lastName: owner.lastName ?? null,
+            email: owner.email,
+          }
+        : null,
       emailDomain: tenant.emailDomain ?? null,
       sector: tenant.sector,
       operationalDescription: tenant.operationalDescription,
