@@ -1,5 +1,5 @@
 'use client';
-import { useState, type FormEvent } from 'react';
+import { useCallback, useState, type FormEvent } from 'react';
 import {
   PROVIDER_CATEGORIES,
   type Provider,
@@ -16,6 +16,7 @@ import { ProviderDialogShell } from './ProviderDialogShell';
 import { categoryLabels, Field, inputClass } from './fields';
 import { apiErrorMessage } from '../../services/api';
 import { FeedbackMessages, useFeedback } from '../ui/Feedback';
+import { OpenStreetMapLocationPicker } from '../events/OpenStreetMapLocationPicker';
 
 export function ProviderFormDialog({
   provider,
@@ -40,6 +41,9 @@ export function ProviderFormDialog({
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const feedback = useFeedback();
+  const updateLocation = useCallback((location: string) => {
+    setValues((current) => ({ ...current, location }));
+  }, []);
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (busy) return;
@@ -54,8 +58,6 @@ export function ProviderFormDialog({
       next.email = 'Ingresa el correo del proveedor.';
     if (!provider && !values.location.trim())
       next.location = 'Ingresa la ubicación del proveedor.';
-    if (!provider && !values.notes.trim())
-      next.notes = 'Ingresa las notas del proveedor.';
     if (provider && !values.phone.trim() && !values.email.trim())
       next.phone = 'Ingresa teléfono o correo.';
     if (
@@ -144,7 +146,6 @@ export function ProviderFormDialog({
     contactName: 'Persona de contacto',
     phone: 'Teléfono',
     email: 'Correo',
-    location: 'Ubicación',
   } as const;
   return (
     <ProviderDialogShell
@@ -163,25 +164,25 @@ export function ProviderFormDialog({
               name={key}
               required={
                 key === 'name' ||
-                (!provider &&
-                  (key === 'phone' || key === 'email' || key === 'location'))
+                (!provider && (key === 'phone' || key === 'email'))
               }
               value={values[key as keyof typeof values]}
-              maxLength={
-                key === 'email'
-                  ? 254
-                  : key === 'phone'
-                    ? 40
-                    : key === 'location'
-                      ? 255
-                      : 120
-              }
+              maxLength={key === 'email' ? 254 : key === 'phone' ? 40 : 120}
               type={
                 key === 'email' ? 'email' : key === 'phone' ? 'tel' : 'text'
               }
               onChange={(e) => setValues({ ...values, [key]: e.target.value })}
             />
           ))}
+          <div
+            className="rounded-xl border border-sky-blue bg-white/5 p-4 shadow-sm sm:col-span-2"
+            data-tour-field="location"
+          >
+            <OpenStreetMapLocationPicker
+              onChange={updateLocation}
+              value={values.location}
+            />
+          </div>
           <fieldset
             aria-label="Categorías del proveedor"
             className="grid gap-2 sm:col-span-2"
@@ -218,7 +219,6 @@ export function ProviderFormDialog({
               className={inputClass}
               maxLength={1000}
               name="notes"
-              required={!provider}
               value={values.notes}
               onChange={(e) => setValues({ ...values, notes: e.target.value })}
             />
