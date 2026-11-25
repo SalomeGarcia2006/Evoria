@@ -1363,6 +1363,8 @@ export function FirstVisitTour() {
 
       tour = driver({
         animate: true,
+        stagePadding: guidePathname === '/presupuestos' ? 0 : 10,
+        stageRadius: guidePathname === '/presupuestos' ? 14 : 5,
         allowClose: true,
         allowKeyboardControl: true,
         disableActiveInteraction: true,

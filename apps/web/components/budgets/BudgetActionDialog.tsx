@@ -126,7 +126,12 @@ export function BudgetActionDialog({
     }
   }
   return (
-    <ProviderDialogShell title={title} busy={busy} onClose={onClose}>
+    <ProviderDialogShell
+      title={title}
+      busy={busy}
+      onClose={onClose}
+      tourTarget="budget-action-dialog-tour-target"
+    >
       <form noValidate onSubmit={submit} className="grid gap-5">
         <p className="font-semibold">{budget.eventName}</p>
         <FeedbackMessages feedback={feedback} />
@@ -161,13 +166,11 @@ export function BudgetActionDialog({
         )}
         <fieldset disabled={busy} className="grid gap-4">
           {action.kind === 'request' && (
-            <label
-              className="grid gap-2 text-sm font-semibold"
-              data-tour="budget-request-type"
-            >
+            <label className="grid gap-2 text-sm font-semibold">
               Tipo de solicitud
               <select
                 className={inputClass}
+                data-tour="budget-request-type"
                 value={type}
                 onChange={(event) =>
                   setType(event.target.value as BudgetRequestType)
@@ -194,16 +197,14 @@ export function BudgetActionDialog({
             />
           )}
           {(action.kind === 'request' || action.kind === 'reject') && (
-            <div
-              className="grid gap-2 text-sm font-semibold"
-              data-tour="budget-request-reason"
-            >
+            <div className="grid gap-2 text-sm font-semibold">
               <label htmlFor={reasonId}>
                 {action.kind === 'reject' ? 'Motivo de rechazo' : 'Motivo'}
               </label>
               <textarea
                 id={reasonId}
                 className={inputClass}
+                data-tour="budget-request-reason"
                 value={reason}
                 minLength={10}
                 required

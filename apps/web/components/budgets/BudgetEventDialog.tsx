@@ -36,6 +36,7 @@ export function BudgetEventDialog({
           </Button>
         </div>
       }
+      tourTarget="budget-event-dialog-tour-target"
     >
       <section aria-label="Detalle del presupuesto">
         <BudgetPanel

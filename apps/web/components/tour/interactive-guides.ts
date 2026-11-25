@@ -689,7 +689,7 @@ export const formGuides: Record<string, FormGuide> = {
     fields: [
       {
         title: 'Detalle del presupuesto',
-        selector: '[aria-label="Detalle del presupuesto"]',
+        selector: '[data-tour="budget-event-dialog-tour-target"]',
         description:
           'Desde esta ventana puedes revisar el saldo, los gastos y las solicitudes.',
         scrollIntoView: false,
@@ -738,10 +738,19 @@ export const formGuides: Record<string, FormGuide> = {
         selector: '[data-tour="budget-request-open"]',
         permission: 'presupuestos.editar',
         description:
-          'Desde este botón puedes pedir una ampliación de presupuesto o registrar un costo adicional.',
+          'Este botón abre el formulario para solicitar una ampliación o registrar un costo adicional. Al pulsar Siguiente lo mostraremos sin enviar la solicitud.',
         openDialogOnNext: {
           triggerSelector: '[data-tour="budget-request-open"]',
         },
+      },
+      {
+        title: 'Formulario de solicitud',
+        selector: '[data-tour="budget-action-dialog-tour-target"]',
+        dialogTarget: true,
+        permission: 'presupuestos.editar',
+        description:
+          'En esta ventana puedes elegir el tipo de solicitud, indicar el monto y explicar el motivo. El recorrido no enviará la solicitud.',
+        closeDialogOnPrevious: true,
       },
       {
         title: 'Tipo de solicitud',
@@ -749,7 +758,7 @@ export const formGuides: Record<string, FormGuide> = {
         dialogTarget: true,
         permission: 'presupuestos.editar',
         description:
-          'Elige si solicitas una ampliación del presupuesto o registras un costo adicional.',
+          'Elige si solicitas una ampliación del presupuesto o registras un costo adicional. La explicación del formulario cambia según tu elección.',
         closeDialogOnPrevious: true,
       },
       {
