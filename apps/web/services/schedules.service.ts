@@ -43,7 +43,6 @@ export interface SchedulePayload {
   description?: string | null;
   startAt: string;
   endAt: string;
-  responsibleUserId?: string | null;
   status: ScheduleStatus;
 }
 

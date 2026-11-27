@@ -51,7 +51,6 @@ type ScheduleForm = {
   description: string;
   startAt: string;
   endAt: string;
-  responsibleUserId: string;
 };
 
 function toLocalDateTime(value: string): string {
@@ -137,7 +136,6 @@ function emptyForm(eventId = ''): ScheduleForm {
     description: '',
     startAt: '',
     endAt: '',
-    responsibleUserId: '',
   };
 }
 
@@ -262,7 +260,6 @@ export default function CronogramaPage() {
       description: schedule.description ?? '',
       startAt: toLocalDateTime(schedule.startAt),
       endAt: toLocalDateTime(schedule.endAt),
-      responsibleUserId: schedule.responsibleUserId ?? '',
     });
     setValidationAlert(null);
     dialog.current?.showModal();
@@ -347,7 +344,6 @@ export default function CronogramaPage() {
       description: form.description.trim() || (editing ? null : undefined),
       startAt: new Date(form.startAt).toISOString(),
       endAt: new Date(form.endAt).toISOString(),
-      responsibleUserId: form.responsibleUserId || (editing ? null : undefined),
       status: getAutomaticStatus(form.startAt, form.endAt),
     };
 
@@ -948,23 +944,6 @@ export default function CronogramaPage() {
                 type="time"
                 value={form.endAt.slice(11)}
               />
-            </label>
-            <label className="grid gap-2 text-sm font-semibold">
-              Responsable
-              <select
-                className={fieldClassName}
-                onChange={(event) =>
-                  setForm({ ...form, responsibleUserId: event.target.value })
-                }
-                value={form.responsibleUserId}
-              >
-                <option value="">Sin responsable</option>
-                {users.map((user) => (
-                  <option key={user.id} value={user.id}>
-                    {user.name}
-                  </option>
-                ))}
-              </select>
             </label>
             <div className="mt-2 flex gap-3 border-t border-sky-blue pt-5 sm:col-span-2">
               <Button disabled={isSaving} type="submit">

@@ -230,7 +230,7 @@ export const manualContent: Record<string, ManualTopic[]> = {
     {
       title: 'Crear actividad',
       description:
-        'Registra la información, fecha, hora y responsable que solicite el formulario. La aplicación valida los datos antes de guardar.',
+        'Registra la información, fecha y hora de la actividad. Al asignar un equipo, su líder será el responsable.',
       permission: 'cronogramas.crear',
     },
     {
