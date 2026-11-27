@@ -186,11 +186,16 @@ test('equipos respetan empresa, permisos, horarios y finalización', async () =>
     ) {
       const response = await request(`events/${eventId}/schedules`, 'POST', {
         name,
+        responsibleUserId: memberId,
         startAt: new Date(start.getTime() + begin * 60000).toISOString(),
         endAt: new Date(start.getTime() + end * 60000).toISOString(),
       });
       assert.equal(response.status, 201);
-      return ((await response.json()) as { data: { id: string } }).data.id;
+      const result = (await response.json()) as {
+        data: { id: string; responsibleUserId: string | null };
+      };
+      assert.equal(result.data.responsibleUserId, null);
+      return result.data.id;
     }
     const first = await activity(eventA, 'Primera actividad', 0, 60);
     const noAlertsActivity = await activity(
@@ -237,6 +242,34 @@ test('equipos respetan empresa, permisos, horarios y finalización', async () =>
       403,
     );
     assert.equal((await assign(first)).status, 201);
+    async function responsible(id: string) {
+      const response = await request(`events/${eventA}/schedules`, 'GET');
+      assert.equal(response.status, 200);
+      const result = (await response.json()) as {
+        data: { id: string; responsibleUserId: string | null }[];
+      };
+      return result.data.find((item) => item.id === id)?.responsibleUserId;
+    }
+    assert.equal(await responsible(first), ownerId);
+    assert.equal(
+      (
+        await request(`teams/${team.data.id}`, 'PATCH', {
+          memberIds: [ownerId, memberId],
+          leaderId: memberId,
+        })
+      ).status,
+      200,
+    );
+    assert.equal(await responsible(first), memberId);
+    assert.equal(
+      (
+        await request(`teams/${team.data.id}`, 'PATCH', {
+          memberIds: [ownerId],
+          leaderId: ownerId,
+        })
+      ).status,
+      200,
+    );
     assert.equal(
       (
         await request(`events/${eventA}`, 'PATCH', {
@@ -349,6 +382,7 @@ test('equipos respetan empresa, permisos, horarios y finalización', async () =>
       (await request(`schedules/${sameAllowed}/team`, 'DELETE')).status,
       200,
     );
+    assert.equal(await responsible(sameAllowed), null);
     const removedHistory = await request(
       `schedules/${sameAllowed}/team-history`,
       'GET',

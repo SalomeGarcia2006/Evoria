@@ -1,7 +1,6 @@
 import {
   IsEnum,
   IsISO8601,
-  IsMongoId,
   IsOptional,
   IsString,
   MaxLength,
@@ -28,10 +27,6 @@ export class UpdateScheduleDto {
   @IsOptional()
   @IsISO8601()
   endAt?: string;
-
-  @IsOptional()
-  @IsMongoId()
-  responsibleUserId?: string | null;
 
   @IsOptional()
   @IsEnum(SCHEDULE_STATUSES)

@@ -15,7 +15,7 @@ import {
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { AuditsService } from '../audits/audits.service';
 import { Event, type EventDocument } from '../events/schemas/event.schema';
-import { Membership } from '../memberships/schemas/membership.schema';
+import { Team } from '../teams/schemas/team.schema';
 import { CreateScheduleDto } from './dto/create-schedule.dto';
 import { FindSchedulesDto } from './dto/find-schedules.dto';
 import { UpdateScheduleDto } from './dto/update-schedule.dto';
@@ -27,8 +27,7 @@ export class SchedulesService {
     @InjectModel(Schedule.name)
     private readonly scheduleModel: Model<Schedule>,
     @InjectModel(Event.name) private readonly eventModel: Model<Event>,
-    @InjectModel(Membership.name)
-    private readonly membershipModel: Model<Membership>,
+    @InjectModel(Team.name) private readonly teamModel: Model<Team>,
     private readonly auditsService: AuditsService,
   ) {}
 
@@ -40,10 +39,6 @@ export class SchedulesService {
     const tenantId = this.getTenantId(user);
     const event = await this.findEvent(eventId, tenantId);
     this.ensureEventIsEditable(event);
-    await this.validateResponsible(
-      createScheduleDto.responsibleUserId,
-      tenantId,
-    );
     this.validateDates(
       createScheduleDto.startAt,
       createScheduleDto.endAt,
@@ -53,7 +48,6 @@ export class SchedulesService {
     const schedule = await this.scheduleModel.create({
       tenantId,
       eventId: event.id,
-      responsibleUserId: createScheduleDto.responsibleUserId ?? null,
       name: createScheduleDto.name.trim(),
       description: this.trimOptional(createScheduleDto.description),
       startAt: new Date(createScheduleDto.startAt),
@@ -90,7 +84,18 @@ export class SchedulesService {
       .sort({ startAt: 1 })
       .lean();
 
-    return schedules.map((schedule) => this.toResponse(schedule));
+    const teamIds = schedules.flatMap((schedule) =>
+      schedule.teamId ? [schedule.teamId] : [],
+    );
+    const teams = teamIds.length
+      ? await this.teamModel.find({ tenantId, _id: { $in: teamIds } }).lean()
+      : [];
+    const leaders = new Map(
+      teams.map((team) => [team._id.toString(), team.leaderId.toString()]),
+    );
+    return schedules.map((schedule) =>
+      this.toResponse(schedule, leaders.get(schedule.teamId?.toString() ?? '')),
+    );
   }
 
   async update(
@@ -108,17 +113,6 @@ export class SchedulesService {
     const startAt = updateScheduleDto.startAt ?? schedule.startAt.toISOString();
     const endAt = updateScheduleDto.endAt ?? schedule.endAt.toISOString();
     this.validateDates(startAt, endAt, event);
-
-    if (updateScheduleDto.responsibleUserId !== undefined) {
-      await this.validateResponsible(
-        updateScheduleDto.responsibleUserId,
-        tenantId,
-      );
-      schedule.set(
-        'responsibleUserId',
-        updateScheduleDto.responsibleUserId ?? null,
-      );
-    }
 
     if (updateScheduleDto.name !== undefined) {
       schedule.name = updateScheduleDto.name.trim();
@@ -250,25 +244,6 @@ export class SchedulesService {
     }
   }
 
-  private async validateResponsible(
-    responsibleUserId: string | null | undefined,
-    tenantId: string,
-  ): Promise<void> {
-    if (!responsibleUserId) return;
-
-    const membership = await this.membershipModel.exists({
-      userId: responsibleUserId,
-      tenantId,
-      status: 'activo',
-    });
-
-    if (!membership) {
-      throw new BadRequestException(
-        'El responsable debe pertenecer a la empresa activa.',
-      );
-    }
-  }
-
   private validateDates(
     startAt: string,
     endAt: string,
@@ -296,11 +271,12 @@ export class SchedulesService {
 
   private toResponse(
     schedule: ScheduleDocument | (Schedule & { _id: Types.ObjectId }),
+    leaderId?: string,
   ) {
     return {
       id: schedule._id.toString(),
       eventId: schedule.eventId.toString(),
-      responsibleUserId: schedule.responsibleUserId?.toString() ?? null,
+      responsibleUserId: leaderId ?? null,
       teamId: schedule.teamId?.toString() ?? null,
       name: schedule.name,
       description: schedule.description,
