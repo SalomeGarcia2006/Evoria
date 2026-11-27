@@ -253,14 +253,32 @@ test('equipos respetan empresa, permisos, horarios y finalización', async () =>
     assert.equal(await responsible(first), ownerId);
     assert.equal(
       (
+        await api.createUserFixture({
+          body: {
+            name: 'Nuevo líder',
+            email: 'nuevo-lider@example.test',
+            password: 'Prueba-segura1',
+            profileId: profile.data.id,
+          },
+        })
+      ).status,
+      201,
+    );
+    const newLeader = await api.connection
+      .collection('users')
+      .findOne({ email: 'nuevo-lider@example.test' });
+    assert.ok(newLeader);
+    const newLeaderId = newLeader._id.toString();
+    assert.equal(
+      (
         await request(`teams/${team.data.id}`, 'PATCH', {
-          memberIds: [ownerId, memberId],
-          leaderId: memberId,
+          memberIds: [ownerId, newLeaderId],
+          leaderId: newLeaderId,
         })
       ).status,
       200,
     );
-    assert.equal(await responsible(first), memberId);
+    assert.equal(await responsible(first), newLeaderId);
     assert.equal(
       (
         await request(`teams/${team.data.id}`, 'PATCH', {
