@@ -444,9 +444,7 @@ export function EventAssignmentsDialog({
                       key={`providers:${eventId}`}
                       event={visibleEvent}
                       inDialog
-                      budgetReady={visibleBudgetReady}
-                      budgetMissing={budgetMissing}
-                      updating={actionsBlocked}
+                      updating={eventLoading || !!error || servicesRefreshing}
                       refreshRevision={attempt}
                       committedRevision={committedAttempt}
                       onRefreshingChange={setServicesRefreshing}

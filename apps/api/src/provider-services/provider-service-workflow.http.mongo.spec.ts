@@ -132,6 +132,14 @@ test('HTTP: confirmación de proveedor, presupuesto, correo y aislamiento en Mon
       eventId: string,
       amount = 300,
       session: HttpSession = requester.session,
+      details: Partial<{
+        serviceName: string;
+        description: string;
+        startDate: string;
+        startTime: string;
+        endDate: string;
+        endTime: string;
+      }> = {},
     ) {
       return data<{ id: string; status: string; emailDelivery: string }>(
         await api.request(`events/${eventId}/provider-services`, {
@@ -142,6 +150,7 @@ test('HTTP: confirmación de proveedor, presupuesto, correo y aislamiento en Mon
             serviceName: 'Servicio confirmado por correo',
             startDate: '2020-01-01',
             agreedAmountCop: amount,
+            ...details,
           },
         }),
       );
@@ -174,7 +183,14 @@ test('HTTP: confirmación de proveedor, presupuesto, correo y aislamiento en Mon
       'pendiente no descuenta; falla SMTP y se recupera; aceptar dos veces carga una vez',
       async () => {
         const ev = await event();
-        const service = await request(ev.id);
+        const service = await request(ev.id, 300, requester.session, {
+          serviceName: 'Sonido y luces del evento',
+          description: 'Consola, cuatro micrófonos y luces LED',
+          startDate: '2030-01-10',
+          startTime: '11:30',
+          endDate: '2030-01-10',
+          endTime: '16:45',
+        });
         assert.equal(service.status, 'pendiente');
         assert.equal(service.emailDelivery, 'queued');
         assert.equal(await spent(ev.id), 0);
@@ -214,6 +230,19 @@ test('HTTP: confirmación de proveedor, presupuesto, correo y aislamiento en Mon
         );
         await Promise.all([workflow.deliverMail(), workflow.deliverMail()]);
         const credentials = await link(service.id);
+        const sent = messages.findLast((message) =>
+          message.text.includes(`#id=${service.id}&token=`),
+        );
+        assert.ok(sent);
+        assert.match(sent.text, /Evento: Evento confirmaciones/);
+        assert.match(sent.text, /Servicio: Sonido y luces del evento/);
+        assert.match(
+          sent.text,
+          /Descripción: Consola, cuatro micrófonos y luces LED/,
+        );
+        assert.match(sent.text, /Inicio: 2030-01-10 11:30/);
+        assert.match(sent.text, /Fin: 2030-01-10 16:45/);
+        assert.match(sent.text, /Monto acordado: \$300 COP/);
         assert.equal(
           messages.filter((m) => m.text.includes(`#id=${service.id}&token=`))
             .length,
@@ -237,16 +266,37 @@ test('HTTP: confirmación de proveedor, presupuesto, correo y aislamiento en Mon
           ).status,
           404,
         );
-        assert.equal(
-          (
-            await data<{ canRespond: boolean }>(
-              await api.request('provider-service-confirmation/details', {
-                method: 'POST',
-                body: credentials,
-              }),
-            )
-          ).canRespond,
-          true,
+        const providerDetails = await data<{
+          canRespond: boolean;
+          serviceName: string;
+          description: string;
+          startDate: string;
+          startTime: string;
+          endDate: string;
+          endTime: string;
+          agreedAmountCop: number;
+        }>(
+          await api.request('provider-service-confirmation/details', {
+            method: 'POST',
+            body: credentials,
+          }),
+        );
+        assert.equal(providerDetails.canRespond, true);
+        assert.deepEqual(
+          {
+            name: providerDetails.serviceName,
+            description: providerDetails.description,
+            start: `${providerDetails.startDate} ${providerDetails.startTime}`,
+            end: `${providerDetails.endDate} ${providerDetails.endTime}`,
+            amount: providerDetails.agreedAmountCop,
+          },
+          {
+            name: 'Sonido y luces del evento',
+            description: 'Consola, cuatro micrófonos y luces LED',
+            start: '2030-01-10 11:30',
+            end: '2030-01-10 16:45',
+            amount: 300,
+          },
         );
         await alerts.retryPending();
         const pendingAlerts = await data<{

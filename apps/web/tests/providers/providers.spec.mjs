@@ -36,6 +36,7 @@ const service = {
   endTime: null,
   agreedAmountCop: 3200000,
   status: 'confirmado',
+  assignedBy: 'u1',
   cancelledAt: null,
 };
 
@@ -124,7 +125,8 @@ async function setup(page, options = {}) {
         endAt: '2026-12-06T04:59:00.000Z',
         status: 'planificado',
       });
-    if (path === '/events/e1/budget') return send({ initialized: true });
+    if (path === '/events/e1/budget')
+      return send({ initialized: state.budgetInitialized !== false });
     if (method !== 'GET') {
       if (state.holdSave)
         await new Promise((resolve) => {
@@ -194,6 +196,11 @@ async function setup(page, options = {}) {
         ...service,
         ...body,
         id: `s${state.services.length + 1}`,
+        status: state.pendingWorkflow ? 'pendiente' : 'confirmado',
+        responseExpiresAt: state.pendingWorkflow
+          ? '2026-12-06T12:00:00.000Z'
+          : null,
+        emailDelivery: state.pendingWorkflow ? 'queued' : null,
         provider: state.providers.find((item) => item.id === body.providerId),
       };
       state.services.push(item);
@@ -244,6 +251,87 @@ async function fits(page) {
     await page.evaluate(() => document.documentElement.scrollWidth),
   ).toBeLessThanOrEqual(page.viewportSize().width + 1);
 }
+
+test('solicitud de proveedor: permite crear sin presupuesto y reintenta con la misma clave', async ({
+  page,
+}) => {
+  const state = await setup(page, {
+    services: [],
+    pendingWorkflow: true,
+    budgetInitialized: false,
+    permissions: [...permissions, 'presupuestos.ver'],
+  });
+  await page.goto('/recursos/asignaciones/e1');
+  await page.getByRole('button', { name: 'Asignar recursos' }).click();
+  const assignmentsDialog = page.getByRole('dialog', {
+    name: /Asignaciones · Encuentro de diciembre/,
+  });
+  const open = assignmentsDialog.getByRole('button', {
+    name: 'Asignar servicio',
+  });
+  await expect(open).toBeEnabled();
+  await open.click();
+  const dialog = page.getByRole('dialog', {
+    name: 'Solicitar servicio de proveedor',
+  });
+  await dialog.getByLabel('Proveedor', { exact: true }).selectOption('p1');
+  await dialog.getByLabel('Nombre del servicio').fill('Sonido principal');
+  await dialog.getByLabel('Fecha acordada de prestación').fill('2026-12-05');
+  await dialog.getByLabel('Valor total acordado (COP)').fill('200000');
+  state.failSave = true;
+  await dialog.getByRole('button', { name: 'Enviar solicitud' }).click();
+  await acknowledgeFeedback(page, 'Error de prueba');
+  state.failSave = false;
+  await dialog.getByRole('button', { name: 'Enviar solicitud' }).click();
+  await expect(dialog).toHaveCount(0);
+  const posts = writes(state).filter((call) => call.method === 'POST');
+  expect(posts).toHaveLength(2);
+  expect(posts[0].body.idempotencyKey).toMatch(/^[0-9a-f-]{36}$/);
+  expect(posts[1].body.idempotencyKey).toBe(posts[0].body.idempotencyKey);
+  await acknowledgeFeedback(page, 'Solicitud enviada');
+  await assignmentsDialog
+    .getByRole('button', { name: 'Cerrar evento' })
+    .click();
+  await expect(page.getByText('Pendiente de respuesta')).toBeVisible();
+  expect(state.services[0].status).toBe('pendiente');
+});
+
+test('actualiza aceptación y rechazo al volver a la web', async ({ page }) => {
+  const pending = {
+    ...service,
+    status: 'pendiente',
+    emailDelivery: 'sent',
+    responseExpiresAt: '2026-12-06T12:00:00.000Z',
+  };
+  const state = await setup(page, {
+    services: [
+      pending,
+      { ...pending, id: 's2', serviceName: 'Fotografía del evento' },
+    ],
+  });
+  await page.goto('/recursos/asignaciones/e1');
+  await expect(page.getByText('Cena principal', { exact: true })).toBeVisible();
+  await expect(page.getByText('Pendiente de respuesta')).toHaveCount(2);
+  state.services[0].status = 'confirmado';
+  state.services[1].status = 'rechazado';
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await expect(
+    page
+      .locator('article')
+      .filter({
+        hasText: 'Cena principal',
+      })
+      .getByText('Confirmado', { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page
+      .locator('article')
+      .filter({
+        hasText: 'Fotografía del evento',
+      })
+      .getByText('Rechazado', { exact: true }),
+  ).toBeVisible();
+});
 
 test('directorio: valida cambios y advierte duplicados', async ({ page }) => {
   const state = await setup(page);

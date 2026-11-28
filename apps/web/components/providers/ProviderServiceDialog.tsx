@@ -1,8 +1,7 @@
 'use client';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import {
   PROVIDER_CATEGORIES,
-  type EventProviderService,
   type ProviderCategory,
   type ProviderList,
 } from '@evoria/contracts';
@@ -10,7 +9,6 @@ import type { EventItem } from '../../services/events.service';
 import {
   getProviders,
   createProviderService,
-  updateProviderService,
 } from '../../services/providers.service';
 import { useAuth } from '../../hooks/useAuth';
 import { Button } from '../ui/Button';
@@ -32,26 +30,24 @@ function eventDay(value: string) {
 
 export function ProviderServiceDialog({
   event,
-  service,
   onClose,
   onSaved,
 }: {
   event: EventItem;
-  service?: EventProviderService;
   onClose: () => void;
   onSaved: () => void;
 }) {
   const { can } = useAuth();
   const canSelect = can('proveedores.ver');
   const [values, setValues] = useState({
-    providerId: service?.providerId ?? '',
-    serviceName: service?.serviceName ?? '',
-    description: service?.description ?? '',
-    startDate: service?.startDate ?? '',
-    startTime: service?.startTime ?? '',
-    endDate: service?.endDate ?? '',
-    endTime: service?.endTime ?? '',
-    amount: service ? String(service.agreedAmountCop) : '',
+    providerId: '',
+    serviceName: '',
+    description: '',
+    startDate: '',
+    startTime: '',
+    endDate: '',
+    endTime: '',
+    amount: '',
   });
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState<ProviderCategory | ''>('');
@@ -61,7 +57,7 @@ export function ProviderServiceDialog({
     data?: ProviderList;
     error?: string;
   }>();
-  const [selectedProvider, setSelectedProvider] = useState(service?.provider);
+  const idempotency = useRef<{ fingerprint: string; key: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const feedback = useFeedback();
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -114,6 +110,9 @@ export function ProviderServiceDialog({
   }, [canSelect, key, search, category]);
   const providerData = providers?.key === key ? providers.data : undefined;
   const providerError = providers?.key === key ? providers.error : undefined;
+  const selectedProvider = providerData?.items.find(
+    (item) => item.id === values.providerId,
+  );
   const eventStart = eventDay(event.startAt);
   const eventEnd = eventDay(event.endAt);
   const outside =
@@ -127,6 +126,9 @@ export function ProviderServiceDialog({
     if (busy || event.status === 'cancelado') return;
     const next: Record<string, string> = {};
     if (!values.providerId) next.providerId = 'Selecciona un proveedor activo.';
+    else if (selectedProvider && !selectedProvider.email)
+      next.providerId =
+        'El proveedor necesita un correo para recibir y confirmar la solicitud.';
     if (values.serviceName.trim().length < 2)
       next.serviceName = 'Escribe un nombre de al menos dos caracteres.';
     if (!values.startDate)
@@ -157,6 +159,7 @@ export function ProviderServiceDialog({
     setBusy(true);
     feedback.dismiss();
     const body = {
+      providerId: values.providerId,
       serviceName: values.serviceName.trim(),
       description: values.description.trim() || null,
       startDate: values.startDate,
@@ -166,18 +169,13 @@ export function ProviderServiceDialog({
       agreedAmountCop: amount,
     };
     try {
-      if (service)
-        await updateProviderService(event.id, service.id, {
-          ...body,
-          ...(values.providerId !== service.providerId
-            ? { providerId: values.providerId }
-            : {}),
-        });
-      else
-        await createProviderService(event.id, {
-          ...body,
-          providerId: values.providerId,
-        });
+      const fingerprint = JSON.stringify(body);
+      if (idempotency.current?.fingerprint !== fingerprint)
+        idempotency.current = { fingerprint, key: crypto.randomUUID() };
+      await createProviderService(event.id, {
+        ...body,
+        idempotencyKey: idempotency.current.key,
+      });
       onSaved();
     } catch (err) {
       feedback.notify(apiErrorMessage(err), 'error');
@@ -198,11 +196,7 @@ export function ProviderServiceDialog({
   }
   return (
     <ProviderDialogShell
-      title={
-        service
-          ? 'Editar servicio de proveedor'
-          : 'Asignar servicio de proveedor'
-      }
+      title="Solicitar servicio de proveedor"
       busy={busy}
       onClose={onClose}
       tourTarget="provider-service-dialog-tour-target"
@@ -276,27 +270,13 @@ export function ProviderServiceDialog({
                       onChange={(e) => {
                         const id = e.target.value;
                         setValues({ ...values, providerId: id });
-                        setSelectedProvider(
-                          providerData.items.find((item) => item.id === id) ??
-                            service?.provider,
-                        );
                       }}
                     >
                       <option value="">Seleccionar proveedor</option>
-                      {selectedProvider &&
-                        !providerData.items.some(
-                          (item) => item.id === selectedProvider.id,
-                        ) && (
-                          <option value={selectedProvider.id}>
-                            {selectedProvider.name}
-                            {selectedProvider.status === 'inactivo'
-                              ? ' · Inactivo (acuerdo histórico)'
-                              : ' · Seleccionado'}
-                          </option>
-                        )}
                       {providerData.items.map((item) => (
                         <option key={item.id} value={item.id}>
                           {item.name}
+                          {!item.email ? ' · Sin correo' : ''}
                         </option>
                       ))}
                     </select>
@@ -317,12 +297,7 @@ export function ProviderServiceDialog({
                 </>
               )}
             </div>
-          ) : (
-            <p>
-              Proveedor: <strong>{service?.provider.name}</strong> · Sin permiso
-              para cambiar el contacto.
-            </p>
-          )}
+          ) : null}
           <Field
             label="Nombre del servicio"
             required
@@ -401,12 +376,13 @@ export function ProviderServiceDialog({
             onChange={(e) => setValues({ ...values, amount: e.target.value })}
           />
           <p className="text-sm text-muted">
-            Registra el acuerdo confirmado con el proveedor. Evoria no consulta
-            disponibilidad ni modifica el inventario.
+            Enviaremos una solicitud al correo del proveedor. Tendrá 24 horas
+            para aceptarla o rechazarla. La solicitud no modifica el inventario.
           </p>
           <p className="text-sm text-muted">
-            El valor confirmado se registra como gasto del presupuesto. Al
-            editarlo, se ajusta el gasto y se valida el saldo disponible.
+            El valor solo contará como gasto cuando el proveedor acepte y haya
+            presupuesto y saldo suficientes. Para cambiar condiciones, cancela
+            la solicitud y crea otra.
           </p>
         </fieldset>
         <div className="flex flex-wrap justify-end gap-3">
@@ -419,7 +395,7 @@ export function ProviderServiceDialog({
             Cancelar
           </Button>
           <Button disabled={busy}>
-            {busy ? 'Guardando…' : 'Guardar servicio'}
+            {busy ? 'Enviando…' : 'Enviar solicitud'}
           </Button>
         </div>
       </form>

@@ -7,7 +7,6 @@ import type {
   ProviderListQuery,
   EventProviderService,
   CreateEventProviderServiceRequest,
-  UpdateEventProviderServiceRequest,
 } from '@evoria/contracts';
 import { apiRequest } from './api';
 
@@ -60,18 +59,13 @@ export const createProviderService = (
     'POST',
     body,
   );
-export const updateProviderService = (
-  eventId: string,
-  id: string,
-  body: UpdateEventProviderServiceRequest,
-) =>
-  request<EventProviderService>(
-    `/events/${eventId}/provider-services/${id}`,
-    'PATCH',
-    body,
-  );
 export const cancelProviderService = (eventId: string, id: string) =>
   request<EventProviderService>(
     `/events/${eventId}/provider-services/${id}`,
     'DELETE',
+  );
+export const resendProviderService = (eventId: string, id: string) =>
+  request<EventProviderService>(
+    `/events/${eventId}/provider-services/${id}/resend`,
+    'POST',
   );

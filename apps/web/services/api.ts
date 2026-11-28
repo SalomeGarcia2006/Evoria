@@ -27,13 +27,13 @@ export function apiErrorMessage(error: unknown): string {
         ? 'El registro no existe o no está disponible para tu empresa.'
         : error.status === 409
           ? /presupuesto inicial/i.test(error.message)
-            ? 'Inicia el presupuesto desde el detalle del evento antes de asignar recursos o servicios.'
+            ? 'Inicia el presupuesto antes de reservar recursos de inventario.'
             : /saldo|presupuesto disponible/i.test(error.message)
               ? 'Revisa el disponible y solicita una ampliación de presupuesto si necesitas más saldo.'
               : /ya fue decidida/i.test(error.message)
                 ? 'Consulta el historial para ver la decisión registrada.'
                 : /cancelado/i.test(error.message)
-                  ? 'Puedes consultar el historial y cancelar acuerdos existentes; no crear ni editar.'
+                  ? 'Consulta el historial del evento y las acciones disponibles para cada solicitud.'
                   : 'Actualiza los datos antes de volver a intentarlo.'
           : '';
   return [error.message, hint].filter(Boolean).join(' ');

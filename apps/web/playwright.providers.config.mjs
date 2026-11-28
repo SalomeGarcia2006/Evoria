@@ -23,6 +23,7 @@ export default defineConfig({
               '/eventos',
               '/inventario',
               '/recursos/asignaciones',
+              '/recursos/asignaciones/[eventId]',
               '/proveedores',
               '/presupuestos',
               '/cronograma',

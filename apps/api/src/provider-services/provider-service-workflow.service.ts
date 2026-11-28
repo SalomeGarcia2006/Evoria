@@ -772,7 +772,7 @@ export class ProviderServiceWorkflow implements OnModuleInit, OnModuleDestroy {
           { _id: job._id, claimId },
           { $set: { deliveredAt: new Date(), claimedUntil: null } },
         );
-      } catch {
+      } catch (error) {
         await this.jobs.updateOne(
           { _id: job._id, claimId },
           {
@@ -795,7 +795,18 @@ export class ProviderServiceWorkflow implements OnModuleInit, OnModuleDestroy {
             },
             { $set: { emailDelivery: 'failed' } },
           );
-        this.logger.warn('Se reintentará un correo de servicio de proveedor.');
+        const code =
+          typeof error === 'object' &&
+          error !== null &&
+          'code' in error &&
+          typeof error.code === 'string'
+            ? error.code
+            : error instanceof Error
+              ? error.name
+              : 'desconocido';
+        this.logger.warn(
+          `Se reintentará un correo de servicio de proveedor (${code}).`,
+        );
       }
     }
   }

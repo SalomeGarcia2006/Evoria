@@ -5,6 +5,9 @@ const upstream = process.env.VERCEL
   : undefined;
 
 const nextConfig: NextConfig = {
+  ...(process.env.EVORIA_PROVIDER_LOCAL === '1' && {
+    distDir: '../../tmp/provider-next-build',
+  }),
   ...(upstream?.startsWith('https://') && {
     env: { NEXT_PUBLIC_API_URL: '/api' },
     async rewrites() {

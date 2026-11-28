@@ -138,8 +138,8 @@ export default function AssignmentDetailsPage() {
                 <ProviderServices
                   event={event}
                   inDialog
-                  readOnly
                   refreshRevision={detailsRevision}
+                  onChanged={() => setDetailsRevision((value) => value + 1)}
                 />
               )}
             </section>
