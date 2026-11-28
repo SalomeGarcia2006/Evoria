@@ -51,7 +51,6 @@ type ScheduleForm = {
   description: string;
   startAt: string;
   endAt: string;
-  responsibleUserId: string;
 };
 
 function toLocalDateTime(value: string): string {
@@ -137,7 +136,6 @@ function emptyForm(eventId = ''): ScheduleForm {
     description: '',
     startAt: '',
     endAt: '',
-    responsibleUserId: '',
   };
 }
 
@@ -166,6 +164,7 @@ export default function CronogramaPage() {
   const [teamActivity, setTeamActivity] = useState<ScheduleItem | null>(null);
   const [availableTeams, setAvailableTeams] = useState<AvailableTeam[]>([]);
   const [isLoadingTeams, setIsLoadingTeams] = useState(false);
+  const [teamError, setTeamError] = useState<string | null>(null);
   const [isAssigningTeam, setIsAssigningTeam] = useState(false);
   const [scheduleRevision, setScheduleRevision] = useState(0);
   const minimumStartDate = getTomorrowDate();
@@ -262,7 +261,6 @@ export default function CronogramaPage() {
       description: schedule.description ?? '',
       startAt: toLocalDateTime(schedule.startAt),
       endAt: toLocalDateTime(schedule.endAt),
-      responsibleUserId: schedule.responsibleUserId ?? '',
     });
     setValidationAlert(null);
     dialog.current?.showModal();
@@ -347,7 +345,6 @@ export default function CronogramaPage() {
       description: form.description.trim() || (editing ? null : undefined),
       startAt: new Date(form.startAt).toISOString(),
       endAt: new Date(form.endAt).toISOString(),
-      responsibleUserId: form.responsibleUserId || (editing ? null : undefined),
       status: getAutomaticStatus(form.startAt, form.endAt),
     };
 
@@ -420,12 +417,13 @@ export default function CronogramaPage() {
   async function openTeamDialog(schedule: ScheduleItem) {
     setTeamActivity(schedule);
     setAvailableTeams([]);
+    setTeamError(null);
     setIsLoadingTeams(true);
     teamDialog.current?.showModal();
     try {
       setAvailableTeams(await getAvailableTeams(schedule.id));
     } catch (cause) {
-      setValidationAlert(
+      setTeamError(
         cause instanceof Error
           ? cause.message
           : 'No fue posible consultar los equipos disponibles.',
@@ -437,6 +435,7 @@ export default function CronogramaPage() {
 
   async function assignTeam(teamId: string) {
     if (!teamActivity) return;
+    setTeamError(null);
     setIsAssigningTeam(true);
     try {
       await assignScheduleTeam(teamActivity.id, teamId);
@@ -444,7 +443,7 @@ export default function CronogramaPage() {
       setScheduleRevision((value) => value + 1);
       feedback.notify('Equipo asignado correctamente.');
     } catch (cause) {
-      setValidationAlert(
+      setTeamError(
         cause instanceof Error
           ? cause.message
           : 'No fue posible asignar el equipo.',
@@ -949,23 +948,6 @@ export default function CronogramaPage() {
                 value={form.endAt.slice(11)}
               />
             </label>
-            <label className="grid gap-2 text-sm font-semibold">
-              Responsable
-              <select
-                className={fieldClassName}
-                onChange={(event) =>
-                  setForm({ ...form, responsibleUserId: event.target.value })
-                }
-                value={form.responsibleUserId}
-              >
-                <option value="">Sin responsable</option>
-                {users.map((user) => (
-                  <option key={user.id} value={user.id}>
-                    {user.name}
-                  </option>
-                ))}
-              </select>
-            </label>
             <div className="mt-2 flex gap-3 border-t border-sky-blue pt-5 sm:col-span-2">
               <Button disabled={isSaving} type="submit">
                 {isSaving ? 'Guardando…' : 'Guardar actividad'}
@@ -1122,6 +1104,10 @@ export default function CronogramaPage() {
           <div className="grid gap-3 p-6">
             {isLoadingTeams ? (
               <LoadingState label="Consultando disponibilidad…" />
+            ) : teamError ? (
+              <p className="text-sm text-coral" role="alert">
+                {teamError}
+              </p>
             ) : availableTeams.length === 0 ? (
               <p className="rounded-xl border border-dashed border-sky-blue p-5 text-sm text-muted">
                 No hay equipos disponibles para este horario.

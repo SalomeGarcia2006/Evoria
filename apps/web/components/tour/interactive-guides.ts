@@ -1017,11 +1017,6 @@ export const formGuides: Record<string, FormGuide> = {
           'Programa las fechas dentro del periodo permitido del evento.',
       },
       {
-        title: 'Responsable',
-        text: 'Responsable',
-        description: 'Puedes asociar una persona responsable de la actividad.',
-      },
-      {
         title: 'Guardar actividad',
         text: 'Guardar actividad',
         description:

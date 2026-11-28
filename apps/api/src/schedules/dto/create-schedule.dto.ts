@@ -1,7 +1,6 @@
 import {
   IsEnum,
   IsISO8601,
-  IsMongoId,
   IsOptional,
   IsString,
   MaxLength,
@@ -25,10 +24,6 @@ export class CreateScheduleDto {
 
   @IsISO8601()
   endAt!: string;
-
-  @IsOptional()
-  @IsMongoId()
-  responsibleUserId?: string;
 
   @IsOptional()
   @IsEnum(SCHEDULE_STATUSES)
