@@ -41,9 +41,9 @@ Todas obtienen usuario y empresa de la sesión y exigen membresía activa.
 
 | Ruta                                                     | Permisos                                       | Resultado                                                         |
 | -------------------------------------------------------- | ---------------------------------------------- | ----------------------------------------------------------------- |
-| `POST /api/events/:eventId/provider-services`            | `servicios_proveedor.crear`, `proveedores.ver` | 201, solicitud `pendiente`, correo en cola                        |
+| `POST /api/events/:eventId/provider-services`            | `servicios_proveedor.crear`, `proveedores.ver` | 201, solicitud `pendiente` y estado de entrega del correo         |
 | `GET /api/events/:eventId/provider-services`             | `servicios_proveedor.ver`                      | 200, pendientes vigentes, aceptados esperando saldo y confirmados |
-| `POST /api/events/:eventId/provider-services/:id/resend` | `servicios_proveedor.crear`, `proveedores.ver` | 201, nuevo correo en cola                                         |
+| `POST /api/events/:eventId/provider-services/:id/resend` | `servicios_proveedor.crear`, `proveedores.ver` | 201, reenvío y estado de entrega del correo                       |
 | `DELETE /api/events/:eventId/provider-services/:id`      | `servicios_proveedor.cancelar`                 | 200, cancelación idempotente                                      |
 | `PATCH /api/events/:eventId/provider-services/:id`       | `servicios_proveedor.editar`                   | 409; edición deshabilitada                                        |
 

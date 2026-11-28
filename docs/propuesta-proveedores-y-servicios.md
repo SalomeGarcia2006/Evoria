@@ -1,5 +1,9 @@
 # Propuesta: proveedores y servicios para eventos
 
+> Documento histórico. El flujo vigente solicita la aceptación o el rechazo
+> del proveedor por correo. Consulta [Confirmación de servicios de proveedor](confirmacion-servicios-proveedor.md)
+> para las rutas, estados y condiciones actuales.
+
 Estado: backend implementado; la interfaz de frontend queda pendiente de integración.
 
 ## Integración con el backend
