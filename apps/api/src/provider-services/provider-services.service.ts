@@ -46,6 +46,8 @@ export class ProviderServicesService {
   ) {
     const tenantId = this.getTenantId(user);
     await this.findEvent(eventId, tenantId);
+    if (process.env.VERCEL === '1' && this.workflow)
+      await this.workflow.reconcileDue(eventId, tenantId);
     const services = await this.serviceModel
       .find({
         tenantId,

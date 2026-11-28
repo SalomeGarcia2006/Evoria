@@ -5,6 +5,7 @@ import type { EventItem } from '../../services/events.service';
 import {
   getProviderServices,
   cancelProviderService,
+  resendProviderService,
 } from '../../services/providers.service';
 import { useAuth } from '../../hooks/useAuth';
 import { Card } from '../ui/Card';
@@ -23,9 +24,16 @@ const cop = new Intl.NumberFormat('es-CO', {
   currency: 'COP',
   maximumFractionDigits: 0,
 });
+const statusLabels = {
+  pendiente: 'Pendiente de respuesta',
+  aceptado_sin_saldo: 'Aceptado, pendiente de presupuesto',
+  confirmado: 'Confirmado',
+  rechazado: 'Rechazado',
+  vencido: 'Vencido',
+  cancelado: 'Cancelado',
+} as const;
 export function ProviderServices({
   event,
-  budgetReady = true,
   budgetMissing = false,
   updating = false,
   refreshRevision = 0,
@@ -38,7 +46,6 @@ export function ProviderServices({
   showItems = true,
 }: {
   event: EventItem;
-  budgetReady?: boolean;
   budgetMissing?: boolean;
   updating?: boolean;
   refreshRevision?: number;
@@ -59,12 +66,11 @@ export function ProviderServices({
     refreshRevision: number;
     error?: string;
   }>();
-  const [panel, setPanel] = useState<EventProviderService | 'create' | null>(
-    null,
-  );
+  const [panel, setPanel] = useState<'create' | null>(null);
   const [cancelling, setCancelling] = useState<EventProviderService | null>(
     null,
   );
+  const [resending, setResending] = useState<string | null>(null);
   const feedback = useFeedback();
   const key = `${event.id}:${revision}:${refreshRevision}`;
   useEffect(() => {
@@ -123,6 +129,22 @@ export function ProviderServices({
       ? result.previousItems
       : result.items
     : undefined;
+  const hasOpenRequests = items?.some(
+    (item) =>
+      item.status === 'pendiente' || item.status === 'aceptado_sin_saldo',
+  );
+  useEffect(() => {
+    const refresh = () => {
+      if (document.visibilityState === 'visible')
+        setRevision((value) => value + 1);
+    };
+    window.addEventListener('focus', refresh);
+    const timer = hasOpenRequests ? window.setInterval(refresh, 15000) : null;
+    return () => {
+      window.removeEventListener('focus', refresh);
+      if (timer !== null) window.clearInterval(timer);
+    };
+  }, [hasOpenRequests]);
   const error = result?.key === key && !updating ? result.error : undefined;
   const cancelled = event.status === 'cancelado';
   function saved(message: string) {
@@ -131,6 +153,26 @@ export function ProviderServices({
     feedback.notify(message);
     setRevision((value) => value + 1);
     onChanged?.();
+  }
+  async function resend(item: EventProviderService) {
+    if (resending) return;
+    setResending(item.id);
+    feedback.dismiss();
+    try {
+      const updated = await resendProviderService(event.id, item.id);
+      feedback.notify(
+        updated.emailDelivery === 'sent'
+          ? 'Correo reenviado al proveedor.'
+          : updated.emailDelivery === 'failed'
+            ? 'El correo no se pudo enviar. Comprueba Brevo y vuelve a intentar.'
+            : 'Reenvío solicitado. El correo está pendiente de entrega.',
+      );
+      setRevision((value) => value + 1);
+    } catch (error) {
+      feedback.notify(apiErrorMessage(error), 'error');
+    } finally {
+      setResending(null);
+    }
   }
   return (
     <section
@@ -157,7 +199,8 @@ export function ProviderServices({
                 </h3>
               </div>
               <p className="mt-2 text-sm text-muted">
-                Acuerdos y valores pactados para este evento.
+                Solicitudes enviadas a proveedores y servicios confirmados para
+                este evento.
               </p>
             </div>
             {!readOnly &&
@@ -165,13 +208,13 @@ export function ProviderServices({
               can('proveedores.ver') && (
                 <Button
                   className="disabled:cursor-not-allowed disabled:opacity-50"
-                  disabled={cancelled || !budgetReady || updating}
+                  disabled={cancelled || updating}
                   data-tour={inDialog ? 'assignment-service-open' : undefined}
                   onClick={() => setPanel('create')}
                 >
                   {inDialog
-                    ? '+ Asignar servicio'
-                    : 'Asignar servicio de proveedor'}
+                    ? '+ Solicitar servicio'
+                    : 'Solicitar servicio al proveedor'}
                 </Button>
               )}
           </div>
@@ -179,7 +222,7 @@ export function ProviderServices({
             <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
               {readOnly
                 ? 'Evento cancelado: puedes consultar sus acuerdos históricos.'
-                : 'Evento cancelado: puedes consultar o cancelar acuerdos existentes; no crear ni editar.'}
+                : 'Evento cancelado: puedes consultar o cancelar solicitudes existentes; no crear nuevas.'}
             </p>
           )}
           {!readOnly &&
@@ -193,9 +236,9 @@ export function ProviderServices({
             )}
           {!readOnly && !cancelled && budgetMissing && (
             <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
-              No puedes crear ni editar acuerdos hasta consultar e iniciar el
-              presupuesto del evento. Revísalo desde Presupuestos y luego vuelve
-              a comprobar los requisitos de asignación.
+              Puedes solicitar confirmación ahora. Si el proveedor acepta, el
+              servicio quedará pendiente hasta que inicies el presupuesto del
+              evento y haya saldo.
             </p>
           )}
           <div
@@ -207,8 +250,8 @@ export function ProviderServices({
           >
             {inDialog && <AssignmentIcon name="alerta" small />}
             <p>
-              Un acuerdo confirmado cuenta como gasto del presupuesto. Al
-              cancelarlo, deja de contar y se conserva en el historial.
+              El proveedor acepta o rechaza desde el correo. Solo un servicio
+              confirmado cuenta como gasto del presupuesto.
             </p>
           </div>
           {error && (
@@ -252,13 +295,7 @@ export function ProviderServices({
                       <h3 className="break-words text-lg font-bold">
                         {item.serviceName}
                       </h3>
-                      <StatusBadge
-                        status={
-                          item.status === 'confirmado'
-                            ? 'Confirmado'
-                            : 'Cancelado'
-                        }
-                      />
+                      <StatusBadge status={statusLabels[item.status]} />
                     </div>
                     <p className="mt-3 break-words font-semibold text-muted">
                       {item.provider.name}
@@ -282,22 +319,46 @@ export function ProviderServices({
                     <p className="my-4 break-words text-xl font-bold">
                       {cop.format(item.agreedAmountCop)}
                     </p>
+                    {item.status === 'pendiente' && (
+                      <p className="text-xs text-muted">
+                        {item.emailDelivery === 'sent'
+                          ? 'Correo enviado. Esperando respuesta del proveedor.'
+                          : item.emailDelivery === 'failed'
+                            ? 'No se pudo enviar el correo. Puedes reenviarlo.'
+                            : 'Correo en cola de envío.'}
+                      </p>
+                    )}
+                    {item.status === 'aceptado_sin_saldo' && (
+                      <p className="text-xs text-muted">
+                        El proveedor aceptó. Falta saldo para confirmar el
+                        servicio.
+                      </p>
+                    )}
+                    {item.status === 'rechazado' && item.rejectionReason && (
+                      <p className="text-xs text-muted">
+                        Motivo: {item.rejectionReason}
+                      </p>
+                    )}
                     {item.status === 'cancelado' ? (
                       <p className="text-xs text-muted">
                         Histórico · No cuenta como gasto.
                       </p>
-                    ) : (
+                    ) : ['rechazado', 'vencido'].includes(
+                        item.status,
+                      ) ? null : (
                       <div className="mt-auto flex flex-wrap gap-2">
                         {!readOnly &&
-                          can('servicios_proveedor.editar') &&
-                          !cancelled &&
-                          budgetReady && (
+                          item.status === 'pendiente' &&
+                          can('servicios_proveedor.crear') &&
+                          can('proveedores.ver') && (
                             <Button
                               variant="secondary"
-                              disabled={updating}
-                              onClick={() => setPanel(item)}
+                              disabled={updating || resending === item.id}
+                              onClick={() => void resend(item)}
                             >
-                              Editar servicio
+                              {resending === item.id
+                                ? 'Reenviando…'
+                                : 'Reenviar correo'}
                             </Button>
                           )}
                         {!readOnly && can('servicios_proveedor.cancelar') && (
@@ -318,15 +379,26 @@ export function ProviderServices({
           {panel && (
             <ProviderServiceDialog
               event={event}
-              service={panel === 'create' ? undefined : panel}
               onClose={() => setPanel(null)}
-              onSaved={() => saved('Servicio guardado correctamente.')}
+              onSaved={(service) =>
+                saved(
+                  service.emailDelivery === 'sent'
+                    ? 'Correo enviado al proveedor. Esperando su respuesta.'
+                    : service.emailDelivery === 'failed'
+                      ? 'Solicitud creada, pero el correo no se pudo enviar. Usa Reenviar correo.'
+                      : 'Solicitud creada. El correo está en cola de envío.',
+                )
+              }
             />
           )}
           {cancelling && (
             <ConfirmProviderAction
               title="Cancelar servicio de proveedor"
-              description={`¿Cancelar ${cancelling.serviceName}? Su valor dejará de contar como gasto del presupuesto. El acuerdo permanecerá en el historial.`}
+              description={
+                cancelling.status === 'confirmado'
+                  ? `¿Cancelar ${cancelling.serviceName}? Su valor dejará de contar como gasto del presupuesto. El servicio permanecerá en el historial.`
+                  : `¿Cancelar la solicitud de ${cancelling.serviceName}? El proveedor ya no podrá responder el enlace. La solicitud permanecerá en el historial.`
+              }
               action={() => cancelProviderService(event.id, cancelling.id)}
               onError={(error) =>
                 feedback.notify(apiErrorMessage(error), 'error')
