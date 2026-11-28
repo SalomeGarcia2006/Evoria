@@ -1195,6 +1195,107 @@ test('HTTP: confirmación de proveedor, presupuesto, correo y aislamiento en Mon
         );
       },
     );
+    await t.test(
+      'Vercel entrega solicitud y reenvío antes de responder',
+      async () => {
+        const previous = process.env.VERCEL;
+        process.env.VERCEL = '1';
+        try {
+          const ev = await event();
+          const first = await request(ev.id, 180, owner, {
+            serviceName: 'Servicio para función',
+            description: 'Pantalla y operador',
+            startDate: '2030-01-10',
+            startTime: '12:00',
+            endDate: '2030-01-10',
+            endTime: '14:00',
+          });
+          assert.equal(first.emailDelivery, 'sent');
+          assert.equal(await spent(ev.id), 0);
+          const original = await link(first.id);
+          assert.equal(original.serviceId, first.id);
+          const sent = messages.findLast((message) =>
+            message.text.includes(`#id=${first.id}&token=`),
+          );
+          assert.match(sent!.text, /Servicio: Servicio para función/);
+          assert.match(sent!.text, /Descripción: Pantalla y operador/);
+          assert.match(sent!.text, /Inicio: 2030-01-10 12:00/);
+          assert.match(sent!.text, /Fin: 2030-01-10 14:00/);
+          assert.match(sent!.text, /Monto acordado: \$180 COP/);
+
+          await services.updateOne(
+            { _id: new Types.ObjectId(first.id) },
+            {
+              $set: {
+                responseExpiresAt: new Date(
+                  Date.now() + 24 * 60 * 60 * 1000 - 61000,
+                ),
+              },
+            },
+          );
+          const second = await data<{ emailDelivery: string }>(
+            await api.request(
+              `events/${ev.id}/provider-services/${first.id}/resend`,
+              { method: 'POST', session: owner },
+            ),
+          );
+          assert.equal(second.emailDelivery, 'sent');
+          const renewed = await link(first.id);
+          assert.notEqual(renewed.token, original.token);
+          assert.equal(
+            (
+              await api.request('provider-service-confirmation/details', {
+                method: 'POST',
+                body: original,
+              })
+            ).status,
+            404,
+          );
+          assert.equal(
+            (
+              await api.request(
+                `events/${ev.id}/provider-services/${first.id}`,
+                { method: 'DELETE', session: owner },
+              )
+            ).status,
+            200,
+          );
+          assert.ok(
+            messages.some((message) =>
+              message.text.includes(`Referencia: ${first.id}.`),
+            ),
+            'La cancelación también debe enviarse antes de responder',
+          );
+
+          const failedEvent = await event();
+          failMail = true;
+          const failed = await request(failedEvent.id, 90, owner);
+          assert.equal(failed.emailDelivery, 'failed');
+          failMail = false;
+          await services.updateOne(
+            { _id: new Types.ObjectId(failed.id) },
+            {
+              $set: {
+                responseExpiresAt: new Date(
+                  Date.now() + 24 * 60 * 60 * 1000 - 61000,
+                ),
+              },
+            },
+          );
+          const recovered = await data<{ emailDelivery: string }>(
+            await api.request(
+              `events/${failedEvent.id}/provider-services/${failed.id}/resend`,
+              { method: 'POST', session: owner },
+            ),
+          );
+          assert.equal(recovered.emailDelivery, 'sent');
+        } finally {
+          failMail = false;
+          if (previous === undefined) delete process.env.VERCEL;
+          else process.env.VERCEL = previous;
+        }
+      },
+    );
   } finally {
     await api.close();
   }

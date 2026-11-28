@@ -82,7 +82,7 @@ export class ProviderServicesController {
   ) {
     return {
       data: await this.service.resend(eventId, id, user),
-      message: 'Reenvío de solicitud en cola.',
+      message: 'Reenvío de solicitud procesado.',
     };
   }
 }

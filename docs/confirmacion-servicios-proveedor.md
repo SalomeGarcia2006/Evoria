@@ -160,8 +160,8 @@ alertas usan la cola persistente existente. Una entrega fallida no pierde el
 acontecimiento ni altera el presupuesto. Las revisiones evitan que entregas
 concurrentes o fuera de orden sobrescriban el estado reciente de una alerta.
 
-El procesador recupera trabajos al iniciar y cada 15 segundos; los errores se
-reintentan con espera creciente. Los correos usan reclamaciones recuperables
+En servidores persistentes, el procesador recupera trabajos al iniciar y cada
+15 segundos; los errores se reintentan con espera creciente. Los correos usan reclamaciones recuperables
 de 60 segundos. SMTP puede duplicar un correo si se pierde su confirmación o
 el proceso se interrumpe tras enviarlo; no se garantiza entrega exactamente una
 vez. Esos correos apuntan a la misma solicitud, cuya decisión y cargo sí son
@@ -207,10 +207,17 @@ URL. El secreto debe ser igual en todas las instancias y conservarse al reinicia
 No usar el valor de ejemplo. Al rotarlo, reenviar manualmente las solicitudes
 vigentes: los reintentos de correos antiguos no pueden regenerar el token anterior.
 
-El worker está habilitado por defecto; `PROVIDER_WORKER_ENABLED=false` se reserva
-para pruebas controladas. Compose propaga URL y secreto. Si SMTP falla o falta
-su configuración, la solicitud queda en cola con `emailDelivery=failed`; crear
-la solicitud no se presenta como un correo entregado.
+En un servidor persistente, el worker está habilitado por defecto y procesa la
+cola cada 15 segundos; `PROVIDER_WORKER_ENABLED=false` se reserva para pruebas
+controladas. En Vercel no se inicia ese temporizador: la petición de creación,
+reenvío o cancelación procesa sus correos antes de responder. Así el envío no
+depende de que la función continúe ejecutándose después de enviar la respuesta.
+Si SMTP falla, `emailDelivery=failed` queda visible y el usuario puede reenviar
+la solicitud pendiente después de un minuto. Los reintentos automáticos y la
+conciliación periódica en Vercel requieren un proceso persistente o un programador
+con frecuencia adecuada; el temporizador de la aplicación no los proporciona allí.
+Compose propaga URL y secreto. Si SMTP falla o falta su configuración, crear la
+solicitud no se presenta como un correo entregado.
 
 No hay seed nuevo. Los índices y campos son aditivos. Los servicios históricos
 conservan estados y montos; no se pide aceptación retroactiva. Coordinar el cambio
