@@ -164,6 +164,7 @@ export default function CronogramaPage() {
   const [teamActivity, setTeamActivity] = useState<ScheduleItem | null>(null);
   const [availableTeams, setAvailableTeams] = useState<AvailableTeam[]>([]);
   const [isLoadingTeams, setIsLoadingTeams] = useState(false);
+  const [teamError, setTeamError] = useState<string | null>(null);
   const [isAssigningTeam, setIsAssigningTeam] = useState(false);
   const [scheduleRevision, setScheduleRevision] = useState(0);
   const minimumStartDate = getTomorrowDate();
@@ -416,12 +417,13 @@ export default function CronogramaPage() {
   async function openTeamDialog(schedule: ScheduleItem) {
     setTeamActivity(schedule);
     setAvailableTeams([]);
+    setTeamError(null);
     setIsLoadingTeams(true);
     teamDialog.current?.showModal();
     try {
       setAvailableTeams(await getAvailableTeams(schedule.id));
     } catch (cause) {
-      setValidationAlert(
+      setTeamError(
         cause instanceof Error
           ? cause.message
           : 'No fue posible consultar los equipos disponibles.',
@@ -433,6 +435,7 @@ export default function CronogramaPage() {
 
   async function assignTeam(teamId: string) {
     if (!teamActivity) return;
+    setTeamError(null);
     setIsAssigningTeam(true);
     try {
       await assignScheduleTeam(teamActivity.id, teamId);
@@ -440,7 +443,7 @@ export default function CronogramaPage() {
       setScheduleRevision((value) => value + 1);
       feedback.notify('Equipo asignado correctamente.');
     } catch (cause) {
-      setValidationAlert(
+      setTeamError(
         cause instanceof Error
           ? cause.message
           : 'No fue posible asignar el equipo.',
@@ -1101,6 +1104,10 @@ export default function CronogramaPage() {
           <div className="grid gap-3 p-6">
             {isLoadingTeams ? (
               <LoadingState label="Consultando disponibilidad…" />
+            ) : teamError ? (
+              <p className="text-sm text-coral" role="alert">
+                {teamError}
+              </p>
             ) : availableTeams.length === 0 ? (
               <p className="rounded-xl border border-dashed border-sky-blue p-5 text-sm text-muted">
                 No hay equipos disponibles para este horario.
