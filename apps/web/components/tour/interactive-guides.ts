@@ -846,7 +846,7 @@ export const formGuides: Record<string, FormGuide> = {
         selector: '[data-tour="assignment-service-open"]',
         permission: 'servicios_proveedor.crear',
         description:
-          'Abre el formulario para registrar un servicio de proveedor. Requiere acceso a proveedores y cumplir los requisitos de presupuesto.',
+          'Abre el formulario para enviar al proveedor una solicitud de confirmación por correo. Requiere acceso a proveedores.',
         openDialogOnNext: {
           triggerSelector: '[data-tour="assignment-service-open"]',
           preserveDialogDuringTour: true,

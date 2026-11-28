@@ -86,7 +86,12 @@ export class EventProviderService {
 
 export const EventProviderServiceSchema =
   SchemaFactory.createForClass(EventProviderService);
-EventProviderServiceSchema.index({ tenantId: 1, eventId: 1, status: 1 });
+EventProviderServiceSchema.index({
+  tenantId: 1,
+  eventId: 1,
+  status: 1,
+  nextCheckAt: 1,
+});
 EventProviderServiceSchema.index({ tenantId: 1, providerId: 1 });
 EventProviderServiceSchema.index({ status: 1, nextCheckAt: 1, _id: 1 });
 EventProviderServiceSchema.index(

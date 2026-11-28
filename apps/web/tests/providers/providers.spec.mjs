@@ -195,8 +195,16 @@ async function setup(page, options = {}) {
         ...body,
         id: `s${state.services.length + 1}`,
         provider: state.providers.find((item) => item.id === body.providerId),
+        status: 'pendiente',
+        emailDelivery: state.mailDelivery || 'sent',
       };
       state.services.push(item);
+      return send(item);
+    }
+    if (path.endsWith('/resend') && method === 'POST') {
+      const id = path.split('/').at(-2);
+      const item = state.services.find((service) => service.id === id);
+      item.emailDelivery = 'sent';
       return send(item);
     }
     if (path.startsWith('/events/e1/provider-services/')) {
@@ -287,6 +295,53 @@ test('directorio: no permite editar proveedores inactivos', async ({
   await expect(
     page.getByRole('button', { name: 'Editar', exact: true }),
   ).toHaveCount(0);
+});
+
+test('flujo actual: solicita por correo, muestra fallo y permite reenviar', async ({
+  page,
+}) => {
+  const state = await setup(page, { mailDelivery: 'failed' });
+  await page.goto('/recursos/asignaciones/e1');
+  await page.getByRole('button', { name: 'Asignar recursos' }).click();
+  await page.getByRole('button', { name: '+ Solicitar servicio' }).click();
+  const form = page.getByRole('dialog', {
+    name: 'Solicitar confirmación del proveedor',
+  });
+  await form.getByLabel('Proveedor', { exact: true }).selectOption('p1');
+  await form.getByLabel('Nombre del servicio').fill('Montaje del salón');
+  await form.getByLabel('Descripción').fill('Montaje para 80 invitados');
+  await form.getByLabel('Fecha acordada de prestación').fill('2026-12-05');
+  await form.getByLabel('Valor total acordado (COP)').fill('500000');
+  await form
+    .getByRole('button', { name: 'Enviar solicitud por correo' })
+    .click();
+  await expect(form).toHaveCount(0);
+  await acknowledgeFeedback(
+    page,
+    'Solicitud creada, pero el correo no se pudo enviar',
+  );
+  const post = writes(state).find(
+    (call) =>
+      call.method === 'POST' && call.path === '/events/e1/provider-services',
+  );
+  expect(post.body).toMatchObject({
+    providerId: 'p1',
+    serviceName: 'Montaje del salón',
+    description: 'Montaje para 80 invitados',
+    startDate: '2026-12-05',
+    agreedAmountCop: 500000,
+  });
+  expect(post.body.idempotencyKey).toMatch(/[0-9a-f-]{36}/);
+  await expect(page.getByText('Pendiente de respuesta').first()).toBeVisible();
+  await expect(
+    page.getByText('No se pudo enviar el correo. Puedes reenviarlo.'),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Reenviar correo' }).click();
+  await expect(
+    page.getByText('Correo enviado. Esperando respuesta del proveedor.'),
+  ).toBeVisible();
+  expect(state.services[1].status).toBe('pendiente');
+  expect(state.errors).toEqual([]);
 });
 
 test('servicios: fechas opcionales coinciden con la API', async ({ page }) => {

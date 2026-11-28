@@ -66,7 +66,12 @@ export class ProviderServiceWorkflow implements OnModuleInit, OnModuleDestroy {
       this.jobs.createIndexes(),
       this.services.createIndexes(),
     ]);
-    if (this.config.get<string>('PROVIDER_WORKER_ENABLED') === 'false') return;
+    // Serverless functions cannot rely on an interval after the response ends.
+    if (
+      process.env.VERCEL === '1' ||
+      this.config.get<string>('PROVIDER_WORKER_ENABLED') === 'false'
+    )
+      return;
     this.timer = setInterval(() => {
       void this.tick().catch((error: unknown) =>
         this.logger.error('Falló el procesamiento de servicios.', error),
@@ -205,7 +210,7 @@ export class ProviderServiceWorkflow implements OnModuleInit, OnModuleDestroy {
       return existing;
     };
     try {
-      return await this.transaction(async (session) => {
+      const service = await this.transaction(async (session) => {
         const existing = await replay(session);
         if (existing) return existing;
         const tenantId = user.tenantId!;
@@ -259,6 +264,7 @@ export class ProviderServiceWorkflow implements OnModuleInit, OnModuleDestroy {
         );
         return service;
       });
+      return this.deliverAfterCommit(service);
     } catch (error) {
       if (
         typeof error === 'object' &&
@@ -267,10 +273,16 @@ export class ProviderServiceWorkflow implements OnModuleInit, OnModuleDestroy {
         error.code === 11000
       ) {
         const existing = await replay();
-        if (existing) return existing;
+        if (existing) return this.deliverAfterCommit(existing);
       }
       throw error;
     }
+  }
+
+  private async deliverAfterCommit(service: EventProviderServiceDocument) {
+    if (process.env.VERCEL !== '1') return service;
+    await this.deliverMail(service._id.toString());
+    return (await this.services.findById(service._id)) ?? service;
   }
 
   private async queue(
@@ -365,7 +377,7 @@ export class ProviderServiceWorkflow implements OnModuleInit, OnModuleDestroy {
   }
 
   async cancel(eventId: string, id: string, user: AuthenticatedUser) {
-    return this.transaction(async (session) => {
+    const service = await this.transaction(async (session) => {
       const event = await this.event(user.tenantId!, eventId, session);
       const service = await this.services
         .findOne({ _id: id, eventId, tenantId: user.tenantId })
@@ -401,11 +413,12 @@ export class ProviderServiceWorkflow implements OnModuleInit, OnModuleDestroy {
       );
       return service;
     });
+    return this.deliverAfterCommit(service);
   }
 
   async resend(eventId: string, id: string, user: AuthenticatedUser) {
     const { secret } = this.settings();
-    return this.transaction(async (session) => {
+    const service = await this.transaction(async (session) => {
       const event = await this.event(user.tenantId!, eventId, session);
       const service = await this.services
         .findOne({ _id: id, eventId, tenantId: user.tenantId })
@@ -451,6 +464,7 @@ export class ProviderServiceWorkflow implements OnModuleInit, OnModuleDestroy {
       await this.queue(service, 'request', session);
       return service;
     });
+    return this.deliverAfterCommit(service);
   }
 
   private async authenticated(
@@ -652,6 +666,30 @@ export class ProviderServiceWorkflow implements OnModuleInit, OnModuleDestroy {
     });
   }
 
+  async reconcileDue(eventId: string, tenantId: string) {
+    const due = await this.services
+      .find({
+        eventId,
+        tenantId,
+        status: { $in: OPEN },
+        nextCheckAt: { $lte: new Date() },
+      })
+      .sort({ nextCheckAt: 1 })
+      .limit(25)
+      .select('_id')
+      .lean();
+    for (const service of due) {
+      try {
+        await this.reconcileOne(service._id.toString());
+      } catch (error) {
+        this.logger.warn(
+          'Se reintentará la conciliación de un servicio.',
+          error,
+        );
+      }
+    }
+  }
+
   async tick() {
     if (this.running) return;
     this.running = true;
@@ -679,13 +717,14 @@ export class ProviderServiceWorkflow implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  async deliverMail() {
+  async deliverMail(serviceId?: string) {
     for (let count = 0; count < 25; count += 1) {
       const claimId = randomUUID();
       const now = new Date();
       const job = await this.jobs.findOneAndUpdate(
         {
           deliveredAt: null,
+          ...(serviceId ? { serviceId: new Types.ObjectId(serviceId) } : {}),
           nextAttemptAt: { $lte: now },
           $or: [{ claimedUntil: null }, { claimedUntil: { $lte: now } }],
         },

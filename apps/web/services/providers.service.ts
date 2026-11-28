@@ -75,3 +75,8 @@ export const cancelProviderService = (eventId: string, id: string) =>
     `/events/${eventId}/provider-services/${id}`,
     'DELETE',
   );
+export const resendProviderService = (eventId: string, id: string) =>
+  request<EventProviderService>(
+    `/events/${eventId}/provider-services/${id}/resend`,
+    'POST',
+  );

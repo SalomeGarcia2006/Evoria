@@ -1,8 +1,7 @@
 'use client';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import {
   PROVIDER_CATEGORIES,
-  type EventProviderService,
   type ProviderCategory,
   type ProviderList,
 } from '@evoria/contracts';
@@ -10,7 +9,6 @@ import type { EventItem } from '../../services/events.service';
 import {
   getProviders,
   createProviderService,
-  updateProviderService,
 } from '../../services/providers.service';
 import { useAuth } from '../../hooks/useAuth';
 import { Button } from '../ui/Button';
@@ -32,26 +30,24 @@ function eventDay(value: string) {
 
 export function ProviderServiceDialog({
   event,
-  service,
   onClose,
   onSaved,
 }: {
   event: EventItem;
-  service?: EventProviderService;
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: (service: import('@evoria/contracts').EventProviderService) => void;
 }) {
   const { can } = useAuth();
   const canSelect = can('proveedores.ver');
   const [values, setValues] = useState({
-    providerId: service?.providerId ?? '',
-    serviceName: service?.serviceName ?? '',
-    description: service?.description ?? '',
-    startDate: service?.startDate ?? '',
-    startTime: service?.startTime ?? '',
-    endDate: service?.endDate ?? '',
-    endTime: service?.endTime ?? '',
-    amount: service ? String(service.agreedAmountCop) : '',
+    providerId: '',
+    serviceName: '',
+    description: '',
+    startDate: '',
+    startTime: '',
+    endDate: '',
+    endTime: '',
+    amount: '',
   });
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState<ProviderCategory | ''>('');
@@ -61,7 +57,7 @@ export function ProviderServiceDialog({
     data?: ProviderList;
     error?: string;
   }>();
-  const [selectedProvider, setSelectedProvider] = useState(service?.provider);
+  const submission = useRef<{ fingerprint: string; key: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const feedback = useFeedback();
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -166,19 +162,15 @@ export function ProviderServiceDialog({
       agreedAmountCop: amount,
     };
     try {
-      if (service)
-        await updateProviderService(event.id, service.id, {
-          ...body,
-          ...(values.providerId !== service.providerId
-            ? { providerId: values.providerId }
-            : {}),
-        });
-      else
-        await createProviderService(event.id, {
-          ...body,
-          providerId: values.providerId,
-        });
-      onSaved();
+      const fingerprint = JSON.stringify([event.id, values.providerId, body]);
+      if (submission.current?.fingerprint !== fingerprint)
+        submission.current = { fingerprint, key: crypto.randomUUID() };
+      const created = await createProviderService(event.id, {
+        ...body,
+        providerId: values.providerId,
+        idempotencyKey: submission.current.key,
+      });
+      onSaved(created);
     } catch (err) {
       feedback.notify(apiErrorMessage(err), 'error');
       setErrors(
@@ -198,11 +190,7 @@ export function ProviderServiceDialog({
   }
   return (
     <ProviderDialogShell
-      title={
-        service
-          ? 'Editar servicio de proveedor'
-          : 'Asignar servicio de proveedor'
-      }
+      title="Solicitar confirmación del proveedor"
       busy={busy}
       onClose={onClose}
       tourTarget="provider-service-dialog-tour-target"
@@ -276,24 +264,9 @@ export function ProviderServiceDialog({
                       onChange={(e) => {
                         const id = e.target.value;
                         setValues({ ...values, providerId: id });
-                        setSelectedProvider(
-                          providerData.items.find((item) => item.id === id) ??
-                            service?.provider,
-                        );
                       }}
                     >
                       <option value="">Seleccionar proveedor</option>
-                      {selectedProvider &&
-                        !providerData.items.some(
-                          (item) => item.id === selectedProvider.id,
-                        ) && (
-                          <option value={selectedProvider.id}>
-                            {selectedProvider.name}
-                            {selectedProvider.status === 'inactivo'
-                              ? ' · Inactivo (acuerdo histórico)'
-                              : ' · Seleccionado'}
-                          </option>
-                        )}
                       {providerData.items.map((item) => (
                         <option key={item.id} value={item.id}>
                           {item.name}
@@ -317,12 +290,7 @@ export function ProviderServiceDialog({
                 </>
               )}
             </div>
-          ) : (
-            <p>
-              Proveedor: <strong>{service?.provider.name}</strong> · Sin permiso
-              para cambiar el contacto.
-            </p>
-          )}
+          ) : null}
           <Field
             label="Nombre del servicio"
             required
@@ -401,12 +369,12 @@ export function ProviderServiceDialog({
             onChange={(e) => setValues({ ...values, amount: e.target.value })}
           />
           <p className="text-sm text-muted">
-            Registra el acuerdo confirmado con el proveedor. Evoria no consulta
-            disponibilidad ni modifica el inventario.
+            Enviaremos estos datos al correo del proveedor para que acepte o
+            rechace sin iniciar sesión.
           </p>
           <p className="text-sm text-muted">
-            El valor confirmado se registra como gasto del presupuesto. Al
-            editarlo, se ajusta el gasto y se valida el saldo disponible.
+            El valor solo contará como gasto cuando el proveedor acepte y haya
+            saldo suficiente.
           </p>
         </fieldset>
         <div className="flex flex-wrap justify-end gap-3">
@@ -419,7 +387,7 @@ export function ProviderServiceDialog({
             Cancelar
           </Button>
           <Button disabled={busy}>
-            {busy ? 'Guardando…' : 'Guardar servicio'}
+            {busy ? 'Enviando…' : 'Enviar solicitud por correo'}
           </Button>
         </div>
       </form>

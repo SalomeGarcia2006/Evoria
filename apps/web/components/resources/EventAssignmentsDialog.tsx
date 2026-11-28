@@ -393,8 +393,9 @@ export function EventAssignmentsDialog({
                     budgetMissing && (
                       <Card>
                         <p className="text-sm text-muted">
-                          Para crear asignaciones, inicia primero el presupuesto
-                          del evento.
+                          Para reservar inventario, inicia primero el
+                          presupuesto del evento. Puedes solicitar un servicio
+                          al proveedor sin iniciarlo.
                         </p>
                         <div className="mt-3 flex flex-wrap items-center gap-3">
                           <Link
@@ -412,9 +413,9 @@ export function EventAssignmentsDialog({
                   )
                 ) : (
                   <p className="text-sm text-muted">
-                    Las nuevas asignaciones requieren presupuesto iniciado y
-                    saldo suficiente. Si necesitas consultar el saldo, solicita
-                    acceso a Presupuestos.
+                    Las reservas de inventario requieren presupuesto iniciado y
+                    saldo suficiente. Puedes solicitar un servicio al proveedor;
+                    se confirmará cuando acepte y haya saldo.
                   </p>
                 )}
                 <div
@@ -444,15 +445,16 @@ export function EventAssignmentsDialog({
                       key={`providers:${eventId}`}
                       event={visibleEvent}
                       inDialog
-                      budgetReady={visibleBudgetReady}
                       budgetMissing={budgetMissing}
-                      updating={actionsBlocked}
+                      updating={
+                        eventLoading || awaitingCommit || servicesRefreshing
+                      }
                       refreshRevision={attempt}
                       committedRevision={committedAttempt}
                       onRefreshingChange={setServicesRefreshing}
                       onRefreshResult={setServicesResult}
                       onChanged={assignmentChanged}
-                      showItems={false}
+                      showItems
                     />
                   )}
                 </div>

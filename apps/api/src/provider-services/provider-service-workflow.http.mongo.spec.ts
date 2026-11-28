@@ -345,6 +345,83 @@ test('HTTP: confirmación de proveedor, presupuesto, correo y aislamiento en Mon
     );
 
     await t.test(
+      'Vercel envía el correo antes de responder la solicitud',
+      async () => {
+        const previous = process.env.VERCEL;
+        process.env.VERCEL = '1';
+        try {
+          const ev = await event(100);
+          const service = await data<{
+            id: string;
+            status: string;
+            emailDelivery: string;
+          }>(
+            await api.request(`events/${ev.id}/provider-services`, {
+              method: 'POST',
+              session: requester.session,
+              body: {
+                providerId: provider.id,
+                serviceName: 'Montaje de luces',
+                description: 'Dos pantallas LED y apoyo técnico',
+                startDate: '2030-01-10',
+                startTime: '14:00',
+                endDate: '2030-01-10',
+                endTime: '17:30',
+                agreedAmountCop: 300,
+                idempotencyKey: randomUUID(),
+              },
+            }),
+          );
+          assert.equal(service.status, 'pendiente');
+          assert.equal(service.emailDelivery, 'sent');
+          const matching = messages.filter((message) =>
+            message.text.includes(`#id=${service.id}&token=`),
+          );
+          assert.equal(matching.length, 1);
+          assert.match(matching[0].text, /Evento confirmaciones/);
+          assert.match(matching[0].text, /Montaje de luces/);
+          assert.match(matching[0].text, /Dos pantallas LED y apoyo técnico/);
+          assert.match(matching[0].text, /Inicio: 2030-01-10 14:00/);
+          assert.match(matching[0].text, /Fin: 2030-01-10 17:30/);
+          assert.match(matching[0].text, /Monto acordado: \$300 COP/);
+          assert.equal(await spent(ev.id), 0);
+          const credentials = await link(service.id);
+          await data(
+            await api.request('provider-service-confirmation/respond', {
+              method: 'POST',
+              body: { ...credentials, decision: 'aceptar' },
+            }),
+          );
+          assert.equal(await status(service.id), 'aceptado_sin_saldo');
+          await api.connection
+            .collection('event_budgets')
+            .updateOne(
+              { tenantId, eventId: new Types.ObjectId(ev.id) },
+              { $set: { baseAmountCop: 1000 } },
+            );
+          await services.updateOne(
+            { _id: new Types.ObjectId(service.id) },
+            { $set: { nextCheckAt: new Date(0) } },
+          );
+          const listed = await data<Array<{ id: string; status: string }>>(
+            await api.request(`events/${ev.id}/provider-services`, {
+              session: owner,
+            }),
+            200,
+          );
+          assert.equal(
+            listed.find((item) => item.id === service.id)?.status,
+            'confirmado',
+          );
+          assert.equal(await spent(ev.id), 300);
+        } finally {
+          if (previous === undefined) delete process.env.VERCEL;
+          else process.env.VERCEL = previous;
+        }
+      },
+    );
+
+    await t.test(
       'reintentar la creación con la misma clave no duplica la solicitud ni el correo',
       async () => {
         const ev = await event();

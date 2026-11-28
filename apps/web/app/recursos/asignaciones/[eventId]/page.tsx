@@ -73,7 +73,7 @@ export default function AssignmentDetailsPage() {
         <ModuleBanner
           icon="recursos.svg"
           title="Asignaciones del evento"
-          description="Aquí se muestran las reservas de inventario y los servicios ya asignados."
+          description="Aquí se muestran las reservas de inventario, las solicitudes a proveedores y los servicios confirmados."
         />
         {!can('eventos.ver') ? (
           <Card>

@@ -160,8 +160,13 @@ alertas usan la cola persistente existente. Una entrega fallida no pierde el
 acontecimiento ni altera el presupuesto. Las revisiones evitan que entregas
 concurrentes o fuera de orden sobrescriban el estado reciente de una alerta.
 
-El procesador recupera trabajos al iniciar y cada 15 segundos; los errores se
-reintentan con espera creciente. Los correos usan reclamaciones recuperables
+En un servidor persistente, el procesador recupera trabajos al iniciar y cada 15 segundos;
+los errores se reintentan con espera creciente. En Vercel, la petición de creación o
+reenvío espera el intento de entrega por Brevo antes de responder. No se usa un
+temporizador después de la respuesta, porque la función puede suspenderse. La interfaz
+muestra `sent`, `queued` o `failed` y permite reenviar una solicitud pendiente.
+La consulta de servicios concilia las solicitudes vencidas o aceptadas sin saldo
+cuando les corresponde una revisión. Los correos usan reclamaciones recuperables
 de 60 segundos. SMTP puede duplicar un correo si se pierde su confirmación o
 el proceso se interrumpe tras enviarlo; no se garantiza entrega exactamente una
 vez. Esos correos apuntan a la misma solicitud, cuya decisión y cargo sí son
@@ -193,10 +198,14 @@ URL. El secreto debe ser igual en todas las instancias y conservarse al reinicia
 No usar el valor de ejemplo. Al rotarlo, reenviar manualmente las solicitudes
 vigentes: los reintentos de correos antiguos no pueden regenerar el token anterior.
 
-El worker está habilitado por defecto; `PROVIDER_WORKER_ENABLED=false` se reserva
-para pruebas controladas. Compose propaga URL y secreto. Si SMTP falla o falta
-su configuración, la solicitud queda en cola con `emailDelivery=failed`; crear
-la solicitud no se presenta como un correo entregado.
+El worker está habilitado por defecto en servidores persistentes;
+`PROVIDER_WORKER_ENABLED=false` se reserva para pruebas controladas. Compose propaga
+URL y secreto. En Vercel se deben configurar `API_PUBLIC_URL`,
+`PROVIDER_CONFIRMATION_SECRET`, `BREVO_SMTP_USER`, `BREVO_SMTP_KEY` y
+`MAIL_FROM_EMAIL` en el proyecto de la API; el `.env` local no se despliega.
+Si Brevo falla, la solicitud queda pendiente con `emailDelivery=failed` y la
+interfaz ofrece reenvío. El estado `sent` significa que Brevo aceptó el mensaje,
+no que el destinatario ya lo leyó.
 
 No hay seed nuevo. Los índices y campos son aditivos. Los servicios históricos
 conservan estados y montos; no se pide aceptación retroactiva. Coordinar el cambio
