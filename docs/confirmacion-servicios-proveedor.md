@@ -187,19 +187,9 @@ BREVO_SMTP_KEY=clave-smtp
 MAIL_FROM_EMAIL=remitente-verificado@ejemplo.com
 ```
 
-Como alternativa a Brevo, el API acepta SMTP estándar. Por ejemplo, para Gmail:
-
-```dotenv
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=cuenta@gmail.com
-SMTP_PASSWORD=contraseña-de-aplicación
-MAIL_FROM_EMAIL=cuenta@gmail.com
-```
-
-`SMTP_HOST` activa estas credenciales en lugar de las variables de Brevo. No
-configurar `LOCAL_MAIL_OUTBOX_DIR` cuando se necesite entrega real; ese buzón es
-solo para desarrollo local y está prohibido en producción.
+La API usa únicamente Brevo para los correos de proveedores y los códigos de
+autenticación. Las tres variables anteriores deben estar disponibles para el
+proceso de la API; no se incluyen claves en Git.
 
 En desarrollo se permite `http://localhost:3001/api`; una URL pública debe usar
 HTTPS y ser accesible para el proveedor. El prefijo `/api` forma parte de la

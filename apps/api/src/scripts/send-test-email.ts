@@ -34,7 +34,7 @@ async function main() {
         'Prueba de correo de Evoria',
         'Si recibiste este mensaje, el envío de correos de Evoria funciona.',
       );
-    process.stdout.write('Correo de prueba aceptado por el servidor SMTP.\n');
+    process.stdout.write('Correo de prueba aceptado por Brevo.\n');
   } finally {
     await app.close();
   }
